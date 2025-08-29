@@ -19,12 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SingleImageUpload } from "@/components/shared/single-image-upload";
+import { CoverImageUpload } from "@/components/shared/cover-image-upload";
 import { GalleryUpload } from "@/components/shared/gallery-upload";
 import { RichTextEditor } from "@/components/shared/rich-text-editor";
 import { useArrayManager } from "@/hooks/use-array-manager";
 import { Plus, X, Loader2 } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
+import { useActivities } from "@/hooks/use-activities";
+import { toBackendUrl } from "@/lib/utils";
 import {
   Dialog as BaseDialog,
   DialogContent as BaseDialogContent,
@@ -51,12 +53,28 @@ export function ProjectForm({
   isLoading = false,
 }: ProjectFormProps) {
   const { byModule, refreshCategories } = useCategories();
+  const { uploadImage, uploadImages, deleteUploadedImage } = useActivities();
   const projectCategories = byModule("projects");
   useEffect(() => {
     refreshCategories("projects");
   }, [refreshCategories]);
   const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    location: string;
+    category: string;
+    topic: string;
+    budget: string;
+    beneficiaries: string;
+    manager: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    details: string;
+    mainImage: string | null;
+    gallery: Array<{ url: string; title: string; fileId?: string }>;
+  }>({
     name: "",
     description: "",
     location: "",
@@ -72,6 +90,8 @@ export function ProjectForm({
     mainImage: null,
     gallery: [],
   });
+  const [coverFileId, setCoverFileId] = useState<string | null>(null);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   const {
     items: objectives,
@@ -89,6 +109,7 @@ export function ProjectForm({
 
   const [newObjective, setNewObjective] = useState("");
   const [newActivity, setNewActivity] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
@@ -106,8 +127,13 @@ export function ProjectForm({
           endDate: initialData.endDate || "",
           status: initialData.status || "مخطط",
           details: initialData.details || "",
-          mainImage: initialData.mainImage || null,
-          gallery: initialData.gallery || [],
+          mainImage: initialData.mainImage ? toBackendUrl(initialData.mainImage) : null,
+          gallery: Array.isArray(initialData.gallery)
+            ? initialData.gallery.map((g: any) => ({
+                ...g,
+                url: toBackendUrl(g?.url),
+              }))
+            : [],
         });
         setObjectives(initialData.objectives || []);
         setActivities(initialData.activities || []);
@@ -136,13 +162,112 @@ export function ProjectForm({
     }
   }, [isOpen, initialData, setObjectives, setActivities]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Refresh categories when closing the categories manager dialog
+  useEffect(() => {
+    if (!showCategoriesDialog) {
+      refreshCategories("projects");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCategoriesDialog]);
+
+  // Upload handlers
+  const handleCoverUpload = async (file: File) => {
+    const res = await uploadImage(file);
+    const data: any = res.data;
+    const fileId = String(data?.id ?? data?._id ?? data?.fileName);
+    setCoverFileId(fileId);
+    if (data?.url) {
+      setFormData((prev) => ({ ...prev, mainImage: toBackendUrl(data.url) }));
+    }
+  };
+
+  const handleGalleryUpload = async (files: File[]) => {
+    setUploadingGallery(true);
+    try {
+      const res = await uploadImages(files);
+      const newItems = res.data.map((img: any, index: number) => ({
+        url: toBackendUrl(img?.url) || URL.createObjectURL(files[index]),
+        title: "",
+        fileId: String(img?.id ?? img?._id ?? img?.fileName),
+      }));
+      setFormData((prev: any) => ({ ...prev, gallery: [...prev.gallery, ...newItems] }));
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const handleRemoveGalleryImage = async (index: number, image: any) => {
+    try {
+      const fileId = image?.fileId || image?.title;
+      if (fileId) await deleteUploadedImage(fileId);
+    } finally {
+      setFormData((prev: any) => ({
+        ...prev,
+        gallery: prev.gallery.filter((_: any, i: number) => i !== index),
+      }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      ...formData,
-      objectives,
-      activities,
-    });
+    
+    // Clear previous validation errors
+    setValidationErrors({});
+    
+    // Validate required fields (client-side)
+    const errors: Record<string, string> = {};
+    if (!formData.description?.trim()) {
+      errors.description = "وصف البرنامج مطلوب";
+    }
+    if (!formData.location?.trim()) {
+      errors.location = "موقع البرنامج مطلوب";
+    } else if (formData.location.trim().length < 4) {
+      errors.location = "موقع البرنامج يجب أن يكون أطول من ثلاث حروف";
+    }
+    if (!formData.startDate) {
+      errors.startDate = "تاريخ البداية مطلوب";
+    } else if (isNaN(new Date(formData.startDate).getTime())) {
+      errors.startDate = "تاريخ البداية غير صالح";
+    }
+    if (!formData.endDate) {
+      errors.endDate = "تاريخ النهاية مطلوب";
+    } else if (isNaN(new Date(formData.endDate).getTime())) {
+      errors.endDate = "تاريخ النهاية غير صالح";
+    }
+    const contentText = (formData.details || "").replace(/<[^>]*>/g, "").trim();
+    if (!contentText) {
+      errors.content = "المحتوى مطلوب";
+    } else if (contentText.length < 7) {
+      errors.content = "المحتوى يجب أن يكون أطول من 6 حروف";
+    }
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    try {
+      await Promise.resolve(onSubmit({
+        ...formData,
+        objectives,
+        activities,
+        coverFileId,
+      }));
+    } catch (err: any) {
+      // Map server-side validation errors if present
+      const serverDetails: Array<{ param?: string; msg?: string }> = err?.response?.data?.details || [];
+      if (Array.isArray(serverDetails) && serverDetails.length > 0) {
+        const mapped: Record<string, string> = {};
+        for (const d of serverDetails) {
+          if (!d?.param || !d?.msg) continue;
+          const key = d.param === "content" ? "content" : d.param;
+          mapped[key] = d.msg;
+        }
+        setValidationErrors(mapped);
+        return;
+      }
+      // Fallback: generic error
+      setValidationErrors({ content: "حدث خطأ أثناء الإرسال" });
+    }
   };
 
   const handleAddObjective = () => {
@@ -211,6 +336,9 @@ export function ProjectForm({
                   }
                   className="text-right"
                 />
+                {validationErrors.location && (
+                  <p className="text-sm text-red-600">{validationErrors.location}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -226,7 +354,7 @@ export function ProjectForm({
                   </SelectTrigger>
                   <SelectContent>
                     {projectCategories.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>
+                      <SelectItem key={c.id} value={c.id}>
                         {c.name}
                       </SelectItem>
                     ))}
@@ -286,6 +414,9 @@ export function ProjectForm({
                     }))
                   }
                 />
+                {validationErrors.startDate && (
+                  <p className="text-sm text-red-600">{validationErrors.startDate}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -301,6 +432,9 @@ export function ProjectForm({
                     }))
                   }
                 />
+                {validationErrors.endDate && (
+                  <p className="text-sm text-red-600">{validationErrors.endDate}</p>
+                )}
               </div>
             </div>
 
@@ -318,6 +452,9 @@ export function ProjectForm({
                 className="text-right"
                 rows={3}
               />
+              {validationErrors.description && (
+                <p className="text-sm text-red-600">{validationErrors.description}</p>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -416,6 +553,9 @@ export function ProjectForm({
                   setFormData((prev) => ({ ...prev, details: value }))
                 }
               />
+              {validationErrors.content && (
+                <p className="text-sm text-red-600">{validationErrors.content}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -439,24 +579,27 @@ export function ProjectForm({
             </div>
 
             <div className="space-y-2">
-              <SingleImageUpload
+              <CoverImageUpload
                 currentImage={formData.mainImage}
-                onImageChange={(image) =>
-                  setFormData((prev) => ({ ...prev, mainImage: image }))
-                }
+                onImageChange={(image) => setFormData((prev) => ({ ...prev, mainImage: image }))}
+                onUpload={handleCoverUpload}
                 label="الصورة الرئيسية للمشروع"
                 required
               />
+              {!coverFileId && (
+                <p className="text-sm text-red-600">يرجى رفع صورة الغلاف</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <GalleryUpload
-                currentImages={formData.gallery}
-                onImagesChange={(gallery) =>
-                  setFormData((prev) => ({ ...prev, gallery }))
-                }
+                currentImages={formData.gallery as any}
+                onImagesChange={(gallery) => setFormData((prev) => ({ ...prev, gallery }))}
                 label="معرض الصور (اختياري)"
                 maxImages={10}
+                onUpload={handleGalleryUpload}
+                uploading={uploadingGallery}
+                onRemove={handleRemoveGalleryImage}
               />
             </div>
 

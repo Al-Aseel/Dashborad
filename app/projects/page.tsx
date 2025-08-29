@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { DashboardLayout } from "@/components/shared/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,12 +25,17 @@ import { ImageGallery } from "@/components/shared/image-gallery"
 import { ProjectStats } from "@/components/projects/project-stats"
 import { ProjectForm } from "@/components/projects/project-form"
 import { useDebounce } from "@/hooks/use-debounce"
-import { Plus, Search, Filter, Edit, Trash2, Eye, Target, Activity, Loader2 } from "lucide-react"
+import { Plus, Search, Filter, Edit, Trash2, Eye, Target, Activity, Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Toaster } from "@/components/ui/toaster"
+import { ProgramsApi } from "@/lib/programs"
+import { useAuth } from "@/hooks/use-auth"
+import { Permissions } from "@/lib/auth"
+import { toBackendUrl } from "@/lib/utils"
+import { useCategories } from "@/hooks/use-categories"
 
 interface Project {
-  id: number
+  id: string
   title: string
   description: string
   status: string
@@ -46,72 +51,25 @@ interface Project {
   activities: string[]
   details: string
   mainImage?: string
-  gallery: Array<{ url: string; title: string }>
+  gallery: Array<{ url: string; title: string; fileId?: string }>
+  coverFileId?: string
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 1,
-      title: "مشروع كفالة الأيتام",
-      description: "برنامج شامل لكفالة ورعاية الأطفال الأيتام",
-      status: "نشط",
-      progress: 75,
-      budget: "50,000",
-      beneficiaries: "120",
-      location: "الرياض",
-      startDate: "2024-01-15",
-      endDate: "2024-12-31",
-      category: "الرعاية الاجتماعية",
-      manager: "أحمد محمد",
-      objectives: ["توفير الرعاية الكاملة للأيتام", "التعليم والتأهيل", "الدعم النفسي"],
-      activities: ["كفالة شهرية", "برامج تعليمية", "أنشطة ترفيهية"],
-      details: "مشروع شامل يهدف إلى رعاية الأطفال الأيتام وتوفير احتياجاتهم الأساسية",
-      mainImage: "/charity-hope-main.png",
-      gallery: [
-        { url: "/food-aid-distribution.png", title: "توزيع السلال الغذائية" },
-        { url: "/youth-education-programs.png", title: "برامج تعليمية" },
-      ],
-    },
-    {
-      id: 2,
-      title: "مشروع توزيع المواد الغذائية",
-      description: "توزيع السلال الغذائية للأسر المحتاجة",
-      status: "مكتمل",
-      progress: 100,
-      budget: "30,000",
-      beneficiaries: "200",
-      location: "جدة",
-      startDate: "2024-02-01",
-      endDate: "2024-03-31",
-      category: "الإغاثة",
-      manager: "فاطمة علي",
-      objectives: ["توفير الغذاء للأسر المحتاجة", "تحسين الأمن الغذائي"],
-      activities: ["توزيع السلال الغذائية", "متابعة الأسر المستفيدة"],
-      details: "مشروع إغاثي لتوزيع المواد الغذائية على الأسر الأكثر احتياجاً",
-      mainImage: "/food-aid-distribution.png",
-      gallery: [],
-    },
-    {
-      id: 3,
-      title: "مشروع التعليم المجاني",
-      description: "برنامج تعليمي مجاني للأطفال من الأسر الفقيرة",
-      status: "قيد التنفيذ",
-      progress: 45,
-      budget: "80,000",
-      beneficiaries: "150",
-      location: "الدمام",
-      startDate: "2024-03-01",
-      endDate: "2024-08-31",
-      category: "التعليم",
-      manager: "خالد السعد",
-      objectives: ["توفير التعليم المجاني", "تطوير المهارات", "دعم الأسر الفقيرة"],
-      activities: ["دروس تقوية", "ورش تدريبية", "توفير الأدوات المدرسية"],
-      details: "برنامج تعليمي شامل يهدف إلى دعم الأطفال من الأسر الفقيرة",
-      mainImage: "/youth-education-programs.png",
-      gallery: [],
-    },
-  ])
+  const { user } = useAuth()
+  const { byModule, refreshCategories } = useCategories()
+  const projectCategories = byModule("projects")
+  const [projects, setProjects] = useState<Project[]>([])
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(10)
+  const [total, setTotal] = useState(0)
+  const [isFetching, setIsFetching] = useState(false)
+  const [apiStats, setApiStats] = useState({
+    totalNumberOfPrograms: 0,
+    numberOfActivePrograms: 0,
+    totalBudget: 0,
+    totalNumberOfBeneficiaries: 0,
+  })
 
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("الكل")
@@ -121,9 +79,58 @@ export default function ProjectsPage() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [isViewLoading, setIsViewLoading] = useState(false)
+  const [isEditFetching, setIsEditFetching] = useState(false)
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(false)
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
+  // Load categories on component mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      setIsCategoriesLoading(true)
+      try {
+        await refreshCategories("projects")
+      } finally {
+        setIsCategoriesLoading(false)
+      }
+    }
+    loadCategories()
+  }, [refreshCategories])
+
+  const handleRefresh = useCallback(() => {
+    const load = async () => {
+      try {
+        setIsFetching(true)
+        setIsCategoriesLoading(true)
+        // Refresh both projects and categories
+        await Promise.all([
+          refreshCategories("projects"),
+          (async () => {
+            const res = await ProgramsApi.getPrograms({ page, limit, search: debouncedSearchTerm })
+            const items = (res.data?.programs || []) as any[]
+            const mapped: Project[] = items.map((p: any) => mapProgramToProject(p))
+            setProjects(mapped)
+            setTotal(res.data?.pagination?.total || 0)
+            // Capture API statistics
+            setApiStats({
+              totalNumberOfPrograms: (res as any).totalNumberOfPrograms || 0,
+              numberOfActivePrograms: (res as any).numberOfActivePrograms || 0,
+              totalBudget: (res as any).totalBudget || 0,
+              totalNumberOfBeneficiaries: (res as any).totalNumberOfBeneficiaries || 0,
+            })
+          })()
+        ])
+      } catch (error) {
+        // Fail softly
+      } finally {
+        setIsFetching(false)
+        setIsCategoriesLoading(false)
+      }
+    }
+    load()
+  }, [page, limit, debouncedSearchTerm, refreshCategories])
 
   const filteredProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -137,6 +144,101 @@ export default function ProjectsPage() {
   }, [projects, debouncedSearchTerm, statusFilter, categoryFilter])
 
   const { toast } = useToast()
+
+  // Formatting helpers
+  const formatNumber = (value: string | number) => {
+    const n = typeof value === "number" ? value : Number(String(value).replace(/[^\d]/g, ""))
+    return Number.isFinite(n) ? n.toLocaleString("ar-EG") : String(value)
+  }
+
+  const formatCurrencyUSD = (value: string | number) => {
+    const n = typeof value === "number" ? value : Number(String(value).replace(/[^\d.]/g, ""))
+    return Number.isFinite(n) ? `${n.toLocaleString("en-US")} دولار` : `${value} دولار`
+  }
+
+  const formatDate = (value: string | Date | undefined) => {
+    if (!value) return "";
+    try {
+      const d = typeof value === "string" ? new Date(value) : value;
+      if (Number.isNaN(d.getTime())) return String(value);
+      return new Intl.DateTimeFormat("ar-EG", { year: "numeric", month: "long", day: "numeric" }).format(d);
+    } catch {
+      return String(value);
+    }
+  }
+
+  const toDateInputValue = (value: string): string => {
+    if (!value) return ""
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return value
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${y}-${m}-${day}`
+  }
+
+  const mapProgramToProject = (p: any): Project => ({
+    id: String(p._id || p.id || Date.now()),
+    title: p.name,
+    description: p.description,
+    status:
+      p.status === "active"
+        ? "نشط"
+        : p.status === "completed"
+        ? "مكتمل"
+        : p.status === "in_progress" || p.status === "scheduled"
+        ? "قيد التنفيذ"
+        : p.status === "paused" || p.status === "stopped"
+        ? "متوقف"
+        : "مخطط",
+    progress: 0,
+    budget: String(p.budget ?? ""),
+    beneficiaries: String(p.numberOfBeneficiary ?? ""),
+    location: p.location ?? "",
+    startDate: p.startDate ?? "",
+    endDate: p.endDate ?? "",
+    category: p.category?.name || "",
+    manager: p.manager ?? "",
+    objectives: p.goals || [],
+    activities: p.activities || [],
+    details: p.content || "",
+    mainImage: p.coverImage ? toBackendUrl(p.coverImage.url || p.coverImage) : undefined,
+    gallery: Array.isArray(p.gallery)
+      ? p.gallery.map((g: any) => ({
+          url: toBackendUrl(g.url || ""),
+          title: g.title || "",
+          fileId: String(g?.id || g?._id || g?.fileName || ""),
+        }))
+      : [],
+    coverFileId: String(p?.coverImage?.id || p?.coverImage?._id || p?.coverImage?.fileName || "") || undefined,
+  })
+
+  // Load programs from API
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setIsFetching(true)
+        const res = await ProgramsApi.getPrograms({ page, limit, search: debouncedSearchTerm })
+        const items = (res.data?.programs || []) as any[]
+        const mapped: Project[] = items.map((p: any) => mapProgramToProject(p))
+        setProjects(mapped)
+        setTotal(res.data?.pagination?.total || 0)
+        // Capture API statistics
+        setApiStats({
+          totalNumberOfPrograms: (res as any).totalNumberOfPrograms || 0,
+          numberOfActivePrograms: (res as any).numberOfActivePrograms || 0,
+          totalBudget: (res as any).totalBudget || 0,
+          totalNumberOfBeneficiaries: (res as any).totalNumberOfBeneficiaries || 0,
+        })
+      } catch (error) {
+        // Fail softly
+      } finally {
+        setIsFetching(false)
+      }
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit, debouncedSearchTerm])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -158,36 +260,69 @@ export default function ProjectsPage() {
   const handleAddProject = async (projectData: any) => {
     setIsLoading(true)
     try {
-      // محاكاة API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Map status Arabic to API status values
+      const statusMap: Record<string, string> = {
+        "نشط": "active",
+        "مكتمل": "completed",
+        "قيد التنفيذ": "active",
+        "متوقف": "stopped",
+        "مخطط": "scheduled",
+      }
 
-      const newProject: Project = {
-        id: Date.now(),
-        title: projectData.name,
+      if (!projectData.coverFileId) {
+        toast({ title: "صورة الغلاف مطلوبة", variant: "destructive" })
+        return
+      }
+      if (!projectData.category) {
+        toast({ title: "اختر فئة صحيحة", variant: "destructive" })
+        return
+      }
+      const payload = {
+        name: projectData.name,
         description: projectData.description,
-        status: projectData.status,
-        progress: 0,
-        budget: projectData.budget,
-        beneficiaries: projectData.beneficiaries,
+        category: projectData.category, // should be categoryId now
+        status: statusMap[projectData.status] || "active",
         location: projectData.location,
+        budget: Number(String(projectData.budget).replace(/[^\d.]/g, "")) || 0,
         startDate: projectData.startDate,
         endDate: projectData.endDate,
-        category: projectData.category,
         manager: projectData.manager,
-        objectives: projectData.objectives,
-        activities: projectData.activities,
-        details: projectData.details,
-        mainImage: projectData.mainImage,
-        gallery: projectData.gallery,
+        numberOfBeneficiary: Number(String(projectData.beneficiaries).replace(/[^\d]/g, "")) || 0,
+        content: projectData.details || "",
+        goals: projectData.objectives || [],
+        activities: projectData.activities || [],
+        coverImage: undefined as string | undefined,
+        gallery: undefined as Array<{ fileId: string; title?: string }> | undefined,
       }
-      setProjects([...projects, newProject])
+
+      // coverImage is required by API: ensure we pass the uploaded cover fileId
+      if ((projectData as any).coverFileId) {
+        payload.coverImage = (projectData as any).coverFileId
+      }
+
+      // gallery: map items with fileId
+      if (Array.isArray(projectData.gallery)) {
+        const galleryItems = projectData.gallery
+          .map((g: any) => {
+            const fileId = g?.fileId || g?.title // title might store id when editing old data
+            if (!fileId) return null
+            return { fileId: String(fileId), title: g?.title && g.fileId ? g.title : undefined }
+          })
+          .filter(Boolean) as Array<{ fileId: string; title?: string }>
+        if (galleryItems.length) payload.gallery = galleryItems
+      }
+
+      const res = await ProgramsApi.createProgram(payload as any)
+
+      // Refresh the entire projects list to get latest data from server
+      const refreshRes = await ProgramsApi.getPrograms({ page, limit, search: debouncedSearchTerm })
+      const items = (refreshRes.data?.programs || []) as any[]
+      const mapped: Project[] = items.map((p: any) => mapProgramToProject(p))
+      setProjects(mapped)
+      setTotal(refreshRes.data?.pagination?.total || 0)
       setIsAddDialogOpen(false)
 
-      toast({
-        title: "تم إضافة المشروع بنجاح",
-        description: `تم إضافة مشروع "${projectData.name}" بنجاح`,
-        variant: "default",
-      })
+      toast({ title: res.message || "تم إضافة المشروع بنجاح" })
     } catch (error) {
       toast({
         title: "خطأ في إضافة المشروع",
@@ -203,28 +338,69 @@ export default function ProjectsPage() {
     if (!selectedProject) return
     setIsLoading(true)
     try {
-      // محاكاة API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const statusMap: Record<string, string> = {
+        "نشط": "active",
+        "مكتمل": "completed",
+        "قيد التنفيذ": "active",
+        "متوقف": "stopped",
+        "مخطط": "scheduled",
+      }
+
+      const payload: any = {
+        name: projectData.name,
+        description: projectData.description,
+        category: projectData.category,
+        status: statusMap[projectData.status] || "active",
+        location: projectData.location,
+        budget: Number(String(projectData.budget).replace(/[^\d.]/g, "")) || 0,
+        startDate: projectData.startDate,
+        endDate: projectData.endDate,
+        manager: projectData.manager,
+        numberOfBeneficiary: Number(String(projectData.beneficiaries).replace(/[^\d]/g, "")) || 0,
+        content: projectData.details || "",
+        goals: projectData.objectives || [],
+        activities: projectData.activities || [],
+      }
+      // Use new uploaded cover fileId if provided, otherwise keep existing server cover id
+      const coverIdCandidate = (projectData as any).coverFileId || selectedProject.coverFileId
+      if (coverIdCandidate) payload.coverImage = coverIdCandidate
+      else {
+        toast({ title: "صورة الغلاف مطلوبة", variant: "destructive" })
+        setIsLoading(false)
+        return
+      }
+      if (Array.isArray(projectData.gallery)) {
+        const galleryItems = projectData.gallery
+          .map((g: any) => {
+            const fileId = g?.fileId || g?.title
+            if (!fileId) return null
+            return { fileId: String(fileId), title: g?.title && g.fileId ? g.title : undefined }
+          })
+          .filter(Boolean)
+      if (galleryItems.length) payload.gallery = galleryItems
+      }
+
+      await ProgramsApi.updateProgram(selectedProject.id, payload)
 
       const updatedProjects = projects.map((project) =>
         project.id === selectedProject.id
           ? {
               ...project,
-              title: projectData.name,
-              description: projectData.description,
-              manager: projectData.manager,
-              location: projectData.location,
-              budget: projectData.budget,
-              beneficiaries: projectData.beneficiaries,
+              title: payload.name,
+              description: payload.description,
+              manager: payload.manager,
+              location: payload.location,
+              budget: String(payload.budget),
+              beneficiaries: String(payload.numberOfBeneficiary),
               category: projectData.category,
               status: projectData.status,
-              startDate: projectData.startDate,
-              endDate: projectData.endDate,
-              objectives: projectData.objectives,
-              activities: projectData.activities,
-              details: projectData.details,
+              startDate: payload.startDate,
+              endDate: payload.endDate,
+              objectives: payload.goals,
+              activities: payload.activities,
+              details: payload.content,
               mainImage: projectData.mainImage,
-              gallery: projectData.gallery,
+              gallery: (projectData.gallery || []).map((g: any) => ({ url: g.url, title: g.title })),
             }
           : project,
       )
@@ -233,8 +409,8 @@ export default function ProjectsPage() {
       setIsEditDialogOpen(false)
 
       toast({
-        title: "تم تحديث المشروع بنجاح",
-        description: `تم تحديث مشروع "${projectData.name}" بنجاح`,
+        title: "تم تحديث البرنامج بنجاح",
+        description: `تم تحديث برنامج "${projectData.name}" بنجاح`,
         variant: "default",
       })
     } catch (error) {
@@ -248,17 +424,16 @@ export default function ProjectsPage() {
     }
   }
 
-  const handleDeleteProject = async (id: number) => {
+  const handleDeleteProject = async (id: string) => {
     setDeletingId(id)
     try {
-      // محاكاة API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const res = await ProgramsApi.deleteProgram(id)
 
       const projectToDelete = projects.find((p) => p.id === id)
       setProjects(projects.filter((project) => project.id !== id))
 
       toast({
-        title: "تم حذف المشروع بنجاح",
+        title: res?.message || "تم حذف البرنامج بنجاح",
         description: `تم حذف مشروع "${projectToDelete?.title}" بنجاح`,
         variant: "default",
       })
@@ -273,17 +448,40 @@ export default function ProjectsPage() {
     }
   }
 
-  const openEditDialog = (project: Project) => {
-    setSelectedProject(project)
+  const openEditDialog = async (project: Project) => {
     setIsEditDialogOpen(true)
+    setIsEditFetching(true)
+    try {
+      const res = await ProgramsApi.getProgramById(project.id)
+      const data: any = (res as any).data
+      const detailed = mapProgramToProject(data)
+      // Ensure category value is the ID for the edit Select
+      const categoryId = data?.category?._id || data?.category?.id || data?.category
+      detailed.category = String(categoryId ?? detailed.category)
+      setSelectedProject(detailed)
+    } catch {
+      setSelectedProject(project)
+    } finally {
+      setIsEditFetching(false)
+    }
   }
 
-  const openViewDialog = (project: Project) => {
-    setSelectedProject(project)
+  const openViewDialog = async (project: Project) => {
     setIsViewDialogOpen(true)
+    setIsViewLoading(true)
+    try {
+      const res = await ProgramsApi.getProgramById(project.id)
+      const detailed = mapProgramToProject((res as any).data)
+      setSelectedProject(detailed)
+    } catch {
+      // fallback to selected basic
+      setSelectedProject(project)
+    } finally {
+      setIsViewLoading(false)
+    }
   }
 
-  const categories = ["الرعاية الاجتماعية", "التعليم", "الصحة", "الإغاثة", "التنمية", "البيئة", "الثقافة"]
+  const categories = projectCategories.map(cat => cat.name)
   const statuses = ["نشط", "قيد التنفيذ", "مكتمل", "متوقف", "مؤجل", "مخطط"]
 
   return (
@@ -295,17 +493,39 @@ export default function ProjectsPage() {
             <h1 className="text-3xl font-bold text-gray-900">إدارة المشاريع</h1>
             <p className="text-gray-600 mt-2">إدارة ومتابعة جميع مشاريع الجمعية</p>
           </div>
+          <div className="flex gap-2">
           <Button
             className="bg-blue-600 hover:bg-blue-700"
             onClick={() => setIsAddDialogOpen(true)}
-            disabled={isLoading}
+            disabled={
+              isLoading || (user?.role ? !Permissions.canCreate(user.role as any) : true)
+            }
           >
             {isLoading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Plus className="w-4 h-4 ml-2" />}
             مشروع جديد
           </Button>
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isFetching}
+            >
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${
+                  isFetching ? "animate-spin" : ""
+                }`}
+              />
+              تحديث
+            </Button>
+          </div>
         </div>
 
-        <ProjectStats projects={projects} />
+        <ProjectStats 
+          projects={projects as any} 
+          totalNumberOfPrograms={apiStats.totalNumberOfPrograms}
+          numberOfActivePrograms={apiStats.numberOfActivePrograms}
+          totalBudget={apiStats.totalBudget}
+          totalNumberOfBeneficiaries={apiStats.totalNumberOfBeneficiaries}
+        />
 
         {/* Filters and Search */}
         <Card>
@@ -337,17 +557,30 @@ export default function ProjectsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={isCategoriesLoading}>
                   <SelectTrigger className="w-40">
-                    <SelectValue />
+                    <SelectValue placeholder={isCategoriesLoading ? "جاري التحميل..." : "اختر الفئة"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="الكل">كل الفئات</SelectItem>
-                    {categories.map((category) => (
+                    {isCategoriesLoading ? (
+                      <SelectItem value="loading" disabled>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          جاري تحميل الفئات...
+                        </div>
+                      </SelectItem>
+                    ) : categories.length === 0 ? (
+                      <SelectItem value="no-categories" disabled>
+                        لا توجد فئات
+                      </SelectItem>
+                    ) : (
+                      categories.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
-                    ))}
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -361,43 +594,60 @@ export default function ProjectsPage() {
             <CardDescription>جميع المشاريع مع المعلومات الأساسية والإجراءات</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
+            {isFetching ? (
+              <div className="flex items-center justify-center py-10 text-gray-600">
+                <Loader2 className="w-5 h-5 ml-2 animate-spin" />
+                جاري تحميل البيانات...
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="py-16 text-center text-gray-500 border rounded-md">
+                لا توجد بيانات لعرضها.
+              </div>
+            ) : (
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-[6%]" />
+                <col className="w-[20%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[20%]" />
+              </colgroup>
               <TableHeader>
                 <TableRow>
-                  <TableHead>اسم المشروع</TableHead>
-                  <TableHead>المدير</TableHead>
-                  <TableHead>الحالة</TableHead>
-                  <TableHead>الموقع</TableHead>
-                  <TableHead>الميزانية</TableHead>
-                  <TableHead>المستفيدون</TableHead>
-                  <TableHead>التقدم</TableHead>
-                  <TableHead>الإجراءات</TableHead>
+                  <TableHead className="text-right">#</TableHead>
+                  <TableHead className="text-right">اسم المشروع</TableHead>
+                  <TableHead className="text-right">المدير</TableHead>
+                  <TableHead className="text-right">الحالة</TableHead>
+                  <TableHead className="text-right">الموقع</TableHead>
+                  <TableHead className="text-right">الميزانية</TableHead>
+                  <TableHead className="text-right">المستفيدون</TableHead>
+                  <TableHead className="text-right">الإجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProjects.map((project) => (
+                {filteredProjects.map((project, index) => (
                   <TableRow key={project.id}>
-                    <TableCell>
+                    <TableCell className="text-right">
+                      {(page - 1) * limit + index + 1}
+                    </TableCell>
+                    <TableCell className="text-right">
                       <div>
                         <div className="font-medium">{project.title}</div>
                         <div className="text-sm text-gray-500">{project.category}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{project.manager}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-right truncate">{project.manager}</TableCell>
+                    <TableCell className="text-right">
                       <Badge className={getStatusColor(project.status)}>{project.status}</Badge>
                     </TableCell>
-                    <TableCell>{project.location}</TableCell>
-                    <TableCell>{project.budget} ريال</TableCell>
-                    <TableCell>{project.beneficiaries}</TableCell>
+                    <TableCell className="text-right truncate">{project.location}</TableCell>
+                    <TableCell className="text-right">{formatCurrencyUSD(project.budget)}</TableCell>
+                    <TableCell className="text-right">{Number(project.beneficiaries).toLocaleString('en-US')}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={project.progress} className="h-2 w-16" />
-                        <span className="text-sm">{project.progress}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 justify-start md:justify-end">
                         <Button variant="outline" size="sm" onClick={() => openViewDialog(project)}>
                           <Eye className="w-4 h-4" />
                         </Button>
@@ -456,8 +706,83 @@ export default function ProjectsPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
           </CardContent>
         </Card>
+
+        {/* Pagination */}
+        {!isFetching && filteredProjects.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <span>
+                    عرض {((page - 1) * limit) + 1} إلى {Math.min(page * limit, total)} من {total} مشروع
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">عرض:</span>
+                  <Select
+                    value={String(limit)}
+                    onValueChange={(value) => {
+                      setLimit(Number(value));
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="flex justify-center mt-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                  >
+                    السابق
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, Math.ceil(total / limit)) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page >= Math.ceil(total / limit)}
+                  >
+                    التالي
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <ProjectForm
           isOpen={isAddDialogOpen}
@@ -482,8 +807,8 @@ export default function ProjectsPage() {
                   beneficiaries: selectedProject.beneficiaries,
                   category: selectedProject.category,
                   status: selectedProject.status,
-                  startDate: selectedProject.startDate,
-                  endDate: selectedProject.endDate,
+                  startDate: toDateInputValue(selectedProject.startDate),
+                  endDate: toDateInputValue(selectedProject.endDate),
                   objectives: selectedProject.objectives,
                   activities: selectedProject.activities,
                   details: selectedProject.details,
@@ -493,19 +818,40 @@ export default function ProjectsPage() {
               : undefined
           }
           title="تعديل المشروع"
-          isLoading={isLoading}
+          isLoading={isLoading || isEditFetching}
         />
 
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-2xl">{selectedProject?.title}</DialogTitle>
+              <DialogTitle className="text-2xl">
+                {isViewLoading ? (
+                  <div className="flex items-center text-gray-600">
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    جاري تحميل التفاصيل...
+                  </div>
+                ) : (
+                  selectedProject?.title
+                )}
+              </DialogTitle>
               <div className="flex items-center gap-2 mt-2">
-                <Badge className={getStatusColor(selectedProject?.status || "")}>{selectedProject?.status}</Badge>
+                {!isViewLoading && (
+                  <>
+                    <Badge className={getStatusColor(selectedProject?.status || "")}>
+                      {selectedProject?.status}
+                    </Badge>
                 <Badge variant="outline">{selectedProject?.category}</Badge>
+                  </>
+                )}
               </div>
             </DialogHeader>
-            {selectedProject && (
+            {isViewLoading && (
+              <div className="py-10 flex flex-col items-center justify-center text-gray-600 gap-3">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <div>جاري تحميل التفاصيل...</div>
+              </div>
+            )}
+            {selectedProject && !isViewLoading && (
               <div className="space-y-6 py-4">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-4">
@@ -530,25 +876,15 @@ export default function ProjectsPage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">تاريخ البداية:</span>
-                          <span className="font-medium">{selectedProject.startDate}</span>
+                          <span className="font-medium">{formatDate(selectedProject.startDate)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">تاريخ النهاية:</span>
-                          <span className="font-medium">{selectedProject.endDate}</span>
+                          <span className="font-medium">{formatDate(selectedProject.endDate)}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">التقدم</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">نسبة الإنجاز</span>
-                          <span className="font-medium">{selectedProject.progress}%</span>
-                        </div>
-                        <Progress value={selectedProject.progress} className="h-3" />
-                      </div>
-                    </div>
                   </div>
 
                   <div className="space-y-4">

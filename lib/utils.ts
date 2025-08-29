@@ -22,6 +22,12 @@ export function toBackendUrl(pathOrUrl: string | undefined | null): string {
     const trimmed = withoutApiPrefix.startsWith("/")
       ? withoutApiPrefix
       : `/${withoutApiPrefix}`;
-    return `${API_BASE_URL}${trimmed}`;
+    // Always use only the origin of API_BASE_URL to avoid duplicating base paths (e.g., /api/v1)
+    try {
+      const backend = new URL(API_BASE_URL);
+      return `${backend.origin}${trimmed}`;
+    } catch {
+      return trimmed;
+    }
   }
 }

@@ -13,8 +13,8 @@ export interface CategoryItem {
   isUsed?: boolean;
 }
 
-function moduleToType(module: CategoryModule): "activity" | "projects" {
-  return module === "news-activities" ? "activity" : "projects";
+function moduleToType(module: CategoryModule): "activity" | "program" {
+  return module === "news-activities" ? "activity" : "program";
 }
 
 export function useCategories() {
@@ -98,7 +98,7 @@ export function useCategories() {
         const [activityRes, projectRes] = await Promise.all([
           api.get("/category", { params: { type: "activity" } }),
           api
-            .get("/category", { params: { type: "project" } })
+            .get("/category", { params: { type: "program" } })
             .catch(() => ({ data: [] })),
         ]);
         const activityArray = Array.isArray((activityRes as any)?.data?.data)
