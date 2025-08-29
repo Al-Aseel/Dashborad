@@ -4,7 +4,7 @@ import type React from "react"
 import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload, FileText, X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, toBackendUrl } from "@/lib/utils"
 
 interface PdfUploadProps {
   onFileChange: (file: File | null) => void
@@ -12,6 +12,9 @@ interface PdfUploadProps {
   label?: string
   required?: boolean
   className?: string
+  currentFileUrl?: string
+  currentFileName?: string
+  currentFileSize?: number
 }
 
 export function PdfUpload({
@@ -20,6 +23,9 @@ export function PdfUpload({
   label = "رفع ملف PDF",
   required = false,
   className,
+  currentFileUrl,
+  currentFileName,
+  currentFileSize,
 }: PdfUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
@@ -81,6 +87,37 @@ export function PdfUpload({
               <div>
                 <p className="font-medium text-gray-900">{currentFile.name}</p>
                 <p className="text-sm text-gray-500">{(currentFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={removeFile}
+              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      ) : currentFileUrl ? (
+        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileText className="w-8 h-8 text-red-500" />
+              <div>
+                <p className="font-medium text-gray-900">{currentFileName || "ملف PDF"}</p>
+                {typeof currentFileSize === "number" && (
+                  <p className="text-sm text-gray-500">{(currentFileSize / (1024 * 1024)).toFixed(2)} MB</p>
+                )}
+                <a
+                  href={toBackendUrl(currentFileUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  عرض الملف
+                </a>
               </div>
             </div>
             <Button
