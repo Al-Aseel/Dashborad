@@ -1,0 +1,505 @@
+"use client";
+
+import type React from "react";
+import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SingleImageUpload } from "@/components/shared/single-image-upload";
+import { GalleryUpload } from "@/components/shared/gallery-upload";
+import { RichTextEditor } from "@/components/shared/rich-text-editor";
+import { useArrayManager } from "@/hooks/use-array-manager";
+import { Plus, X, Loader2 } from "lucide-react";
+import { useCategories } from "@/hooks/use-categories";
+import {
+  Dialog as BaseDialog,
+  DialogContent as BaseDialogContent,
+  DialogHeader as BaseDialogHeader,
+  DialogTitle as BaseDialogTitle,
+} from "@/components/ui/dialog";
+import { CategoryManager } from "@/components/shared/category-manager";
+
+interface ProjectFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (project: any) => void;
+  initialData?: any;
+  title: string;
+  isLoading?: boolean; // إضافة خاصية isLoading
+}
+
+export function ProjectForm({
+  isOpen,
+  onClose,
+  onSubmit,
+  initialData,
+  title,
+  isLoading = false,
+}: ProjectFormProps) {
+  const { byModule, refreshCategories } = useCategories();
+  const projectCategories = byModule("projects");
+  useEffect(() => {
+    refreshCategories("projects");
+  }, [refreshCategories]);
+  const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    location: "",
+    category: "",
+    topic: "",
+    budget: "",
+    beneficiaries: "",
+    manager: "",
+    startDate: "",
+    endDate: "",
+    status: "مخطط",
+    details: "",
+    mainImage: null,
+    gallery: [],
+  });
+
+  const {
+    items: objectives,
+    addItem: addObjective,
+    removeItem: removeObjective,
+    setItems: setObjectives,
+  } = useArrayManager<string>([]);
+
+  const {
+    items: activities,
+    addItem: addActivity,
+    removeItem: removeActivity,
+    setItems: setActivities,
+  } = useArrayManager<string>([]);
+
+  const [newObjective, setNewObjective] = useState("");
+  const [newActivity, setNewActivity] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setFormData({
+          name: initialData.name || "",
+          description: initialData.description || "",
+          location: initialData.location || "",
+          category: initialData.category || "",
+          topic: initialData.topic || "",
+          budget: initialData.budget || "",
+          beneficiaries: initialData.beneficiaries || "",
+          manager: initialData.manager || "",
+          startDate: initialData.startDate || "",
+          endDate: initialData.endDate || "",
+          status: initialData.status || "مخطط",
+          details: initialData.details || "",
+          mainImage: initialData.mainImage || null,
+          gallery: initialData.gallery || [],
+        });
+        setObjectives(initialData.objectives || []);
+        setActivities(initialData.activities || []);
+      } else {
+        setFormData({
+          name: "",
+          description: "",
+          location: "",
+          category: "",
+          topic: "",
+          budget: "",
+          beneficiaries: "",
+          manager: "",
+          startDate: "",
+          endDate: "",
+          status: "مخطط",
+          details: "",
+          mainImage: null,
+          gallery: [],
+        });
+        setObjectives([]);
+        setActivities([]);
+      }
+      setNewObjective("");
+      setNewActivity("");
+    }
+  }, [isOpen, initialData, setObjectives, setActivities]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      ...formData,
+      objectives,
+      activities,
+    });
+  };
+
+  const handleAddObjective = () => {
+    if (newObjective.trim()) {
+      addObjective(newObjective.trim());
+      setNewObjective("");
+    }
+  };
+
+  const handleAddActivity = () => {
+    if (newActivity.trim()) {
+      addActivity(newActivity.trim());
+      setNewActivity("");
+    }
+  };
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-right">{title}</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">اسم المشروع *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  required
+                  className="text-right"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="manager">المدير *</Label>
+                <Input
+                  id="manager"
+                  value={formData.manager}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      manager: e.target.value,
+                    }))
+                  }
+                  required
+                  className="text-right"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">الموقع</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      location: e.target.value,
+                    }))
+                  }
+                  className="text-right"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">الفئة</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, category: value }))
+                  }
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue placeholder="اختر الفئة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.name}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCategoriesDialog(true)}
+                    className="bg-transparent"
+                  >
+                    إدارة الفئات
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="budget">الميزانية</Label>
+                <Input
+                  id="budget"
+                  value={formData.budget}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, budget: e.target.value }))
+                  }
+                  className="text-right"
+                  placeholder="مثال: 100,000 ر.س"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="beneficiaries">عدد المستفيدين</Label>
+                <Input
+                  id="beneficiaries"
+                  value={formData.beneficiaries}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      beneficiaries: e.target.value,
+                    }))
+                  }
+                  className="text-right"
+                  placeholder="مثال: 500 مستفيد"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="startDate">تاريخ البداية</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      startDate: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="endDate">تاريخ النهاية</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      endDate: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">الوصف</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                className="text-right"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-4">
+              <Label>أهداف المشروع</Label>
+              <div className="space-y-2">
+                {objectives.map((objective, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200"
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeObjective(index)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <span className="flex-1 text-right">{objective}</span>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddObjective}
+                    className="shrink-0 bg-transparent"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    إضافة
+                  </Button>
+                  <Input
+                    value={newObjective}
+                    onChange={(e) => setNewObjective(e.target.value)}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      (e.preventDefault(), handleAddObjective())
+                    }
+                    placeholder="أدخل هدف المشروع"
+                    className="text-right"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <Label>الأنشطة الرئيسية</Label>
+              <div className="space-y-2">
+                {activities.map((activity, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200"
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeActivity(index)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <span className="flex-1 text-right">{activity}</span>
+                  </div>
+                ))}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddActivity}
+                    className="shrink-0 bg-transparent"
+                  >
+                    <Plus className="h-4 w-4 ml-1" />
+                    إضافة
+                  </Button>
+                  <Input
+                    value={newActivity}
+                    onChange={(e) => setNewActivity(e.target.value)}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      (e.preventDefault(), handleAddActivity())
+                    }
+                    placeholder="أدخل النشاط الرئيسي"
+                    className="text-right"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>تفاصيل المشروع</Label>
+              <RichTextEditor
+                value={formData.details}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, details: value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>الحالة</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, status: value }))
+                }
+              >
+                <SelectTrigger className="text-right">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="مخطط">مخطط</SelectItem>
+                  <SelectItem value="نشط">نشط</SelectItem>
+                  <SelectItem value="مكتمل">مكتمل</SelectItem>
+                  <SelectItem value="متوقف">متوقف</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <SingleImageUpload
+                currentImage={formData.mainImage}
+                onImageChange={(image) =>
+                  setFormData((prev) => ({ ...prev, mainImage: image }))
+                }
+                label="الصورة الرئيسية للمشروع"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <GalleryUpload
+                currentImages={formData.gallery}
+                onImagesChange={(gallery) =>
+                  setFormData((prev) => ({ ...prev, gallery }))
+                }
+                label="معرض الصور (اختياري)"
+                maxImages={10}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading} // تعطيل زر الإلغاء أثناء التحميل
+              >
+                إلغاء
+              </Button>
+              <Button
+                type="submit"
+                disabled={isLoading} // تعطيل زر الإرسال أثناء التحميل
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    {initialData ? "جاري التحديث..." : "جاري الإضافة..."}
+                  </>
+                ) : initialData ? (
+                  "تحديث"
+                ) : (
+                  "إضافة"
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      {/* Categories Manager for Projects */}
+      <BaseDialog
+        open={showCategoriesDialog}
+        onOpenChange={setShowCategoriesDialog}
+      >
+        <BaseDialogContent className="max-w-xl">
+          <BaseDialogHeader>
+            <BaseDialogTitle>إدارة فئات المشاريع</BaseDialogTitle>
+          </BaseDialogHeader>
+          <CategoryManager module="projects" />
+        </BaseDialogContent>
+      </BaseDialog>
+    </>
+  );
+}
