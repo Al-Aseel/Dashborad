@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PdfUpload } from "@/components/shared/pdf-upload"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Eye, Edit, Trash2, MoreHorizontal, Search, Plus } from "lucide-react"
+import { Download, Eye, Edit, Trash2, MoreHorizontal, Search, Plus, RefreshCcw, Loader2 } from "lucide-react"
 import { useState, useMemo, useEffect } from "react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { uploadPdf, extractUploadedFileId, deleteFileById } from "@/lib/files"
@@ -572,13 +572,24 @@ export default function ReportsPage() {
             <h1 className="text-3xl font-bold text-gray-900">التقارير</h1>
             <p className="text-gray-600 mt-1">إدارة التقارير الإدارية والمالية والإعلامية</p>
           </div>
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            إضافة تقرير جديد
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={loadReports}
+              disabled={isLoading}
+              title="تحديث"
+            >
+              {isLoading ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <RefreshCcw className="w-4 h-4 ml-2" />}
+              تحديث
+            </Button>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              إضافة تقرير جديد
+            </Button>
+          </div>
         </div>
 
         <div className="flex gap-4 items-center">
@@ -658,6 +669,12 @@ export default function ReportsPage() {
           </Card>
         </div>
 
+        {isLoading ? (
+          <div className="py-16 text-center text-gray-500">
+            <Loader2 className="w-6 h-6 inline-block ml-2 animate-spin" />
+            جاري تحميل البيانات...
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredReports.map((report) => (
             <Card key={report.id} className="hover:shadow-lg transition-shadow">
@@ -721,6 +738,7 @@ export default function ReportsPage() {
             </Card>
           ))}
         </div>
+        )}
 
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
           <DialogContent className="max-w-2xl">
