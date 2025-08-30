@@ -47,7 +47,7 @@ export type ListReportsResponse = {
       author: string;
       createdAt: string;
       status: string;
-      file?: { url?: string } | string;
+      file?: { url?: string; size?: number; originalName?: string } | string;
     }>;
     pagination: { page: number; limit: number; total: number; totalPages: number };
   };
@@ -74,7 +74,7 @@ export type GetReportByIdResponse = {
     author: string;
     createdAt: string;
     status: string;
-    file?: { url?: string } | string;
+    file?: { url?: string; size?: number; originalName?: string } | string;
   };
   message: string;
 };

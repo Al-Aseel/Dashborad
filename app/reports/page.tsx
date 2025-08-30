@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PdfUpload } from "@/components/shared/pdf-upload"
 import { useToast } from "@/hooks/use-toast"
-import { Download, Eye, Edit, Trash2, MoreHorizontal, Search, Plus, RefreshCcw, Loader2 } from "lucide-react"
+import { Download, Eye, Edit, Trash2, MoreHorizontal, Search, Plus, RefreshCcw, Loader2, FileText } from "lucide-react"
 import { useState, useMemo, useEffect } from "react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { uploadPdf, extractUploadedFileId, deleteFileById } from "@/lib/files"
@@ -137,16 +137,24 @@ export default function ReportsPage() {
 
       const res = await listReports(params)
       const items = res.data.reports || []
-      const mapped: Report[] = items.map((r) => ({
-        id: r._id || Math.random(),
-        title: r.title,
-        type: mapTypeToArabic(r.type),
-        author: r.author,
-        date: r.createdAt?.slice(0, 10) || "",
-        status: mapStatusToArabic(r.status),
-        downloads: 0,
-        size: "",
-      }))
+      const mapped: Report[] = items.map((r) => {
+        // Extract file size from file object if available
+        let fileSize = ""
+        if (r.file && typeof r.file === "object" && r.file.size) {
+          fileSize = `${(r.file.size / (1024 * 1024)).toFixed(1)} MB`
+        }
+        
+        return {
+          id: r._id || Math.random(),
+          title: r.title,
+          type: mapTypeToArabic(r.type),
+          author: r.author,
+          date: r.createdAt?.slice(0, 10) || "",
+          status: mapStatusToArabic(r.status),
+          downloads: 0,
+          size: fileSize,
+        }
+      })
       setReports(mapped)
       setTotals({
         totalNumberOfReports: res.totalNumberOfReports || 0,
@@ -197,6 +205,12 @@ export default function ReportsPage() {
       if (typeof report.id === "string") {
         const full = await getReportById(report.id)
         const r = full.data
+        // Extract file size from file object if available
+        let fileSize = ""
+        if (r.file && typeof r.file === "object" && r.file.size) {
+          fileSize = `${(r.file.size / (1024 * 1024)).toFixed(1)} MB`
+        }
+        
         const enhanced: Report = {
           id: r._id,
           title: r.title,
@@ -205,7 +219,7 @@ export default function ReportsPage() {
           date: r.createdAt?.slice(0, 10) || "",
           status: mapStatusToArabic(r.status),
           downloads: 0,
-          size: "",
+          size: fileSize,
         }
         setSelectedReport(enhanced)
       } else {
@@ -675,69 +689,93 @@ export default function ReportsPage() {
             جاري تحميل البيانات...
           </div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredReports.map((report) => (
-            <Card key={report.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{report.title}</h3>
-                    <p className="text-sm text-gray-600">{report.type}</p>
-                  </div>
-                  <Badge className={getStatusColor(report.status)}>{report.status}</Badge>
+        <>
+          {filteredReports.length === 0 ? (
+            <div className="col-span-full py-16 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+                  <FileText className="w-12 h-12 text-gray-400" />
                 </div>
-
-                <div className="space-y-3 text-sm text-gray-600 mb-4">
-                  <div className="flex justify-between">
-                    <span className="font-medium">التاريخ:</span>
-                    <span>{report.date}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">المؤلف:</span>
-                    <span className="truncate ml-2">{report.author}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">التحميلات:</span>
-                    <span>{report.downloads}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">الحجم:</span>
-                    <span>{report.size}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <Button variant="outline" size="sm" onClick={() => handleDownload(report)}>
-                    <Download className="w-4 h-4 ml-1" />
-                    تحميل
+                <h3 className="text-lg font-medium text-gray-900 mb-2">لا توجد تقارير</h3>
+                <p className="text-gray-500 mb-6">
+                  {searchTerm || statusFilter !== "all" || typeFilter !== "all" 
+                    ? "لا توجد تقارير تطابق معايير البحث المحددة"
+                    : "لم يتم إنشاء أي تقارير بعد. ابدأ بإضافة تقرير جديد."
+                  }
+                </p>
+                {!searchTerm && statusFilter === "all" && typeFilter === "all" && (
+                  <Button
+                    onClick={() => setIsAddDialogOpen(true)}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    <Plus className="w-4 h-4 ml-2" />
+                    إضافة تقرير جديد
                   </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredReports.map((report) => (
+                <Card key={report.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{report.title}</h3>
+                        <p className="text-sm text-gray-600">{report.type}</p>
+                      </div>
+                      <Badge className={getStatusColor(report.status)}>{report.status}</Badge>
+                    </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="w-4 h-4" />
+                    <div className="space-y-3 text-sm text-gray-600 mb-4">
+                      <div className="flex justify-between">
+                        <span className="font-medium">التاريخ:</span>
+                        <span>{report.date}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium">المؤلف:</span>
+                        <span className="truncate ml-2">{report.author}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-medium">الحجم:</span>
+                        <span>{report.size}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <Button variant="outline" size="sm" onClick={() => handleDownload(report)}>
+                        <Download className="w-4 h-4 ml-1" />
+                        تحميل
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleViewReport(report)}>
-                        <Eye className="w-4 h-4 ml-2" />
-                        عرض
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditReport(report)}>
-                        <Edit className="w-4 h-4 ml-2" />
-                        تعديل
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDeleteClick(report)} className="text-red-600">
-                        <Trash2 className="w-4 h-4 ml-2" />
-                        حذف
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewReport(report)}>
+                            <Eye className="w-4 h-4 ml-2" />
+                            عرض
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditReport(report)}>
+                            <Edit className="w-4 h-4 ml-2" />
+                            تعديل
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(report)} className="text-red-600">
+                            <Trash2 className="w-4 h-4 ml-1" />
+                            حذف
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
         )}
 
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -775,10 +813,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-600">إحصائيات التحميل</Label>
-                  <p className="text-lg">{selectedReport.downloads} تحميل</p>
-                </div>
+
 
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
