@@ -1,5 +1,7 @@
 "use client"
 
+import React from "react"
+
 import { useState, useMemo } from "react"
 import { DashboardLayout } from "@/components/shared/dashboard-layout"
 import { SingleImageUpload } from "@/components/shared/single-image-upload"
@@ -22,9 +24,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Plus, Building, Search, MoreHorizontal, Eye, Edit, ExternalLink, Trash2, Loader2 } from "lucide-react"
+import { createPartner, updatePartner, deletePartner, getPartners, validatePartnerData, transformFormDataToAPI, transformAPIToFormData, type Partner as PartnerType } from "@/lib/partners"
 
 interface Partner {
-  id: number
+  _id?: string
+  id?: number
   nameAr: string
   nameEn: string
   type: string
@@ -35,7 +39,7 @@ interface Partner {
   joinDate: string
   projects: number
   logo?: string
-  logoFileId?: string // جديد: معرف ملف اللوجو
+  logoFileId?: string // معرف ملف اللوجو
 }
 
 export default function PartnersPage() {
@@ -98,18 +102,21 @@ export default function PartnersPage() {
   const [formData, setFormData] = useState({
     nameAr: "",
     nameEn: "",
-    type: "",
-    status: "نشط",
+    type: "org",
+    status: "active",
     email: "",
     phone: "",
     website: "",
     joinDate: "",
     logo: "",
-    logoFileId: "", // جديد: معرف ملف اللوجو
+    logoFileId: "", // معرف ملف اللوجو
   })
 
   // Debounced search
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
+  // Loading state for partners
+  const [isLoadingPartners, setIsLoadingPartners] = useState(false)
 
   // Filtered partners
   const filteredPartners = useMemo(() => {
@@ -139,8 +146,8 @@ export default function PartnersPage() {
     setFormData({
       nameAr: "",
       nameEn: "",
-      type: "",
-      status: "نشط",
+      type: "org",
+      status: "active",
       email: "",
       phone: "",
       website: "",
@@ -150,44 +157,131 @@ export default function PartnersPage() {
     })
   }
 
-  // Handle add partner
-  const handleAddPartner = async () => {
-    if (!formData.nameAr || !formData.nameEn || !formData.type || !formData.email) {
-      toast({
-        title: "خطأ في البيانات",
-        description: "يرجى ملء جميع الحقول المطلوبة",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsLoading(true)
+  // Load partners from API
+  const loadPartners = async () => {
+    setIsLoadingPartners(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      const newPartner: Partner = {
-        id: Date.now(),
-        ...formData,
-        projects: 0,
-        logoFileId: formData.logoFileId || undefined,
+      const response = await getPartners({
+        search: debouncedSearchTerm,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      });
+      
+      if (response.status === "sucsess") {
+        // تحويل بيانات API إلى تنسيق النموذج
+        const transformedPartners = response.data.map((apiPartner) => ({
+          _id: apiPartner._id,
+          id: Date.now() + Math.random(), // توليد ID مؤقت
+          nameAr: apiPartner.name_ar,
+          nameEn: apiPartner.name_en || "",
+          type: apiPartner.type,
+          status: apiPartner.status === "active" ? "نشط" : "غير نشط",
+          email: apiPartner.email,
+          phone: "",
+          website: apiPartner.website || "",
+          joinDate: apiPartner.join_date,
+          projects: 0, // سيتم تحديثه لاحقاً
+          logo: apiPartner.logo?.url || "",
+          logoFileId: apiPartner.logo?._id || "",
+        }));
+        
+        setPartners(transformedPartners);
+      } else {
+        throw new Error(response.message || "فشل في تحميل الشركاء");
       }
-
-      setPartners((prev) => [...prev, newPartner])
-      closeAddDialog()
-
-      toast({
-        title: "تم بنجاح",
-        description: "تم إضافة الشريك بنجاح",
-      })
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error loading partners:", error);
+      
+      let errorMessage = "حدث خطأ أثناء تحميل الشركاء";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "خطأ",
-        description: "حدث خطأ أثناء إضافة الشريك",
+        description: errorMessage,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoadingPartners(false);
+    }
+  };
+
+  // Load partners on mount and when filters change
+  React.useEffect(() => {
+    loadPartners();
+  }, [debouncedSearchTerm, statusFilter]);
+
+  // Handle add partner
+  const handleAddPartner = async () => {
+    // التحقق من صحة البيانات
+    const validation = validatePartnerData(formData);
+    if (!validation.isValid) {
+      toast({
+        title: "خطأ في البيانات",
+        description: validation.errors.join("، "),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // تحويل البيانات إلى تنسيق API
+      const apiData = transformFormDataToAPI(formData);
+      
+      // استدعاء API لإنشاء الشريك
+      const response = await createPartner(apiData);
+      
+      if (response.status === "sucsess") {
+        // إضافة الشريك الجديد إلى القائمة
+        const newPartner: Partner = {
+          _id: response.data._id,
+          id: Date.now(),
+          nameAr: response.data.name_ar,
+          nameEn: response.data.name_en || "",
+          type: response.data.type,
+          status: response.data.status,
+          email: response.data.email,
+          phone: "",
+          website: response.data.website || "",
+          joinDate: response.data.join_date,
+          projects: 0,
+          logo: response.data.logo?.url || "",
+          logoFileId: response.data.logo?._id || "",
+        };
+
+        setPartners((prev) => [...prev, newPartner]);
+        closeAddDialog();
+
+        toast({
+          title: "تم بنجاح",
+          description: response.message || "تم إضافة الشريك بنجاح",
+        });
+      } else {
+        throw new Error(response.message || "فشل في إنشاء الشريك");
+      }
+    } catch (error: any) {
+      console.error("Error creating partner:", error);
+      
+      // معالجة أخطاء API
+      let errorMessage = "حدث خطأ أثناء إضافة الشريك";
+      if (error.response?.data?.details) {
+        errorMessage = error.response.data.details.join("، ");
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "خطأ",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -210,34 +304,76 @@ export default function PartnersPage() {
   }
 
   const handleUpdatePartner = async () => {
-    if (!selectedPartner) return
+    if (!selectedPartner) return;
 
-    setIsLoading(true)
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      setPartners((prev) =>
-        prev.map((partner) => (partner.id === selectedPartner.id ? { 
-          ...partner, 
-          ...formData,
-          logoFileId: formData.logoFileId || undefined,
-        } : partner)),
-      )
-
-      closeEditDialog()
-
+    // التحقق من صحة البيانات
+    const validation = validatePartnerData(formData);
+    if (!validation.isValid) {
       toast({
-        title: "تم بنجاح",
-        description: "تم تحديث بيانات الشريك بنجاح",
-      })
-    } catch (error) {
+        title: "خطأ في البيانات",
+        description: validation.errors.join("، "),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // تحويل البيانات إلى تنسيق API
+      const apiData = transformFormDataToAPI(formData);
+      
+      // استدعاء API لتحديث الشريك
+      const response = await updatePartner({
+        _id: selectedPartner._id || "",
+        ...apiData,
+      });
+      
+      if (response.status === "sucsess") {
+        // تحديث الشريك في القائمة
+        setPartners((prev) =>
+          prev.map((partner) => (partner._id === selectedPartner._id ? { 
+            ...partner, 
+            nameAr: response.data.name_ar,
+            nameEn: response.data.name_en || "",
+            type: response.data.type,
+            status: response.data.status,
+            email: response.data.email,
+            website: response.data.website || "",
+            joinDate: response.data.join_date,
+            logo: response.data.logo?.url || "",
+            logoFileId: response.data.logo?._id || "",
+          } : partner)),
+        );
+
+        closeEditDialog();
+
+        toast({
+          title: "تم بنجاح",
+          description: response.message || "تم تحديث بيانات الشريك بنجاح",
+        });
+      } else {
+        throw new Error(response.message || "فشل في تحديث الشريك");
+      }
+    } catch (error: any) {
+      console.error("Error updating partner:", error);
+      
+      // معالجة أخطاء API
+      let errorMessage = "حدث خطأ أثناء تحديث بيانات الشريك";
+      if (error.response?.data?.details) {
+        errorMessage = error.response.data.details.join("، ");
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "خطأ",
-        description: "حدث خطأ أثناء تحديث بيانات الشريك",
+        description: errorMessage,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -254,28 +390,46 @@ export default function PartnersPage() {
   }
 
   const confirmDelete = async () => {
-    if (!selectedPartner) return
+    if (!selectedPartner) return;
 
-    setIsDeleting(true)
+    setIsDeleting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // استدعاء API لحذف الشريك
+      const response = await deletePartner(selectedPartner._id || "");
+      
+      if (response.status === "sucsess") {
+        // حذف الشريك من القائمة
+        setPartners((prev) => prev.filter((partner) => partner._id !== selectedPartner._id));
+        setIsDeleteDialogOpen(false);
+        setSelectedPartner(null);
 
-      setPartners((prev) => prev.filter((partner) => partner.id !== selectedPartner.id))
-      setIsDeleteDialogOpen(false)
-      setSelectedPartner(null)
-
-      toast({
-        title: "تم بنجاح",
-        description: "تم حذف الشريك بنجاح",
-      })
-    } catch (error) {
+        toast({
+          title: "تم بنجاح",
+          description: response.message || "تم حذف الشريك بنجاح",
+        });
+      } else {
+        throw new Error(response.message || "فشل في حذف الشريك");
+      }
+    } catch (error: any) {
+      console.error("Error deleting partner:", error);
+      
+      // معالجة أخطاء API
+      let errorMessage = "حدث خطأ أثناء حذف الشريك";
+      if (error.response?.data?.details) {
+        errorMessage = error.response.data.details.join("، ");
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "خطأ",
-        description: "حدث خطأ أثناء حذف الشريك",
+        description: errorMessage,
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
+      setIsDeleting(false);
     }
   }
 
@@ -433,8 +587,24 @@ export default function PartnersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPartners.map((partner) => (
-                  <TableRow key={partner.id}>
+                {isLoadingPartners ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex items-center justify-center space-x-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>جاري تحميل الشركاء...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredPartners.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      لا توجد شركاء
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredPartners.map((partner) => (
+                    <TableRow key={partner.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -490,7 +660,8 @@ export default function PartnersPage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))}
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -541,9 +712,9 @@ export default function PartnersPage() {
                     <SelectValue placeholder="اختر نوع الشريك" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="مؤسسة">مؤسسة</SelectItem>
-                    <SelectItem value="شركة">شركة</SelectItem>
-                    <SelectItem value="فرد">فرد</SelectItem>
+                    <SelectItem value="org">مؤسسة</SelectItem>
+                    <SelectItem value="firm">شركة</SelectItem>
+                    <SelectItem value="member">فرد</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -567,8 +738,8 @@ export default function PartnersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="نشط">نشط</SelectItem>
-                    <SelectItem value="غير نشط">غير نشط</SelectItem>
+                    <SelectItem value="active">نشط</SelectItem>
+                    <SelectItem value="inactive">غير نشط</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
