@@ -59,26 +59,31 @@ export function SingleImageUpload({
 
     try {
       const mod = await import("@/lib/image-compression");
-      const { compressImage, isImageFile } = mod;
+      const { compressLogoImage, isImageFile, formatFileSize } = mod;
+      
       if (!isImageFile(file)) {
         setProcessing(false);
         setUploadStatus("idle");
         return { file, url: URL.createObjectURL(file) };
       }
 
-      const { file: compressed } = await compressImage(file, {
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 0.8,
-        format: "jpeg",
+      // ضغط الصورة باستخدام خيارات مخصصة للشعارات
+      const compressedFile = await compressLogoImage(file);
+
+      console.log('معلومات ضغط الصورة:', {
+        original: formatFileSize(file.size),
+        compressed: formatFileSize(compressedFile.size),
+        reduction: `${(((file.size - compressedFile.size) / file.size) * 100).toFixed(1)}%`,
       });
 
       setProcessing(false);
       setUploadStatus("idle");
-      return { file: compressed, url: URL.createObjectURL(file) };
+      return { file: compressedFile, url: URL.createObjectURL(compressedFile) };
     } catch (error) {
+      console.error('خطأ في ضغط الصورة:', error);
       setProcessing(false);
       setUploadStatus("error");
+      // في حالة فشل الضغط، استخدم الملف الأصلي
       return { file, url: URL.createObjectURL(file) };
     }
   };
@@ -140,7 +145,7 @@ export function SingleImageUpload({
       setUploadStatus("success");
       toast({
         title: "تم بنجاح",
-        description: "تم رفع الصورة بنجاح",
+        description: "تم رفع الصورة المضغوطة بنجاح",
       });
 
       // إعادة تعيين الحالة بعد ثانيتين
@@ -210,13 +215,13 @@ export function SingleImageUpload({
   const getStatusMessage = () => {
     switch (uploadStatus) {
       case "processing":
-        return "جاري معالجة الصورة...";
+        return "جاري ضغط وتحسين الصورة...";
       case "uploading":
-        return "جاري رفع الصورة...";
+        return "جاري رفع الصورة المضغوطة...";
       case "success":
-        return "تم رفع الصورة بنجاح!";
+        return "تم رفع الصورة المضغوطة بنجاح!";
       case "error":
-        return "حدث خطأ في رفع الصورة";
+        return "حدث خطأ في معالجة الصورة";
       default:
         return label;
     }
@@ -260,7 +265,7 @@ export function SingleImageUpload({
 
     // إذا كان URL يحتوي على معرف الملف أو uploads، استخدم حجم افتراضي
     if (imageUrl.includes("/uploads/") || imageUrl.includes("data:")) {
-      return "2.5 MB"; // حجم افتراضي للصور المرفوعة
+      return "500 KB"; // حجم مضغوط للصور المرفوعة
     }
 
     // إذا كان URL خارجي، استخدم حجم افتراضي
@@ -317,7 +322,7 @@ export function SingleImageUpload({
           {/* عرض حجم الصورة */}
           {currentImage && (
             <div className="text-xs text-gray-500 mt-1">
-              حجم الصورة: {getImageSize(currentImage)}
+              حجم الصورة: {getImageSize(currentImage)} (مضغوط)
             </div>
           )}
 
@@ -378,16 +383,16 @@ export function SingleImageUpload({
 
           {/* رسائل إضافية للحالات المختلفة */}
           {uploadStatus === "processing" && (
-            <p className="text-xs text-blue-500 mt-1">ضغط وتحسين الصورة</p>
+            <p className="text-xs text-blue-500 mt-1">ضغط وتحسين الصورة...</p>
           )}
           {uploadStatus === "uploading" && (
-            <p className="text-xs text-blue-500 mt-1">يرجى الانتظار...</p>
+            <p className="text-xs text-blue-500 mt-1">جاري رفع الصورة المضغوطة...</p>
           )}
           {uploadStatus === "success" && (
-            <p className="text-xs text-green-500 mt-1">الصورة جاهزة</p>
+            <p className="text-xs text-green-500 mt-1">تم رفع الصورة المضغوطة بنجاح!</p>
           )}
           {uploadStatus === "error" && (
-            <p className="text-xs text-red-500 mt-1">حاول مرة أخرى</p>
+            <p className="text-xs text-red-500 mt-1">حدث خطأ في معالجة الصورة</p>
           )}
 
           {required && uploadStatus === "idle" && (

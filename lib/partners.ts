@@ -56,11 +56,16 @@ export interface DeletePartnerResponse {
 
 export interface GetPartnersResponse {
   status: string;
-  data: Partner[];
+  data: {
+    partners: Partner[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  };
   message: string;
-  total?: number;
-  page?: number;
-  limit?: number;
 }
 
 /**
