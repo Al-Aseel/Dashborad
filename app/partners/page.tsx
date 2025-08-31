@@ -35,6 +35,7 @@ interface Partner {
   joinDate: string
   projects: number
   logo?: string
+  logoFileId?: string // جديد: معرف ملف اللوجو
 }
 
 export default function PartnersPage() {
@@ -49,10 +50,10 @@ export default function PartnersPage() {
       email: "info@khair.org",
       phone: "+966 11 234 5678",
       website: "https://khair.org",
-      contribution: "100,000$",
       joinDate: "2023-01-15",
       projects: 5,
       logo: "/heart-hands-logo.png",
+      logoFileId: "68ac2a2f2fb9420b05f3adf6", // معرف ملف اللوجو
     },
     {
       id: 2,
@@ -66,6 +67,7 @@ export default function PartnersPage() {
       joinDate: "2023-06-20",
       projects: 3,
       logo: "/aramco-logo.png",
+      logoFileId: "68ac2a2f2fb9420b05f3adf7", // معرف ملف اللوجو
     },
     {
       id: 3,
@@ -103,6 +105,7 @@ export default function PartnersPage() {
     website: "",
     joinDate: "",
     logo: "",
+    logoFileId: "", // جديد: معرف ملف اللوجو
   })
 
   // Debounced search
@@ -141,9 +144,9 @@ export default function PartnersPage() {
       email: "",
       phone: "",
       website: "",
-      contribution: "",
       joinDate: "",
       logo: "",
+      logoFileId: "",
     })
   }
 
@@ -167,6 +170,7 @@ export default function PartnersPage() {
         id: Date.now(),
         ...formData,
         projects: 0,
+        logoFileId: formData.logoFileId || undefined,
       }
 
       setPartners((prev) => [...prev, newPartner])
@@ -198,9 +202,9 @@ export default function PartnersPage() {
       email: partner.email,
       phone: partner.phone,
       website: partner.website,
-      contribution: partner.contribution,
       joinDate: partner.joinDate,
       logo: partner.logo || "",
+      logoFileId: partner.logoFileId || "",
     })
     setIsEditDialogOpen(true)
   }
@@ -213,7 +217,11 @@ export default function PartnersPage() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
 
       setPartners((prev) =>
-        prev.map((partner) => (partner.id === selectedPartner.id ? { ...partner, ...formData } : partner)),
+        prev.map((partner) => (partner.id === selectedPartner.id ? { 
+          ...partner, 
+          ...formData,
+          logoFileId: formData.logoFileId || undefined,
+        } : partner)),
       )
 
       closeEditDialog()
@@ -577,9 +585,12 @@ export default function PartnersPage() {
                 <Label>لوجو الشريك *</Label>
                 <SingleImageUpload
                   currentImage={formData.logo}
+                  currentFileId={formData.logoFileId}
                   onImageChange={(image) => setFormData((prev) => ({ ...prev, logo: image }))}
+                  onFileIdChange={(fileId) => setFormData((prev) => ({ ...prev, logoFileId: fileId || "" }))}
                   label="اضغط لاختيار صورة"
                   required
+                  autoUpload={true}
                 />
               </div>
             </div>
@@ -681,8 +692,11 @@ export default function PartnersPage() {
                 <Label>لوجو الشريك</Label>
                 <SingleImageUpload
                   currentImage={formData.logo}
+                  currentFileId={formData.logoFileId}
                   onImageChange={(image) => setFormData((prev) => ({ ...prev, logo: image }))}
+                  onFileIdChange={(fileId) => setFormData((prev) => ({ ...prev, logoFileId: fileId || "" }))}
                   label="اضغط لاختيار صورة"
+                  autoUpload={true}
                 />
               </div>
             </div>
@@ -760,10 +774,7 @@ export default function PartnersPage() {
                       </a>
                     </p>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">المساهمة</Label>
-                    <p className="mt-1 font-medium">{selectedPartner.contribution}</p>
-                  </div>
+
                   <div>
                     <Label className="text-sm font-medium text-gray-500">تاريخ الانضمام</Label>
                     <p className="mt-1">{selectedPartner.joinDate}</p>
