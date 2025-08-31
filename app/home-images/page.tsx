@@ -283,13 +283,32 @@ export default function HomeImagesPage() {
       return;
     }
 
+    // Client-side validation
+    if (!formData.title || formData.title.trim().length < 3) {
+      toast({
+        title: "خطأ في العنوان",
+        description: "عنوان الصورة يجب أن يكون أطول من ثلاث حروف",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.description || formData.description.trim().length < 6) {
+      toast({
+        title: "خطأ في الوصف",
+        description: "وصف الصورة يجب أن يكون أطول من 6 حروف",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (showEditDialog && selectedItem) {
         // Update existing image
         await updateExistingSliderImage(selectedItem._id, {
           image: uploadedImage.id,
-          title: formData.title,
-          description: formData.description,
+          title: formData.title.trim(),
+          description: formData.description.trim(),
           isActive: formData.isActive,
           isMainImage: formData.isMainImage,
         });
@@ -303,8 +322,8 @@ export default function HomeImagesPage() {
         // Create new image
         await createNewSliderImage({
           image: uploadedImage.id,
-          title: formData.title,
-          description: formData.description,
+          title: formData.title.trim(),
+          description: formData.description.trim(),
           isActive: formData.isActive,
           isMainImage: formData.isMainImage,
         });
@@ -813,9 +832,27 @@ export default function HomeImagesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
-                  placeholder="أدخل عنوان الصورة"
-                  className="w-full"
+                  placeholder="أدخل عنوان الصورة (3 أحرف على الأقل)"
+                  className={`w-full ${
+                    formData.title.length > 0 && formData.title.length < 3
+                      ? "border-red-500 focus:border-red-500"
+                      : ""
+                  }`}
                 />
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500">
+                    يجب أن يكون العنوان 3 أحرف على الأقل
+                  </span>
+                  <span
+                    className={`${
+                      formData.title.length < 3 && formData.title.length > 0
+                        ? "text-red-500"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {formData.title.length}/3
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -832,10 +869,30 @@ export default function HomeImagesPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="أدخل وصف الصورة"
+                placeholder="أدخل وصف الصورة (6 أحرف على الأقل)"
                 rows={3}
-                className="w-full"
+                className={`w-full ${
+                  formData.description.length > 0 &&
+                  formData.description.length < 6
+                    ? "border-red-500 focus:border-red-500"
+                    : ""
+                }`}
               />
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-500">
+                  يجب أن يكون الوصف 6 أحرف على الأقل
+                </span>
+                <span
+                  className={`${
+                    formData.description.length < 6 &&
+                    formData.description.length > 0
+                      ? "text-red-500"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {formData.description.length}/6
+                </span>
+              </div>
             </div>
 
             {/* Settings */}
@@ -1108,8 +1165,15 @@ export default function HomeImagesPage() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={loading}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              disabled={
+                loading ||
+                !uploadedImage ||
+                !formData.title.trim() ||
+                formData.title.trim().length < 3 ||
+                !formData.description.trim() ||
+                formData.description.trim().length < 6
+              }
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "جاري الحفظ..." : "حفظ"}
             </Button>
@@ -1147,88 +1211,222 @@ export default function HomeImagesPage() {
 
       {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>تفاصيل الصورة</DialogTitle>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+              <ImageIcon className="w-6 h-6 text-blue-600" />
+              تفاصيل الصورة
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              عرض كامل تفاصيل الصورة المحددة
+            </DialogDescription>
           </DialogHeader>
 
           {viewLoading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-12">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                <p className="text-gray-600">جاري تحميل تفاصيل الصورة...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600 text-lg">
+                  جاري تحميل تفاصيل الصورة...
+                </p>
+                <p className="text-gray-400 text-sm mt-2">يرجى الانتظار</p>
               </div>
             </div>
           ) : selectedItem ? (
-            <div className="space-y-6">
-              {/* Image Preview */}
-              <div className="flex justify-center">
-                <div className="w-full max-w-2xl aspect-video rounded-lg overflow-hidden bg-gray-100">
+            <div className="space-y-8">
+              {/* Hero Section with Image */}
+              <div className="relative">
+                <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 shadow-lg">
                   <img
                     src={selectedItem.imageUrl || "/placeholder.svg"}
                     alt={selectedItem.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
                   />
+                  {/* Overlay with title */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                      <h2 className="text-white text-2xl font-bold mb-2">
+                        {selectedItem.title}
+                      </h2>
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          variant={
+                            selectedItem.isActive ? "default" : "secondary"
+                          }
+                          className={`${
+                            selectedItem.isActive
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "bg-gray-500 hover:bg-gray-600"
+                          } text-white`}
+                        >
+                          {selectedItem.isActive ? "نشط" : "غير نشط"}
+                        </Badge>
+                        <Badge
+                          variant={
+                            selectedItem.isMainImage ? "default" : "outline"
+                          }
+                          className={`${
+                            selectedItem.isMainImage
+                              ? "bg-blue-500 hover:bg-blue-600 text-white"
+                              : "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                          }`}
+                        >
+                          {selectedItem.isMainImage
+                            ? "صورة رئيسية"
+                            : "صورة سلايدر"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Image Details */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    العنوان
-                  </Label>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                    {selectedItem.title}
-                  </p>
+              {/* Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Description Card */}
+                  <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-indigo-50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        وصف الصورة
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-blue-100">
+                        <p className="text-gray-700 leading-relaxed text-base">
+                          {selectedItem.description}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    الحالة
-                  </Label>
-                  <Badge
-                    variant={selectedItem.isActive ? "default" : "secondary"}
-                    className={
-                      selectedItem.isActive ? "bg-green-500" : "bg-gray-500"
-                    }
-                  >
-                    {selectedItem.isActive ? "نشط" : "غير نشط"}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    النوع
-                  </Label>
-                  <Badge
-                    variant={selectedItem.isMainImage ? "default" : "outline"}
-                    className={selectedItem.isMainImage ? "bg-blue-500" : ""}
-                  >
-                    {selectedItem.isMainImage ? "رئيسية" : "سلايدر"}
-                  </Badge>
-                </div>
-              </div>
 
-              {/* Description */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">
-                  الوصف
-                </Label>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {selectedItem.description}
-                  </p>
+                {/* Sidebar */}
+                <div className="space-y-6">
+                  {/* Status Card */}
+                  <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-emerald-50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        حالة الصورة
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between p-3 bg-white/70 backdrop-blur-sm rounded-lg border border-green-100">
+                        <span className="text-sm font-medium text-gray-700">
+                          الحالة
+                        </span>
+                        <Badge
+                          variant={
+                            selectedItem.isActive ? "default" : "secondary"
+                          }
+                          className={`${
+                            selectedItem.isActive
+                              ? "bg-green-500 hover:bg-green-600"
+                              : "bg-gray-500 hover:bg-gray-600"
+                          } text-white`}
+                        >
+                          {selectedItem.isActive ? "نشط" : "غير نشط"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-white/70 backdrop-blur-sm rounded-lg border border-green-100">
+                        <span className="text-sm font-medium text-gray-700">
+                          النوع
+                        </span>
+                        <Badge
+                          variant={
+                            selectedItem.isMainImage ? "default" : "outline"
+                          }
+                          className={`${
+                            selectedItem.isMainImage
+                              ? "bg-blue-500 hover:bg-blue-600 text-white"
+                              : "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                          }`}
+                        >
+                          {selectedItem.isMainImage ? "رئيسية" : "سلايدر"}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Quick Actions */}
+                  <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-50 to-pink-50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        إجراءات سريعة
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Button
+                        onClick={() => {
+                          setShowDetailsDialog(false);
+                          handleEdit(selectedItem);
+                        }}
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                      >
+                        <Edit className="w-4 h-4 ml-2" />
+                        تعديل الصورة
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          // Copy image URL to clipboard
+                          navigator.clipboard.writeText(
+                            selectedItem.imageUrl || ""
+                          );
+                          toast({
+                            title: "تم نسخ الرابط",
+                            description: "تم نسخ رابط الصورة إلى الحافظة",
+                            variant: "default",
+                          });
+                        }}
+                        className="w-full border-gray-300 hover:bg-gray-50"
+                      >
+                        <Upload className="w-4 h-4 ml-2" />
+                        نسخ الرابط
+                      </Button>
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <ImageIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  لا توجد بيانات
+                </h3>
+                <p className="text-gray-500">
+                  لم يتم العثور على تفاصيل الصورة المطلوبة
+                </p>
+              </div>
+            </div>
+          )}
 
-          <DialogFooter className="flex justify-end gap-2">
+          <DialogFooter className="flex justify-end gap-2 pt-6 border-t border-gray-200">
             <Button
               variant="outline"
               onClick={() => setShowDetailsDialog(false)}
+              className="border-gray-300 hover:bg-gray-50"
             >
               إغلاق
             </Button>
+            {selectedItem && (
+              <Button
+                onClick={() => {
+                  setShowDetailsDialog(false);
+                  handleEdit(selectedItem);
+                }}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              >
+                <Edit className="w-4 h-4 ml-2" />
+                تعديل
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
