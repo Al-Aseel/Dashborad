@@ -68,7 +68,9 @@ export interface GetPartnersResponse {
  * @param partnerData - بيانات الشريك الجديد
  * @returns استجابة من السيرفر تحتوي على بيانات الشريك المنشأ
  */
-export async function createPartner(partnerData: CreatePartnerRequest): Promise<CreatePartnerResponse> {
+export async function createPartner(
+  partnerData: CreatePartnerRequest
+): Promise<CreatePartnerResponse> {
   const response = await api.post("/partner", partnerData, {
     timeout: 15000,
   });
@@ -81,7 +83,9 @@ export async function createPartner(partnerData: CreatePartnerRequest): Promise<
  * @param partnerData - بيانات الشريك المحدثة
  * @returns استجابة من السيرفر تحتوي على بيانات الشريك المحدث
  */
-export async function updatePartner(partnerData: UpdatePartnerRequest): Promise<UpdatePartnerResponse> {
+export async function updatePartner(
+  partnerData: UpdatePartnerRequest
+): Promise<UpdatePartnerResponse> {
   const { _id, ...data } = partnerData;
   const response = await api.put(`/partner/${_id}`, data, {
     timeout: 15000,
@@ -95,7 +99,9 @@ export async function updatePartner(partnerData: UpdatePartnerRequest): Promise<
  * @param partnerId - معرف الشريك المراد حذفه
  * @returns استجابة من السيرفر
  */
-export async function deletePartner(partnerId: string): Promise<DeletePartnerResponse> {
+export async function deletePartner(
+  partnerId: string
+): Promise<DeletePartnerResponse> {
   const response = await api.delete(`/partner/${partnerId}`);
   return response.data;
 }
@@ -113,12 +119,12 @@ export async function getPartners(params?: {
   limit?: number;
 }): Promise<GetPartnersResponse> {
   const queryParams = new URLSearchParams();
-  
-  if (params?.search) queryParams.append('search', params.search);
-  if (params?.status) queryParams.append('status', params.status);
-  if (params?.type) queryParams.append('type', params.type);
-  if (params?.page) queryParams.append('page', params.page.toString());
-  if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+  if (params?.search) queryParams.append("search", params.search);
+  if (params?.status) queryParams.append("status", params.status);
+  if (params?.type) queryParams.append("type", params.type);
+  if (params?.page) queryParams.append("page", params.page.toString());
+  if (params?.limit) queryParams.append("limit", params.limit.toString());
 
   const response = await api.get(`/partner?${queryParams.toString()}`);
   return response.data;
@@ -129,7 +135,9 @@ export async function getPartners(params?: {
  * @param partnerId - معرف الشريك
  * @returns استجابة من السيرفر تحتوي على بيانات الشريك
  */
-export async function getPartner(partnerId: string): Promise<{ status: string; data: Partner; message: string }> {
+export async function getPartner(
+  partnerId: string
+): Promise<{ status: string; data: Partner; message: string }> {
   const response = await api.get(`/partner/${partnerId}`);
   return response.data;
 }
@@ -139,7 +147,10 @@ export async function getPartner(partnerId: string): Promise<{ status: string; d
  * @param data - بيانات الشريك
  * @returns true إذا كانت البيانات صحيحة
  */
-export function validatePartnerData(data: any): { isValid: boolean; errors: string[] } {
+export function validatePartnerData(data: any): {
+  isValid: boolean;
+  errors: string[];
+} {
   const errors: string[] = [];
 
   if (!data.nameAr?.trim()) {
@@ -178,13 +189,32 @@ export function validatePartnerData(data: any): { isValid: boolean; errors: stri
     errors.push("شعار الشريك مطلوب");
   }
 
-  if (data.website?.trim() && !/^https?:\/\/.+/.test(data.website)) {
-    errors.push("الموقع الإلكتروني يجب أن يبدأ بـ http:// أو https://");
+  if (data.website?.trim()) {
+    // السماح بالروابط المحلية والخارجية
+    const websiteRegex =
+      /^(https?:\/\/)?([\da-z\.-]+)\.([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+    const isLocalhost =
+      data.website.startsWith("http://localhost") ||
+      data.website.startsWith("https://localhost");
+    const isExternal = websiteRegex.test(data.website);
+
+    // منع الروابط الداخلية للتطبيق
+    if (
+      data.website.includes("/partners") ||
+      data.website.includes("/users") ||
+      data.website.includes("/projects")
+    ) {
+      errors.push("لا يمكن استخدام روابط داخلية للتطبيق كموقع للشريك");
+    }
+    // السماح بالروابط المحلية والخارجية الصحيحة
+    else if (!isLocalhost && !isExternal) {
+      errors.push("الرجاء إدخال رابط موقع صالح");
+    }
   }
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 

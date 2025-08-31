@@ -1,16 +1,22 @@
-"use client"
+"use client";
 
-import React from "react"
+import React from "react";
 
-import { useState, useMemo } from "react"
-import { DashboardLayout } from "@/components/shared/dashboard-layout"
-import { SingleImageUpload } from "@/components/shared/single-image-upload"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useMemo } from "react";
+import { DashboardLayout } from "@/components/shared/dashboard-layout";
+import { SingleImageUpload } from "@/components/shared/single-image-upload";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -18,85 +24,78 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useToast } from "@/hooks/use-toast"
-import { useDebounce } from "@/hooks/use-debounce"
-import { Plus, Building, Search, MoreHorizontal, Eye, Edit, ExternalLink, Trash2, Loader2 } from "lucide-react"
-import { createPartner, updatePartner, deletePartner, getPartners, validatePartnerData, transformFormDataToAPI, transformAPIToFormData, type Partner as PartnerType } from "@/lib/partners"
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/use-debounce";
+import {
+  Plus,
+  Building,
+  Search,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  ExternalLink,
+  Trash2,
+  Loader2,
+  RefreshCw,
+  Users,
+} from "lucide-react";
+import {
+  createPartner,
+  updatePartner,
+  deletePartner,
+  getPartners,
+  getPartner,
+  validatePartnerData,
+  transformFormDataToAPI,
+  transformAPIToFormData,
+  type Partner as PartnerType,
+} from "@/lib/partners";
+import { buildImageUrl } from "@/lib/config";
 
 interface Partner {
-  _id?: string
-  id?: number
-  nameAr: string
-  nameEn: string
-  type: string
-  status: string
-  email: string
-  phone: string
-  website: string
-  joinDate: string
-  projects: number
-  logo?: string
-  logoFileId?: string // معرف ملف اللوجو
+  _id?: string;
+  id?: number;
+  nameAr: string;
+  nameEn: string;
+  type: string;
+  status: string;
+  email: string;
+  phone: string;
+  website: string;
+  joinDate: string;
+  logo?: string;
+  logoFileId?: string; // معرف ملف اللوجو
 }
 
 export default function PartnersPage() {
-  const { toast } = useToast()
-  const [partners, setPartners] = useState<Partner[]>([
-    {
-      id: 1,
-      nameAr: "مؤسسة الخير الإنسانية",
-      nameEn: "Khair Humanitarian Foundation",
-      type: "مؤسسة",
-      status: "نشط",
-      email: "info@khair.org",
-      phone: "+966 11 234 5678",
-      website: "https://khair.org",
-      joinDate: "2023-01-15",
-      projects: 5,
-      logo: "/heart-hands-logo.png",
-      logoFileId: "68ac2a2f2fb9420b05f3adf6", // معرف ملف اللوجو
-    },
-    {
-      id: 2,
-      nameAr: "شركة التكنولوجيا المتقدمة",
-      nameEn: "Advanced Technology Company",
-      type: "شركة",
-      status: "نشط",
-      email: "support@tech.com",
-      phone: "+966 13 876 5432",
-      website: "https://tech.com",
-      joinDate: "2023-06-20",
-      projects: 3,
-      logo: "/aramco-logo.png",
-      logoFileId: "68ac2a2f2fb9420b05f3adf7", // معرف ملف اللوجو
-    },
-    {
-      id: 3,
-      nameAr: "أحمد محمد الذهبي",
-      nameEn: "Ahmed Mohammed Al-Dhahabi",
-      type: "فرد",
-      status: "غير نشط",
-      email: "ahmed@email.com",
-      phone: "+966 12 345 6789",
-      website: "https://ahmed.com",
-      joinDate: "2022-12-10",
-      projects: 1,
-    },
-  ])
+  const { toast } = useToast();
+  const [partners, setPartners] = useState<Partner[]>([]);
 
   // States
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -110,36 +109,40 @@ export default function PartnersPage() {
     joinDate: "",
     logo: "",
     logoFileId: "", // معرف ملف اللوجو
-  })
+  });
 
   // Debounced search
-  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Loading state for partners
-  const [isLoadingPartners, setIsLoadingPartners] = useState(false)
+  const [isLoadingPartners, setIsLoadingPartners] = useState(false);
 
   // Filtered partners
   const filteredPartners = useMemo(() => {
     return partners.filter((partner) => {
       const matchesSearch =
-        partner.nameAr.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        partner.nameEn.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        partner.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-      const matchesStatus = statusFilter === "all" || partner.status === statusFilter
-      return matchesSearch && matchesStatus
-    })
-  }, [partners, debouncedSearchTerm, statusFilter])
+        partner.nameAr
+          .toLowerCase()
+          .includes(debouncedSearchTerm.toLowerCase()) ||
+        partner.nameEn
+          .toLowerCase()
+          .includes(debouncedSearchTerm.toLowerCase()) ||
+        partner.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || partner.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [partners, debouncedSearchTerm, statusFilter]);
 
   // Stats
   const stats = useMemo(
     () => ({
       total: partners.length,
-      active: partners.filter((p) => p.status === "نشط").length,
-      inactive: partners.filter((p) => p.status === "غير نشط").length,
-      totalProjects: partners.reduce((sum, p) => sum + p.projects, 0),
+      active: partners.filter((p) => p.status === "active").length,
+      inactive: partners.filter((p) => p.status === "inactive").length,
     }),
-    [partners],
-  )
+    [partners]
+  );
 
   // Reset form
   const resetForm = () => {
@@ -154,8 +157,8 @@ export default function PartnersPage() {
       joinDate: "",
       logo: "",
       logoFileId: "",
-    })
-  }
+    });
+  };
 
   // Load partners from API
   const loadPartners = async () => {
@@ -165,39 +168,40 @@ export default function PartnersPage() {
         search: debouncedSearchTerm,
         status: statusFilter !== "all" ? statusFilter : undefined,
       });
-      
+
       if (response.status === "sucsess") {
         // تحويل بيانات API إلى تنسيق النموذج
-        const transformedPartners = response.data.map((apiPartner) => ({
-          _id: apiPartner._id,
-          id: Date.now() + Math.random(), // توليد ID مؤقت
-          nameAr: apiPartner.name_ar,
-          nameEn: apiPartner.name_en || "",
-          type: apiPartner.type,
-          status: apiPartner.status === "active" ? "نشط" : "غير نشط",
-          email: apiPartner.email,
-          phone: "",
-          website: apiPartner.website || "",
-          joinDate: apiPartner.join_date,
-          projects: 0, // سيتم تحديثه لاحقاً
-          logo: apiPartner.logo?.url || "",
-          logoFileId: apiPartner.logo?._id || "",
-        }));
-        
+        const transformedPartners = response.data.partners.map(
+          (apiPartner) => ({
+            _id: apiPartner._id,
+            id: Date.now() + Math.random(), // توليد ID مؤقت
+            nameAr: apiPartner.name_ar,
+            nameEn: apiPartner.name_en || "",
+            type: apiPartner.type,
+            status: apiPartner.status, // الاحتفاظ بالقيمة الإنجليزية
+            email: apiPartner.email,
+            phone: "",
+            website: apiPartner.website || "",
+            joinDate: apiPartner.join_date,
+            logo: apiPartner.logo?.url || "",
+            logoFileId: apiPartner.logo?._id || "",
+          })
+        );
+
         setPartners(transformedPartners);
       } else {
         throw new Error(response.message || "فشل في تحميل الشركاء");
       }
     } catch (error: any) {
       console.error("Error loading partners:", error);
-      
+
       let errorMessage = "حدث خطأ أثناء تحميل الشركاء";
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "خطأ",
         description: errorMessage,
@@ -230,10 +234,10 @@ export default function PartnersPage() {
     try {
       // تحويل البيانات إلى تنسيق API
       const apiData = transformFormDataToAPI(formData);
-      
+
       // استدعاء API لإنشاء الشريك
       const response = await createPartner(apiData);
-      
+
       if (response.status === "sucsess") {
         // إضافة الشريك الجديد إلى القائمة
         const newPartner: Partner = {
@@ -247,7 +251,6 @@ export default function PartnersPage() {
           phone: "",
           website: response.data.website || "",
           joinDate: response.data.join_date,
-          projects: 0,
           logo: response.data.logo?.url || "",
           logoFileId: response.data.logo?._id || "",
         };
@@ -264,7 +267,7 @@ export default function PartnersPage() {
       }
     } catch (error: any) {
       console.error("Error creating partner:", error);
-      
+
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء إضافة الشريك";
       if (error.response?.data?.details) {
@@ -274,7 +277,7 @@ export default function PartnersPage() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "خطأ",
         description: errorMessage,
@@ -283,25 +286,79 @@ export default function PartnersPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   // Handle edit partner
-  const openEditDialog = (partner: Partner) => {
-    setSelectedPartner(partner)
-    setFormData({
-      nameAr: partner.nameAr,
-      nameEn: partner.nameEn,
-      type: partner.type,
-      status: partner.status,
-      email: partner.email,
-      phone: partner.phone,
-      website: partner.website,
-      joinDate: partner.joinDate,
-      logo: partner.logo || "",
-      logoFileId: partner.logoFileId || "",
-    })
-    setIsEditDialogOpen(true)
-  }
+  const openEditDialog = async (partner: Partner) => {
+    if (!partner._id) {
+      toast({
+        title: "خطأ",
+        description: "معرف الشريك غير متوفر",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // جلب بيانات الشريك من API
+      const response = await getPartner(partner._id);
+
+      if (response.status === "sucsess") {
+        const partnerData = response.data;
+
+        // تحديث البيانات في النموذج
+        setFormData({
+          nameAr: partnerData.name_ar,
+          nameEn: partnerData.name_en || "",
+          type: partnerData.type,
+          status: partnerData.status,
+          email: partnerData.email,
+          phone: "", // لا يوجد حقل phone في API
+          website: partnerData.website || "",
+          joinDate: partnerData.join_date,
+          logo: buildImageUrl(partnerData.logo?.url || ""),
+          logoFileId: partnerData.logo?._id || "",
+        });
+
+        setSelectedPartner({
+          _id: partnerData._id,
+          id: Date.now(),
+          nameAr: partnerData.name_ar,
+          nameEn: partnerData.name_en || "",
+          type: partnerData.type,
+          status: partnerData.status,
+          email: partnerData.email,
+          phone: "",
+          website: partnerData.website || "",
+          joinDate: partnerData.join_date,
+          logo: partnerData.logo?.url || "",
+          logoFileId: partnerData.logo?._id || "",
+        });
+
+        setIsEditDialogOpen(true);
+      } else {
+        throw new Error(response.message || "فشل في جلب بيانات الشريك");
+      }
+    } catch (error: any) {
+      console.error("Error fetching partner data:", error);
+
+      let errorMessage = "حدث خطأ أثناء جلب بيانات الشريك";
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "خطأ",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleUpdatePartner = async () => {
     if (!selectedPartner) return;
@@ -321,28 +378,32 @@ export default function PartnersPage() {
     try {
       // تحويل البيانات إلى تنسيق API
       const apiData = transformFormDataToAPI(formData);
-      
+
       // استدعاء API لتحديث الشريك
       const response = await updatePartner({
         _id: selectedPartner._id || "",
         ...apiData,
       });
-      
+
       if (response.status === "sucsess") {
         // تحديث الشريك في القائمة
         setPartners((prev) =>
-          prev.map((partner) => (partner._id === selectedPartner._id ? { 
-            ...partner, 
-            nameAr: response.data.name_ar,
-            nameEn: response.data.name_en || "",
-            type: response.data.type,
-            status: response.data.status,
-            email: response.data.email,
-            website: response.data.website || "",
-            joinDate: response.data.join_date,
-            logo: response.data.logo?.url || "",
-            logoFileId: response.data.logo?._id || "",
-          } : partner)),
+          prev.map((partner) =>
+            partner._id === selectedPartner._id
+              ? {
+                  ...partner,
+                  nameAr: response.data.name_ar,
+                  nameEn: response.data.name_en || "",
+                  type: response.data.type,
+                  status: response.data.status,
+                  email: response.data.email,
+                  website: response.data.website || "",
+                  joinDate: response.data.join_date,
+                  logo: response.data.logo?.url || "",
+                  logoFileId: response.data.logo?._id || "",
+                }
+              : partner
+          )
         );
 
         closeEditDialog();
@@ -356,7 +417,7 @@ export default function PartnersPage() {
       }
     } catch (error: any) {
       console.error("Error updating partner:", error);
-      
+
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء تحديث بيانات الشريك";
       if (error.response?.data?.details) {
@@ -366,7 +427,7 @@ export default function PartnersPage() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "خطأ",
         description: errorMessage,
@@ -375,19 +436,19 @@ export default function PartnersPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   // Handle view partner
   const openViewDialog = (partner: Partner) => {
-    setSelectedPartner(partner)
-    setIsViewDialogOpen(true)
-  }
+    setSelectedPartner(partner);
+    setIsViewDialogOpen(true);
+  };
 
   // Handle delete partner
   const openDeleteDialog = (partner: Partner) => {
-    setSelectedPartner(partner)
-    setIsDeleteDialogOpen(true)
-  }
+    setSelectedPartner(partner);
+    setIsDeleteDialogOpen(true);
+  };
 
   const confirmDelete = async () => {
     if (!selectedPartner) return;
@@ -396,10 +457,12 @@ export default function PartnersPage() {
     try {
       // استدعاء API لحذف الشريك
       const response = await deletePartner(selectedPartner._id || "");
-      
+
       if (response.status === "sucsess") {
         // حذف الشريك من القائمة
-        setPartners((prev) => prev.filter((partner) => partner._id !== selectedPartner._id));
+        setPartners((prev) =>
+          prev.filter((partner) => partner._id !== selectedPartner._id)
+        );
         setIsDeleteDialogOpen(false);
         setSelectedPartner(null);
 
@@ -412,7 +475,7 @@ export default function PartnersPage() {
       }
     } catch (error: any) {
       console.error("Error deleting partner:", error);
-      
+
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء حذف الشريك";
       if (error.response?.data?.details) {
@@ -422,7 +485,7 @@ export default function PartnersPage() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast({
         title: "خطأ",
         description: errorMessage,
@@ -431,53 +494,93 @@ export default function PartnersPage() {
     } finally {
       setIsDeleting(false);
     }
-  }
+  };
 
   // Handle visit website
   const handleVisitWebsite = (website: string) => {
     if (website) {
-      window.open(website.startsWith("http") ? website : `https://${website}`, "_blank")
+      window.open(
+        website.startsWith("http") ? website : `https://${website}`,
+        "_blank"
+      );
       toast({
         title: "تم فتح الموقع",
         description: "تم فتح موقع الشريك في نافذة جديدة",
-      })
+      });
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
-    return status === "نشط" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-  }
+    return status === "active"
+      ? "bg-green-100 text-green-800"
+      : "bg-red-100 text-red-800";
+  };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "مؤسسة":
-        return "bg-blue-100 text-blue-800"
-      case "شركة":
-        return "bg-purple-100 text-purple-800"
-      case "فرد":
-        return "bg-orange-100 text-orange-800"
+      case "org":
+        return "bg-blue-100 text-blue-800";
+      case "firm":
+        return "bg-purple-100 text-purple-800";
+      case "member":
+        return "bg-orange-100 text-orange-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
+
+  // تنسيق التاريخ لعرضه بشكل مقروء (ميلادي)
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch (error) {
+      return dateString;
+    }
+  };
+
+  // دالة لحساب حجم الصورة
+  const getImageSize = (imageUrl: string): string => {
+    if (!imageUrl) return "";
+
+    // إذا كان URL يحتوي على معرف الملف، استخدم حجم افتراضي
+    if (imageUrl.includes("/uploads/")) {
+      return "2.5 MB"; // حجم افتراضي للصور المرفوعة
+    }
+
+    // إذا كان URL خارجي، استخدم حجم افتراضي
+    if (imageUrl.startsWith("http")) {
+      return "1.8 MB"; // حجم افتراضي للصور الخارجية
+    }
+
+    return "1.5 MB"; // حجم افتراضي عام
+  };
 
   const closeEditDialog = () => {
-    setIsEditDialogOpen(false)
-    setSelectedPartner(null)
-    resetForm()
-  }
+    setIsEditDialogOpen(false);
+    setSelectedPartner(null);
+    resetForm();
+  };
 
   const openAddDialog = () => {
-    resetForm()
-    setSelectedPartner(null)
-    setIsAddDialogOpen(true)
-  }
+    resetForm();
+    setSelectedPartner(null);
+    setIsAddDialogOpen(true);
+  };
 
   const closeAddDialog = () => {
-    setIsAddDialogOpen(false)
-    resetForm()
-    setSelectedPartner(null)
-  }
+    setIsAddDialogOpen(false);
+    resetForm();
+    setSelectedPartner(null);
+  };
 
   return (
     <DashboardLayout>
@@ -486,7 +589,9 @@ export default function PartnersPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">إدارة الشركاء</h1>
-            <p className="text-gray-600 mt-2">إدارة الشركاء والمساهمين في أنشطة الجمعية</p>
+            <p className="text-gray-600 mt-2">
+              إدارة الشركاء والمساهمين في أنشطة الجمعية
+            </p>
           </div>
           <Button
             onClick={openAddDialog}
@@ -498,10 +603,12 @@ export default function PartnersPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">إجمالي الشركاء</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                إجمالي الشركاء
+              </CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -512,34 +619,31 @@ export default function PartnersPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">الشركاء النشطون</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                الشركاء النشطون
+              </CardTitle>
               <Building className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {stats.active}
+              </div>
               <p className="text-xs text-muted-foreground">شريك نشط</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">الشركاء غير النشطين</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                الشركاء غير النشطين
+              </CardTitle>
               <Building className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.inactive}</div>
+              <div className="text-2xl font-bold text-red-600">
+                {stats.inactive}
+              </div>
               <p className="text-xs text-muted-foreground">شريك غير نشط</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">إجمالي المشاريع</CardTitle>
-              <Building className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{stats.totalProjects}</div>
-              <p className="text-xs text-muted-foreground">مشروع مشترك</p>
             </CardContent>
           </Card>
         </div>
@@ -563,10 +667,23 @@ export default function PartnersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">جميع الحالات</SelectItem>
-              <SelectItem value="نشط">نشط</SelectItem>
-              <SelectItem value="غير نشط">غير نشط</SelectItem>
+              <SelectItem value="active">نشط</SelectItem>
+              <SelectItem value="inactive">غير نشط</SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            onClick={loadPartners}
+            disabled={isLoadingPartners}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            {isLoadingPartners ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            تحديث
+          </Button>
         </div>
 
         {/* Partners Table */}
@@ -581,7 +698,6 @@ export default function PartnersPage() {
                   <TableHead className="text-right">الشريك</TableHead>
                   <TableHead className="text-right">النوع</TableHead>
                   <TableHead className="text-right">تاريخ الانضمام</TableHead>
-                  <TableHead className="text-right">المشاريع</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
                   <TableHead className="text-right">الإجراءات</TableHead>
                 </TableRow>
@@ -589,7 +705,7 @@ export default function PartnersPage() {
               <TableBody>
                 {isLoadingPartners ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <div className="flex items-center justify-center space-x-2 text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span>جاري تحميل الشركاء...</span>
@@ -598,68 +714,128 @@ export default function PartnersPage() {
                   </TableRow>
                 ) : filteredPartners.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      لا توجد شركاء
+                    <TableCell colSpan={5} className="text-center py-12">
+                      <div className="flex flex-col items-center justify-center space-y-4">
+                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+                          <Users className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <div className="text-center">
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            لا توجد شركاء
+                          </h3>
+                          <p className="text-gray-500 mb-4">
+                            {debouncedSearchTerm || statusFilter !== "all"
+                              ? "لا توجد نتائج تطابق معايير البحث المحددة"
+                              : "لم يتم إضافة أي شركاء بعد"}
+                          </p>
+                          {debouncedSearchTerm || statusFilter !== "all" ? (
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setSearchTerm("");
+                                setStatusFilter("all");
+                              }}
+                              className="flex items-center gap-2"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              مسح الفلاتر
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={openAddDialog}
+                              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                            >
+                              <Plus className="w-4 h-4 ml-2" />
+                              إضافة أول شريك
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredPartners.map((partner) => (
                     <TableRow key={partner.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                          {partner.logo ? (
-                            <img
-                              src={partner.logo || "/placeholder.svg"}
-                              alt={partner.nameAr}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Building className="w-5 h-5 text-gray-500" />
-                          )}
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                            {partner.logo ? (
+                              <img
+                                src={
+                                  buildImageUrl(partner.logo) ||
+                                  "/placeholder.svg"
+                                }
+                                alt={partner.nameAr}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Building className="w-5 h-5 text-gray-500" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{partner.nameAr}</div>
+                            <div className="text-sm text-gray-500">
+                              {partner.email}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium">{partner.nameAr}</div>
-                          <div className="text-sm text-gray-500">{partner.email}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getTypeColor(partner.type)}>{partner.type}</Badge>
-                    </TableCell>
-                    <TableCell>{partner.joinDate}</TableCell>
-                    <TableCell>{partner.projects}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(partner.status)}>{partner.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openViewDialog(partner)}>
-                            <Eye className="ml-2 h-4 w-4" />
-                            عرض التفاصيل
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEditDialog(partner)}>
-                            <Edit className="ml-2 h-4 w-4" />
-                            تعديل
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleVisitWebsite(partner.website)}>
-                            <ExternalLink className="ml-2 h-4 w-4" />
-                            زيارة الموقع
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openDeleteDialog(partner)} className="text-red-600">
-                            <Trash2 className="ml-2 h-4 w-4" />
-                            حذف
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getTypeColor(partner.type)}>
+                          {partner.type === "org"
+                            ? "مؤسسة"
+                            : partner.type === "firm"
+                            ? "شركة"
+                            : partner.type === "member"
+                            ? "فرد"
+                            : partner.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(partner.joinDate)}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(partner.status)}>
+                          {partner.status === "active" ? "نشط" : "غير نشط"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => openViewDialog(partner)}
+                            >
+                              <Eye className="ml-2 h-4 w-4" />
+                              عرض التفاصيل
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openEditDialog(partner)}
+                            >
+                              <Edit className="ml-2 h-4 w-4" />
+                              تعديل
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleVisitWebsite(partner.website)
+                              }
+                            >
+                              <ExternalLink className="ml-2 h-4 w-4" />
+                              زيارة الموقع
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openDeleteDialog(partner)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="ml-2 h-4 w-4" />
+                              حذف
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
               </TableBody>
@@ -668,7 +844,10 @@ export default function PartnersPage() {
         </Card>
 
         {/* Add Partner Dialog */}
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => (open ? openAddDialog() : closeAddDialog())}>
+        <Dialog
+          open={isAddDialogOpen}
+          onOpenChange={(open) => (open ? openAddDialog() : closeAddDialog())}
+        >
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>إضافة شريك</DialogTitle>
@@ -679,7 +858,9 @@ export default function PartnersPage() {
                 <Input
                   id="nameAr"
                   value={formData.nameAr}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nameAr: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, nameAr: e.target.value }))
+                  }
                   placeholder="أدخل اسم الشريك بالعربية"
                 />
               </div>
@@ -688,7 +869,9 @@ export default function PartnersPage() {
                 <Input
                   id="nameEn"
                   value={formData.nameEn}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nameEn: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, nameEn: e.target.value }))
+                  }
                   placeholder="أدخل اسم الشريك بالإنجليزية"
                 />
               </div>
@@ -698,7 +881,9 @@ export default function PartnersPage() {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   placeholder="البريد الإلكتروني"
                 />
               </div>
@@ -706,7 +891,9 @@ export default function PartnersPage() {
                 <Label htmlFor="type">نوع الشريك *</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, type: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="اختر نوع الشريك" />
@@ -718,13 +905,18 @@ export default function PartnersPage() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="website">الموقع الإلكتروني</Label>
                 <Input
                   id="website"
                   value={formData.website}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, website: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      website: e.target.value,
+                    }))
+                  }
                   placeholder="https://example.com"
                 />
               </div>
@@ -732,7 +924,9 @@ export default function PartnersPage() {
                 <Label htmlFor="status">الحالة *</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, status: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -749,7 +943,12 @@ export default function PartnersPage() {
                   id="joinDate"
                   type="date"
                   value={formData.joinDate}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, joinDate: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      joinDate: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
@@ -757,12 +956,36 @@ export default function PartnersPage() {
                 <SingleImageUpload
                   currentImage={formData.logo}
                   currentFileId={formData.logoFileId}
-                  onImageChange={(image) => setFormData((prev) => ({ ...prev, logo: image }))}
-                  onFileIdChange={(fileId) => setFormData((prev) => ({ ...prev, logoFileId: fileId || "" }))}
+                  onImageChange={(image) =>
+                    setFormData((prev) => ({ ...prev, logo: image }))
+                  }
+                  onFileIdChange={(fileId) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      logoFileId: fileId || "",
+                    }))
+                  }
                   label="اضغط لاختيار صورة"
                   required
                   autoUpload={true}
                 />
+                {formData.logo && (
+                  <div className="mt-2">
+                    <Label className="text-sm text-gray-500">
+                      الصورة المختارة:
+                    </Label>
+                    <div className="mt-1 w-20 h-20 rounded-lg overflow-hidden border">
+                      <img
+                        src={formData.logo}
+                        alt="الصورة المختارة"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      حجم الصورة: {getImageSize(formData.logo)}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -778,7 +1001,10 @@ export default function PartnersPage() {
         </Dialog>
 
         {/* Edit Partner Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={(open) => (open ? null : closeEditDialog())}>
+        <Dialog
+          open={isEditDialogOpen}
+          onOpenChange={(open) => (open ? null : closeEditDialog())}
+        >
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>تعديل بيانات الشريك</DialogTitle>
@@ -790,7 +1016,9 @@ export default function PartnersPage() {
                 <Input
                   id="edit-nameAr"
                   value={formData.nameAr}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nameAr: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, nameAr: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -798,7 +1026,9 @@ export default function PartnersPage() {
                 <Input
                   id="edit-nameEn"
                   value={formData.nameEn}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nameEn: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, nameEn: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -807,46 +1037,57 @@ export default function PartnersPage() {
                   id="edit-email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, email: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-type">نوع الشريك *</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, type: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="مؤسسة">مؤسسة</SelectItem>
-                    <SelectItem value="شركة">شركة</SelectItem>
-                    <SelectItem value="فرد">فرد</SelectItem>
+                    <SelectItem value="org">مؤسسة</SelectItem>
+                    <SelectItem value="firm">شركة</SelectItem>
+                    <SelectItem value="member">فرد</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-website">الموقع الإلكتروني</Label>
                 <Input
                   id="edit-website"
                   value={formData.website}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, website: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      website: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-status">الحالة *</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, status: value }))
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="نشط">نشط</SelectItem>
-                    <SelectItem value="غير نشط">غير نشط</SelectItem>
+                    <SelectItem value="active">نشط</SelectItem>
+                    <SelectItem value="inactive">غير نشط</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -856,7 +1097,12 @@ export default function PartnersPage() {
                   id="edit-joinDate"
                   type="date"
                   value={formData.joinDate}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, joinDate: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      joinDate: e.target.value,
+                    }))
+                  }
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
@@ -864,11 +1110,35 @@ export default function PartnersPage() {
                 <SingleImageUpload
                   currentImage={formData.logo}
                   currentFileId={formData.logoFileId}
-                  onImageChange={(image) => setFormData((prev) => ({ ...prev, logo: image }))}
-                  onFileIdChange={(fileId) => setFormData((prev) => ({ ...prev, logoFileId: fileId || "" }))}
+                  onImageChange={(image) =>
+                    setFormData((prev) => ({ ...prev, logo: image }))
+                  }
+                  onFileIdChange={(fileId) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      logoFileId: fileId || "",
+                    }))
+                  }
                   label="اضغط لاختيار صورة"
                   autoUpload={true}
                 />
+                {formData.logo && (
+                  <div className="mt-2">
+                    <Label className="text-sm text-gray-500">
+                      الصورة الحالية:
+                    </Label>
+                    <div className="mt-1 w-20 h-20 rounded-lg overflow-hidden border">
+                      <img
+                        src={formData.logo}
+                        alt="الصورة الحالية"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="mt-2 text-xs text-gray-500">
+                      حجم الصورة: {getImageSize(formData.logo)}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
@@ -895,7 +1165,10 @@ export default function PartnersPage() {
                   <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
                     {selectedPartner.logo ? (
                       <img
-                        src={selectedPartner.logo || "/placeholder.svg"}
+                        src={
+                          buildImageUrl(selectedPartner.logo) ||
+                          "/placeholder.svg"
+                        }
                         alt={selectedPartner.nameAr}
                         className="w-full h-full object-cover"
                       />
@@ -903,33 +1176,62 @@ export default function PartnersPage() {
                       <Building className="w-8 h-8 text-gray-500" />
                     )}
                   </div>
+                  {selectedPartner.logo && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      حجم الصورة: {getImageSize(selectedPartner.logo)}
+                    </div>
+                  )}
                   <div>
-                    <h3 className="text-xl font-bold">{selectedPartner.nameAr}</h3>
+                    <h3 className="text-xl font-bold">
+                      {selectedPartner.nameAr}
+                    </h3>
                     <p className="text-gray-600">{selectedPartner.nameEn}</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">النوع</Label>
-                    <p className="mt-1">{selectedPartner.type}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">الحالة</Label>
+                    <Label className="text-sm font-medium text-gray-500">
+                      النوع
+                    </Label>
                     <p className="mt-1">
-                      <Badge className={getStatusColor(selectedPartner.status)}>{selectedPartner.status}</Badge>
+                      {selectedPartner.type === "org"
+                        ? "مؤسسة"
+                        : selectedPartner.type === "firm"
+                        ? "شركة"
+                        : selectedPartner.type === "member"
+                        ? "فرد"
+                        : selectedPartner.type}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">البريد الإلكتروني</Label>
+                    <Label className="text-sm font-medium text-gray-500">
+                      الحالة
+                    </Label>
+                    <p className="mt-1">
+                      <Badge className={getStatusColor(selectedPartner.status)}>
+                        {selectedPartner.status === "active"
+                          ? "نشط"
+                          : "غير نشط"}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-500">
+                      البريد الإلكتروني
+                    </Label>
                     <p className="mt-1">{selectedPartner.email}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">الهاتف</Label>
+                    <Label className="text-sm font-medium text-gray-500">
+                      الهاتف
+                    </Label>
                     <p className="mt-1">{selectedPartner.phone}</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">الموقع الإلكتروني</Label>
+                    <Label className="text-sm font-medium text-gray-500">
+                      الموقع الإلكتروني
+                    </Label>
                     <p className="mt-1">
                       <a
                         href={
@@ -947,18 +1249,21 @@ export default function PartnersPage() {
                   </div>
 
                   <div>
-                    <Label className="text-sm font-medium text-gray-500">تاريخ الانضمام</Label>
-                    <p className="mt-1">{selectedPartner.joinDate}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">عدد المشاريع</Label>
-                    <p className="mt-1 font-medium">{selectedPartner.projects}</p>
+                    <Label className="text-sm font-medium text-gray-500">
+                      تاريخ الانضمام
+                    </Label>
+                    <p className="mt-1">
+                      {formatDate(selectedPartner.joinDate)}
+                    </p>
                   </div>
                 </div>
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsViewDialogOpen(false)}
+              >
                 إغلاق
               </Button>
             </DialogFooter>
@@ -971,15 +1276,25 @@ export default function PartnersPage() {
             <DialogHeader>
               <DialogTitle>تأكيد الحذف</DialogTitle>
               <DialogDescription>
-                هل أنت متأكد من حذف هذا العنصر؟ سيتم نقله إلى الأرشيف ويمكن استرجاعه لاحقاً.
+                هل أنت متأكد من حذف هذا العنصر؟ سيتم نقله إلى الأرشيف ويمكن
+                استرجاعه لاحقاً.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
                 إلغاء
               </Button>
-              <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
-                {isDeleting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting && (
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                )}
                 <Trash2 className="ml-2 h-4 w-4" />
                 حذف
               </Button>
@@ -988,5 +1303,5 @@ export default function PartnersPage() {
         </Dialog>
       </div>
     </DashboardLayout>
-  )
+  );
 }
