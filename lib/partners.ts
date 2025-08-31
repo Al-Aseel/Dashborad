@@ -224,6 +224,22 @@ export function validatePartnerData(data: any): {
  * @returns بيانات جاهزة للإرسال
  */
 export function transformFormDataToAPI(formData: any): CreatePartnerRequest {
+  // Convert YYYY-MM-DD date to ISO format for API
+  const formatDateForAPI = (dateString: string): string => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
+
+      // Set time to start of day in local timezone
+      date.setHours(0, 0, 0, 0);
+      return date.toISOString();
+    } catch (error) {
+      console.error("Error formatting date for API:", error);
+      return "";
+    }
+  };
+
   return {
     name_ar: formData.nameAr || "",
     name_en: formData.nameEn || undefined,
@@ -231,7 +247,7 @@ export function transformFormDataToAPI(formData: any): CreatePartnerRequest {
     type: formData.type || "org",
     website: formData.website || undefined,
     status: formData.status || "active",
-    join_date: formData.joinDate || "",
+    join_date: formatDateForAPI(formData.joinDate),
     logo: formData.logoFileId || "",
   };
 }
@@ -242,6 +258,24 @@ export function transformFormDataToAPI(formData: any): CreatePartnerRequest {
  * @returns بيانات جاهزة للنموذج
  */
 export function transformAPIToFormData(apiData: Partner): any {
+  // Convert ISO date to YYYY-MM-DD format for form input
+  const formatDateForInput = (isoDateString: string): string => {
+    if (!isoDateString) return "";
+    try {
+      const date = new Date(isoDateString);
+      if (isNaN(date.getTime())) return "";
+
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "";
+    }
+  };
+
   return {
     nameAr: apiData.name_ar,
     nameEn: apiData.name_en || "",
@@ -249,7 +283,7 @@ export function transformAPIToFormData(apiData: Partner): any {
     type: apiData.type,
     website: apiData.website || "",
     status: apiData.status,
-    joinDate: apiData.join_date,
+    joinDate: formatDateForInput(apiData.join_date),
     logo: apiData.logo?.url || "",
     logoFileId: apiData.logo?._id || "",
   };

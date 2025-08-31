@@ -308,17 +308,25 @@ export default function PartnersPage() {
         const partnerData = response.data;
 
         // تحديث البيانات في النموذج
-        setFormData({
-          nameAr: partnerData.name_ar,
-          nameEn: partnerData.name_en || "",
+        const formDataFromAPI = transformAPIToFormData({
+          _id: partnerData._id,
+          id: Date.now(),
+          name_ar: partnerData.name_ar,
+          name_en: partnerData.name_en || "",
           type: partnerData.type,
           status: partnerData.status,
           email: partnerData.email,
-          phone: "", // لا يوجد حقل phone في API
+          phone: "",
           website: partnerData.website || "",
-          joinDate: partnerData.join_date,
-          logo: buildImageUrl(partnerData.logo?.url || ""),
+          join_date: partnerData.join_date,
+          logo: partnerData.logo,
           logoFileId: partnerData.logo?._id || "",
+        });
+
+        setFormData({
+          ...formDataFromAPI,
+          phone: "", // لا يوجد حقل phone في API
+          logo: buildImageUrl(partnerData.logo?.url || ""),
         });
 
         setSelectedPartner({
@@ -331,7 +339,7 @@ export default function PartnersPage() {
           email: partnerData.email,
           phone: "",
           website: partnerData.website || "",
-          joinDate: partnerData.join_date,
+          joinDate: formDataFromAPI.joinDate, // Use the formatted date
           logo: partnerData.logo?.url || "",
           logoFileId: partnerData.logo?._id || "",
         });
