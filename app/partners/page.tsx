@@ -296,7 +296,21 @@ export default function PartnersPage() {
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء إضافة الشريك";
       if (error.response?.data?.details) {
-        errorMessage = error.response.data.details.join("، ");
+        // التحقق من نوع details
+        if (typeof error.response.data.details === 'object' && error.response.data.details.msg) {
+          // إذا كان details كائن يحتوي على msg
+          errorMessage = error.response.data.details.msg;
+        } else if (Array.isArray(error.response.data.details)) {
+          // إذا كان details مصفوفة
+          const firstError = error.response.data.details[0];
+          if (firstError && firstError.msg) {
+            errorMessage = firstError.msg;
+          } else {
+            errorMessage = error.response.data.details.join("، ");
+          }
+        } else {
+          errorMessage = String(error.response.data.details);
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -437,7 +451,21 @@ export default function PartnersPage() {
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء تحديث بيانات الشريك";
       if (error.response?.data?.details) {
-        errorMessage = error.response.data.details.join("، ");
+        // التحقق من نوع details
+        if (typeof error.response.data.details === 'object' && error.response.data.details.msg) {
+          // إذا كان details كائن يحتوي على msg
+          errorMessage = error.response.data.details.msg;
+        } else if (Array.isArray(error.response.data.details)) {
+          // إذا كان details مصفوفة
+          const firstError = error.response.data.details[0];
+          if (firstError && firstError.msg) {
+            errorMessage = firstError.msg;
+          } else {
+            errorMessage = error.response.data.details.join("، ");
+          }
+        } else {
+          errorMessage = String(error.response.data.details);
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -541,7 +569,12 @@ export default function PartnersPage() {
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء حذف الشريك";
       if (error.response?.data?.details) {
-        errorMessage = error.response.data.details.join("، ");
+        // التأكد من أن details مصفوفة قبل استخدام join
+        if (Array.isArray(error.response.data.details)) {
+          errorMessage = error.response.data.details.join("، ");
+        } else {
+          errorMessage = String(error.response.data.details);
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -1131,7 +1164,7 @@ export default function PartnersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">معلومات الاتصال *</Label>
+                <Label htmlFor="email">الايميل *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -1290,7 +1323,7 @@ export default function PartnersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">معلومات الاتصال *</Label>
+                <Label htmlFor="edit-email">الايميل *</Label>
                 <Input
                   id="edit-email"
                   type="email"
@@ -1517,17 +1550,7 @@ export default function PartnersPage() {
                         </div>
                       </div>
                       
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
-                          الهاتف
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <p className="text-gray-800 font-medium">
-                            {selectedPartner.phone && selectedPartner.phone !== "" ? selectedPartner.phone : "غير محدد"}
-                          </p>
-                        </div>
-                      </div>
+                      
                     </div>
                     
                     <div className="space-y-4">
