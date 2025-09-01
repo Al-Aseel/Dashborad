@@ -402,46 +402,75 @@ const updatedSettings = await updateSettings({
 });
 ```
 
-### تحديث ديناميكي لاسم الموقع
+### تحديث ديناميكي لاسم الموقع وشعار الموقع
 
 **الميزة:**
 
 - يتم تحديث اسم الموقع في الـ sidebar تلقائياً عند تغييره في صفحة الإعدادات
+- يتم عرض شعار الموقع في الـ sidebar تلقائياً عند رفعه في صفحة الإعدادات
+- **تحديث فوري بدون إعادة تحميل** - يتم تحديث الـ sidebar فوراً بعد حفظ الإعدادات
 - لا حاجة لإعادة تحميل الصفحة أو إعادة تشغيل التطبيق
 
 **التنفيذ:**
 
 ```typescript
-// Hook مخصص لإدارة اسم الموقع
-import { useWebsiteName } from "@/hooks/use-website-name";
+// Context مشترك لإدارة الإعدادات مع تحديث فوري
+import {
+  SettingsProvider,
+  useSettingsContext,
+} from "@/components/settings-context";
 
-export const useWebsiteName = () => {
-  const { settings } = useSettings();
-  const [websiteName, setWebsiteName] = useState("جمعية أصيل");
-
-  useEffect(() => {
-    if (settings?.websiteName_ar) {
-      setWebsiteName(settings.websiteName_ar);
-    }
-  }, [settings?.websiteName_ar]);
-
-  return websiteName;
+// Hook مبسط لإدارة اسم الموقع وشعار الموقع
+export const useWebsiteInfo = () => {
+  const { websiteName, websiteLogo } = useSettingsContext();
+  return { websiteName, websiteLogo };
 };
 
-// استخدام في Sidebar
-const websiteName = useWebsiteName();
+// Provider في Layout الرئيسي
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <ThemeProvider>
+          <AuthProvider>
+            <SettingsProvider>
+              {" "}
+              {/* يوفر الإعدادات لجميع المكونات */}
+              {children}
+            </SettingsProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
+```
 
-// عرض ديناميكي
-<h1 className="text-lg font-bold text-foreground">{websiteName}</h1>;
+// استخدام في Sidebar
+const { websiteName, websiteLogo } = useWebsiteInfo();
+
+// عرض ديناميكي للاسم والشعار
+
+<div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-gray-200">
+  {websiteLogo ? (
+    <img src={websiteLogo} alt="شعار الموقع" className="w-full h-full object-cover" />
+  ) : (
+    <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+      <Heart className="w-7 h-7 text-white" />
+    </div>
+  )}
+</div>
+<h1 className="text-lg font-bold text-foreground">{websiteName}</h1>
 ```
 
 **كيفية العمل:**
 
-1. **تغيير اسم الموقع** في صفحة الإعدادات
+1. **تغيير اسم الموقع أو رفع شعار جديد** في صفحة الإعدادات
 2. **حفظ الإعدادات** - يتم إرسال البيانات إلى الخادم
-3. **تحديث State** - يتم تحديث `settings` في `useSettings` hook
-4. **تحديث Sidebar** - يتم تحديث `websiteName` في `useWebsiteName` hook
-5. **عرض فوري** - يتم عرض الاسم الجديد في الـ sidebar فوراً
+3. **إعادة جلب البيانات** - يتم إعادة جلب البيانات الكاملة من الخادم
+4. **تحديث Context** - يتم تحديث `websiteName` و `websiteLogo` في `SettingsContext`
+5. **تحديث Sidebar** - يتم تحديث الـ sidebar تلقائياً من خلال `useWebsiteInfo`
+6. **عرض فوري** - يتم عرض الاسم والشعار الجديد في الـ sidebar فوراً بدون إعادة تحميل
 
 ## الميزات
 
@@ -461,4 +490,4 @@ const websiteName = useWebsiteName();
 14. **Reusable Components**: مكونات قابلة لإعادة الاستخدام
 15. **Validation Error Handling**: معالجة شاملة لأخطاء التحقق من صحة البيانات
 16. **Arabic Field Labels**: تسميات عربية واضحة للحقول
-17. **Dynamic Website Name**: تحديث ديناميكي لاسم الموقع في الـ sidebar
+17. **Dynamic Website Info**: تحديث ديناميكي لاسم الموقع وشعار الموقع في الـ sidebar

@@ -1,15 +1,6 @@
-import { useState, useEffect } from "react";
-import { useSettings } from "./use-settings";
+import { useSettingsContext } from "@/components/settings-context";
 
-export const useWebsiteName = () => {
-  const { settings } = useSettings();
-  const [websiteName, setWebsiteName] = useState("جمعية أصيل");
-
-  useEffect(() => {
-    if (settings?.websiteName_ar) {
-      setWebsiteName(settings.websiteName_ar);
-    }
-  }, [settings?.websiteName_ar]);
-
-  return websiteName;
+export const useWebsiteInfo = () => {
+  const { websiteName, websiteLogo } = useSettingsContext();
+  return { websiteName, websiteLogo };
 };

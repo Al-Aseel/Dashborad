@@ -18,7 +18,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useAuthContext } from "@/components/auth-provider";
-import { useWebsiteName } from "@/hooks/use-website-name";
+import { useWebsiteInfo } from "@/hooks/use-website-name";
 
 interface SidebarItem {
   icon: any;
@@ -76,7 +76,7 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
   const pathname = usePathname();
   const isRTL = language === "ar";
   const { user, isAuthenticated, isLoading } = useAuthContext();
-  const websiteName = useWebsiteName();
+  const { websiteName, websiteLogo } = useWebsiteInfo();
 
   const { isCollapsed, setCollapsed, isHydrated, shouldAnimate } =
     usePersistentSidebarState();
@@ -146,8 +146,18 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Heart className="w-7 h-7 text-white" />
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-gray-200">
+            {websiteLogo ? (
+              <img
+                src={websiteLogo}
+                alt="شعار الموقع"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+                <Heart className="w-7 h-7 text-white" />
+              </div>
+            )}
           </div>
           {!isCollapsed && (
             <div>

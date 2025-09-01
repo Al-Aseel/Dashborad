@@ -39,7 +39,7 @@ import { ChangePasswordForm } from "@/components/shared/change-password-form";
 import { EditProfileForm } from "@/components/shared/edit-profile-form";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useSettings } from "@/hooks/use-settings";
+import { useSettingsContext } from "@/components/settings-context";
 import { UpdateSettingsRequest } from "@/lib/settings";
 import { SettingsPageSkeleton } from "@/components/shared/settings-page-skeleton";
 import { LoadingOverlay } from "@/components/shared/loading-overlay";
@@ -65,7 +65,7 @@ export default function SettingsPage() {
     error,
     validationErrors,
     fetchSettings,
-  } = useSettings();
+  } = useSettingsContext();
 
   // للتأكد من وصول الأخطاء
   console.log("Settings page validationErrors:", validationErrors);
