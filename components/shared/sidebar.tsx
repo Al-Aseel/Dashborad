@@ -12,13 +12,13 @@ import {
   MessageSquare,
   Settings,
   Users,
-  UserPlus2
-  
+  UserPlus2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useAuthContext } from "@/components/auth-provider";
+import { useWebsiteName } from "@/hooks/use-website-name";
 
 interface SidebarItem {
   icon: any;
@@ -76,6 +76,7 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
   const pathname = usePathname();
   const isRTL = language === "ar";
   const { user, isAuthenticated, isLoading } = useAuthContext();
+  const websiteName = useWebsiteName();
 
   const { isCollapsed, setCollapsed, isHydrated, shouldAnimate } =
     usePersistentSidebarState();
@@ -97,7 +98,12 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
     { icon: Heart, label: "المشاريع", key: "projects", href: "/projects" },
     { icon: FileText, label: "التقارير", key: "reports", href: "/reports" },
     { icon: Users, label: "الشركاء", key: "partners", href: "/partners" },
-    { icon: MessageSquare, label: "الرسائل", key: "messages" , href: "/messages" },
+    {
+      icon: MessageSquare,
+      label: "الرسائل",
+      key: "messages",
+      href: "/messages",
+    },
     { icon: UserPlus2, label: "المستخدمين", key: "users", href: "/users" },
     { icon: Archive, label: "الأرشيف", key: "archive", href: "/archive" },
     { icon: Settings, label: "الإعدادات", key: "settings", href: "/settings" },
@@ -145,7 +151,9 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-lg font-bold text-foreground">جمعية أصيل</h1>
+              <h1 className="text-lg font-bold text-foreground">
+                {websiteName}
+              </h1>
               <p className="text-sm text-muted-foreground">للتنمية الخيرية</p>
             </div>
           )}
@@ -157,33 +165,35 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           .filter((item) => {
             if (item.key === "users") {
               // Show Users link only when auth loaded and role is superadmin
-              return !isLoading && isAuthenticated && user?.role === "superadmin";
+              return (
+                !isLoading && isAuthenticated && user?.role === "superadmin"
+              );
             }
             return true;
           })
           .map((item, index) => {
-          const isActive = isActiveRoute(item.href);
+            const isActive = isActiveRoute(item.href);
 
-          return (
-            <Link
-              key={index}
-              href={item.href}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 ${
-                isActive
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              } ${isRTL ? "flex-row" : ""} ${
-                isCollapsed ? "justify-center px-2" : ""
-              }`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="font-medium">{item.label}</span>
-              )}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={index}
+                href={item.href}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 ${
+                  isActive
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                } ${isRTL ? "flex-row" : ""} ${
+                  isCollapsed ? "justify-center px-2" : ""
+                }`}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span className="font-medium">{item.label}</span>
+                )}
+              </Link>
+            );
+          })}
       </nav>
 
       {!isCollapsed && (
