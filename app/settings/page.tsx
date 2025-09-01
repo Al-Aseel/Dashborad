@@ -30,29 +30,149 @@ import {
   Palette,
   Save,
   Lock,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useAuthContext } from "@/components/auth-provider";
 import { LogoutDialog } from "@/components/logout-dialog";
 import { ChangePasswordForm } from "@/components/shared/change-password-form";
 import { EditProfileForm } from "@/components/shared/edit-profile-form";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useSettingsContext } from "@/components/settings-context";
+import { UpdateSettingsRequest } from "@/lib/settings";
+import { SettingsPageSkeleton } from "@/components/shared/settings-page-skeleton";
+import { LoadingOverlay } from "@/components/shared/loading-overlay";
+import { ErrorState } from "@/components/shared/error-state";
+import { InitialLoadingSkeleton } from "@/components/shared/initial-loading-skeleton";
+import { RefreshButton } from "@/components/shared/refresh-button";
+import { ValidationErrors } from "@/components/shared/validation-errors";
+import { LogoUpload } from "@/components/shared/logo-upload";
 
 export default function SettingsPage() {
   const { logoutAllDevices } = useAuthContext();
   const { toast } = useToast();
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
   const [showLogoutAllConfirm, setShowLogoutAllConfirm] = useState(false);
+
+  // استخدام hook الإعدادات
+  const {
+    settings,
+    loading,
+    updating,
+    updateSettings,
+    initialized,
+    error,
+    validationErrors,
+    fetchSettings,
+  } = useSettingsContext();
+
+  // للتأكد من وصول الأخطاء
+  console.log("Settings page validationErrors:", validationErrors);
+
+  // حالة النموذج
+  const [formData, setFormData] = useState<UpdateSettingsRequest>({});
+  const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
+
+  // تحديث النموذج عند تحميل الإعدادات
+  useEffect(() => {
+    if (settings) {
+      // استخراج imageId و URL من websiteLogo object
+      let websiteLogoId = null;
+      let websiteLogoUrl = null;
+      if (settings.websiteLogo && typeof settings.websiteLogo === "object") {
+        websiteLogoId = settings.websiteLogo._id;
+        // بناء URL الصورة من host + url من الاستجابة
+        const host = "http://localhost:5000"; // من API_BASE_URL
+        websiteLogoUrl = `${host}/${settings.websiteLogo.url}`;
+      }
+
+      setFormData({
+        websiteName_ar: settings.websiteName_ar || "",
+        websiteName_en: settings.websiteName_en || "",
+        websiteLogo: websiteLogoId,
+        contactNumber: settings.contactNumber || "",
+        email: settings.email || "",
+        address: settings.address || "",
+        facebook: settings.facebook || "",
+        instagram: settings.instagram || "",
+        twitter: settings.twitter || "",
+        youtube: settings.youtube || "",
+        whatsappNumber: settings.whatsappNumber || "",
+        website: settings.website || "",
+        description: settings.description || "",
+      });
+
+      // حفظ URL الصورة
+      setLogoImageUrl(websiteLogoUrl);
+    }
+  }, [settings]);
+
+  // معالج تغيير الحقول
+  const handleInputChange = (
+    field: keyof UpdateSettingsRequest,
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  // معالج حفظ الإعدادات
+  const handleSaveSettings = async () => {
+    try {
+      await updateSettings(formData);
+    } catch (error) {
+      // الخطأ يتم التعامل معه في hook
+    }
+  };
+  // عرض skeleton عند التحميل الأولي
+  if (loading && !initialized) {
+    return (
+      <DashboardLayout>
+        <InitialLoadingSkeleton />
+      </DashboardLayout>
+    );
+  }
+
+  // عرض حالة الخطأ
+  if (error && !settings) {
+    return (
+      <DashboardLayout>
+        <ErrorState
+          title="خطأ في تحميل الإعدادات"
+          message={error}
+          onRetry={fetchSettings}
+        />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">الإعدادات</h1>
-          <p className="text-gray-600 mt-2">إدارة إعدادات النظام والحساب</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">الإعدادات</h1>
+            <p className="text-gray-600 mt-2">إدارة إعدادات النظام والحساب</p>
+          </div>
+          <RefreshButton
+            onRefresh={fetchSettings}
+            loading={loading}
+            variant="outline"
+            size="sm"
+          />
         </div>
 
-        <Tabs defaultValue="general" className="space-y-6">
+        <Tabs defaultValue="general" className="space-y-6 relative">
+          <LoadingOverlay
+            isLoading={updating}
+            message="جاري حفظ الإعدادات..."
+            className="rounded-lg"
+            size="lg"
+          />
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general">عام</TabsTrigger>
             <TabsTrigger value="profile">الملف الشخصي</TabsTrigger>
@@ -63,13 +183,23 @@ export default function SettingsPage() {
           <TabsContent value="general" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  الإعدادات العامة
-                </CardTitle>
-                <CardDescription>
-                  إعدادات الموقع والمعلومات الأساسية
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Settings className="w-5 h-5" />
+                      الإعدادات العامة
+                    </CardTitle>
+                    <CardDescription>
+                      إعدادات الموقع والمعلومات الأساسية
+                    </CardDescription>
+                  </div>
+                  <RefreshButton
+                    onRefresh={fetchSettings}
+                    loading={loading}
+                    variant="ghost"
+                    size="sm"
+                  />
+                </div>
               </CardHeader>
               <CardContent dir="rtl" className="space-y-4 text-right">
                 {/* اسم الموقع (عربي/إنجليزي) */}
@@ -78,7 +208,15 @@ export default function SettingsPage() {
                     <Label htmlFor="site-name-ar">اسم الموقع (عربي)</Label>
                     <Input
                       id="site-name-ar"
-                      defaultValue="جمعية أصيل للتنمية الخيرية"
+                      value={formData.websiteName_ar || ""}
+                      onChange={(e) =>
+                        handleInputChange("websiteName_ar", e.target.value)
+                      }
+                      placeholder="اسم الموقع بالعربية"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="websiteName_ar"
                     />
                   </div>
                   <div className="space-y-2">
@@ -87,12 +225,20 @@ export default function SettingsPage() {
                       id="site-name-en"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="I Charity Development Association"
+                      value={formData.websiteName_en || ""}
+                      onChange={(e) =>
+                        handleInputChange("websiteName_en", e.target.value)
+                      }
+                      placeholder="Website name in English"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="websiteName_en"
                     />
                   </div>
                 </div>
 
-                {/* رقم الهاتف / البريد الإلكتروني (مطابق للصورة: الهاتف يمين، البريد يسار) */}
+                {/* رقم الهاتف / البريد الإلكتروني */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="phone">رقم الهاتف</Label>
@@ -100,7 +246,15 @@ export default function SettingsPage() {
                       id="phone"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="+970 8 123 4567"
+                      value={formData.contactNumber || ""}
+                      onChange={(e) =>
+                        handleInputChange("contactNumber", e.target.value)
+                      }
+                      placeholder="+970 8 123 4567"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="contactNumber"
                     />
                   </div>
                   <div className="space-y-2">
@@ -109,7 +263,15 @@ export default function SettingsPage() {
                       id="email"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="info@aseel.org"
+                      value={formData.email || ""}
+                      onChange={(e) =>
+                        handleInputChange("email", e.target.value)
+                      }
+                      placeholder="info@aseel.org"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="email"
                     />
                   </div>
                 </div>
@@ -121,14 +283,33 @@ export default function SettingsPage() {
                     id="whatsapp"
                     dir="ltr"
                     className="text-left"
-                    defaultValue="+970 59 123 4567"
+                    value={formData.whatsappNumber || ""}
+                    onChange={(e) =>
+                      handleInputChange("whatsappNumber", e.target.value)
+                    }
+                    placeholder="+970 59 123 4567"
+                  />
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="whatsappNumber"
                   />
                 </div>
 
                 {/* العنوان */}
                 <div className="space-y-2">
                   <Label htmlFor="address">العنوان</Label>
-                  <Input id="address" defaultValue="غزة، فلسطين" />
+                  <Input
+                    id="address"
+                    value={formData.address || ""}
+                    onChange={(e) =>
+                      handleInputChange("address", e.target.value)
+                    }
+                    placeholder="غزة، فلسطين"
+                  />
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="address"
+                  />
                 </div>
 
                 {/* الموقع الإلكتروني */}
@@ -138,7 +319,38 @@ export default function SettingsPage() {
                     id="website"
                     dir="ltr"
                     className="text-left"
-                    defaultValue="https://aseel.org"
+                    value={formData.website || ""}
+                    onChange={(e) =>
+                      handleInputChange("website", e.target.value)
+                    }
+                    placeholder="https://aseel.org"
+                  />
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="website"
+                  />
+                </div>
+
+                {/* شعار الموقع */}
+                <div className="space-y-2">
+                  <LogoUpload
+                    value={formData.websiteLogo}
+                    imageUrl={logoImageUrl}
+                    onChange={(value) =>
+                      handleInputChange("websiteLogo", value || "")
+                    }
+                    onError={(error) => {
+                      toast({
+                        title: "خطأ في رفع الصورة",
+                        description: error,
+                        variant: "destructive",
+                      });
+                    }}
+                    disabled={updating}
+                  />
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="websiteLogo"
                   />
                 </div>
 
@@ -148,11 +360,18 @@ export default function SettingsPage() {
                   <Textarea
                     id="description"
                     placeholder="اكتب وصفًا مختصرًا عن الجمعية ورسالتها وأهدافها"
-                    defaultValue="جمعية خيرية تهدف إلى دعم وتمكين الفئات المحتاجة عبر مشاريع تنموية وخدمات اجتماعية."
+                    value={formData.description || ""}
+                    onChange={(e) =>
+                      handleInputChange("description", e.target.value)
+                    }
+                  />
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="description"
                   />
                 </div>
 
-                {/* روابط السوشيال (مطابقة للصورة: Facebook يمين / Twitter يسار، Instagram يمين / YouTube يسار) */}
+                {/* روابط السوشيال */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="facebook">Facebook</Label>
@@ -160,7 +379,15 @@ export default function SettingsPage() {
                       id="facebook"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="https://facebook.com/aseel.org"
+                      value={formData.facebook || ""}
+                      onChange={(e) =>
+                        handleInputChange("facebook", e.target.value)
+                      }
+                      placeholder="https://facebook.com/aseel.org"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="facebook"
                     />
                   </div>
                   <div className="space-y-2">
@@ -169,7 +396,15 @@ export default function SettingsPage() {
                       id="twitter"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="https://twitter.com/aseel_org"
+                      value={formData.twitter || ""}
+                      onChange={(e) =>
+                        handleInputChange("twitter", e.target.value)
+                      }
+                      placeholder="https://twitter.com/aseel_org"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="twitter"
                     />
                   </div>
                   <div className="space-y-2">
@@ -178,7 +413,15 @@ export default function SettingsPage() {
                       id="instagram"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="https://instagram.com/aseel_org"
+                      value={formData.instagram || ""}
+                      onChange={(e) =>
+                        handleInputChange("instagram", e.target.value)
+                      }
+                      placeholder="https://instagram.com/aseel_org"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="instagram"
                     />
                   </div>
                   <div className="space-y-2">
@@ -187,14 +430,35 @@ export default function SettingsPage() {
                       id="youtube"
                       dir="ltr"
                       className="text-left"
-                      defaultValue="https://youtube.com/@aseel"
+                      value={formData.youtube || ""}
+                      onChange={(e) =>
+                        handleInputChange("youtube", e.target.value)
+                      }
+                      placeholder="https://youtube.com/@aseel"
+                    />
+                    <ValidationErrors
+                      errors={validationErrors}
+                      fieldName="youtube"
                     />
                   </div>
                 </div>
 
-                <Button>
-                  حفظ الإعدادات
-                  <Save className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                <Button
+                  onClick={handleSaveSettings}
+                  disabled={updating}
+                  className="w-full md:w-auto"
+                >
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0 animate-spin" />
+                      جاري الحفظ...
+                    </>
+                  ) : (
+                    <>
+                      حفظ الإعدادات
+                      <Save className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -211,11 +475,21 @@ export default function SettingsPage() {
           <TabsContent value="system" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="w-5 h-5" />
-                  إعدادات النظام
-                </CardTitle>
-                <CardDescription>إعدادات النظام والتطبيق</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Database className="w-5 h-5" />
+                      إعدادات النظام
+                    </CardTitle>
+                    <CardDescription>إعدادات النظام والتطبيق</CardDescription>
+                  </div>
+                  <RefreshButton
+                    onRefresh={fetchSettings}
+                    loading={loading}
+                    variant="ghost"
+                    size="sm"
+                  />
+                </div>
               </CardHeader>
               <CardContent dir="ltr" className="space-y-5 text-right">
                 {/* الحد الأقصى لحجم الملف */}
