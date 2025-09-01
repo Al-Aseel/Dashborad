@@ -103,5 +103,30 @@ export function setAuthToken(
     } catch {}
   }
 }
+
+// Utility function to create standard authentication error response
+export function createAuthErrorResponse() {
+  return {
+    status: "error",
+    message: "فشل في عملية تسجيل دخول",
+    details: {
+      message: "انتهت صلاحية الجلسة",
+    },
+  };
+}
+
+// Middleware function for API routes to handle authentication errors
+export function handleApiAuthError(error: any) {
+  if (error?.response?.status === 401) {
+    return new Response(JSON.stringify(createAuthErrorResponse()), {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
+  return null; // Let the calling code handle other errors
+}
+
 // Helper function to check if server is reachable
 // Removed checkServerHealth as ServerErrorProvider is no longer used
