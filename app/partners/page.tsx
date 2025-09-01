@@ -105,6 +105,7 @@ export default function PartnersPage() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -131,6 +132,13 @@ export default function PartnersPage() {
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  
+  // Global stats from API (independent of filters/search)
+  const [globalStats, setGlobalStats] = useState({
+    totalPartners: 0,
+    activePartners: 0,
+    inactivePartners: 0,
+  });
 
   // Filtered partners
   const filteredPartners = useMemo(() => {
@@ -149,14 +157,14 @@ export default function PartnersPage() {
     });
   }, [partners, debouncedSearchTerm, statusFilter]);
 
-  // Stats
+  // Stats - استخدام الإحصائيات الكاملة من API بدلاً من البيانات المفلترة
   const stats = useMemo(
     () => ({
-      total: totalItems,
-      active: partners.filter((p) => p.status === "active").length,
-      inactive: partners.filter((p) => p.status === "inactive").length,
+      total: globalStats.totalPartners,
+      active: globalStats.activePartners,
+      inactive: globalStats.inactivePartners,
     }),
-    [partners, totalItems]
+    [globalStats]
   );
 
   // Reset form
@@ -176,14 +184,14 @@ export default function PartnersPage() {
   };
 
   // Load partners from API
-  const loadPartners = async (page = currentPage) => {
+  const loadPartners = async (page = currentPage, limit = pageSize) => {
     setIsLoadingPartners(true);
     try {
       const response = await getPartners({
         search: debouncedSearchTerm,
         status: statusFilter !== "all" ? statusFilter : undefined,
         page: page,
-        limit: pageSize,
+        limit: limit,
       });
 
       if (response.status === "sucsess") {
@@ -212,6 +220,13 @@ export default function PartnersPage() {
         setTotalPages(pagination.totalPages);
         setTotalItems(pagination.total);
         setCurrentPage(pagination.page);
+        
+        // تحديث الإحصائيات الكاملة من API response
+        setGlobalStats({
+          totalPartners: response.totalNumberOfPartners || 0,
+          activePartners: response.numberOfActivePartners || 0,
+          inactivePartners: (response.totalNumberOfPartners || 0) - (response.numberOfActivePartners || 0),
+        });
       } else {
         throw new Error(response.message || "فشل في تحميل الشركاء");
       }
@@ -440,9 +455,56 @@ export default function PartnersPage() {
   };
 
   // Handle view partner
-  const openViewDialog = (partner: Partner) => {
-    setSelectedPartner(partner);
-    setIsViewDialogOpen(true);
+  const openViewDialog = async (partner: Partner) => {
+    setIsLoadingDetails(true);
+    try {
+      // جلب البيانات المحدثة من API
+      const response = await getPartner(partner._id || "");
+      
+      if (response.status === "sucsess") {
+        // تحويل بيانات API إلى تنسيق النموذج
+        const apiPartner = response.data;
+        const transformedPartner = {
+          _id: apiPartner._id,
+          id: Date.now() + Math.random(), // توليد ID مؤقت
+          nameAr: apiPartner.name_ar,
+          nameEn: apiPartner.name_en || "",
+          type: apiPartner.type,
+          status: apiPartner.status,
+          email: apiPartner.email,
+          phone: apiPartner.phone || "",
+          website: apiPartner.website || "",
+          joinDate: apiPartner.join_date,
+          logo: apiPartner.logo?.url || "",
+          logoFileId: apiPartner.logo?._id || "",
+        };
+        
+        setSelectedPartner(transformedPartner);
+        setIsViewDialogOpen(true);
+      } else {
+        throw new Error(response.message || "فشل في جلب بيانات الشريك");
+      }
+    } catch (error: any) {
+      console.error("Error fetching partner details:", error);
+      
+      // معالجة أخطاء API
+      let errorMessage = "حدث خطأ أثناء جلب بيانات الشريك";
+      if (error.response?.data?.details) {
+        errorMessage = error.response.data.details.join("، ");
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "خطأ",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   // Handle delete partner
@@ -710,19 +772,23 @@ export default function PartnersPage() {
             <Select 
               value={pageSize.toString()} 
               onValueChange={(value) => {
-                setPageSize(Number(value));
+                const newPageSize = Number(value);
+                setPageSize(newPageSize);
                 setCurrentPage(1);
-                loadPartners(1);
+                loadPartners(1, newPageSize);
               }}
             >
               <SelectTrigger className="w-20">
-                <SelectValue />
+                <SelectValue>
+                  {pageSize === 1000 ? "الكل" : pageSize}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="5">5</SelectItem>
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="20">20</SelectItem>
                 <SelectItem value="50">50</SelectItem>
+                <SelectItem value="1000">الكل</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -925,10 +991,13 @@ export default function PartnersPage() {
           </CardContent>
           
                      {/* Pagination */}
-           {!isLoadingPartners && totalPages > 1 && (
+           {!isLoadingPartners && totalPages > 1 && pageSize !== 1000 && (
              <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50/50">
                <div className="text-sm text-muted-foreground">
-                 عرض {partners.length} من {totalItems} شريك
+                 {pageSize === 1000 ? 
+                   `عرض جميع الشركاء (${totalItems})` : 
+                   `عرض ${partners.length} من ${totalItems} شريك`
+                 }
                </div>
                                <Pagination className="flex items-center">
                   <PaginationContent className="gap-2">
@@ -1016,6 +1085,15 @@ export default function PartnersPage() {
                    </PaginationItem>
                  </PaginationContent>
                </Pagination>
+             </div>
+           )}
+           
+           {/* Show info when "All" is selected */}
+           {!isLoadingPartners && pageSize === 1000 && (
+             <div className="flex items-center justify-center px-6 py-4 border-t bg-gray-50/50">
+               <div className="text-sm text-muted-foreground">
+                 عرض جميع الشركاء ({totalItems})
+               </div>
              </div>
            )}
         </Card>
@@ -1338,114 +1416,169 @@ export default function PartnersPage() {
 
         {/* View Partner Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>تفاصيل الشريك</DialogTitle>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Building className="h-6 w-6 text-blue-600" />
+                تفاصيل الشريك
+              </DialogTitle>
             </DialogHeader>
-            {selectedPartner && (
-              <div className="space-y-6 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {selectedPartner.logo ? (
-                      <img
-                        src={
-                          buildImageUrl(selectedPartner.logo) ||
-                          "/placeholder.svg"
-                        }
-                        alt={selectedPartner.nameAr}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Building className="w-8 h-8 text-gray-500" />
+            
+            {isLoadingDetails ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <span className="text-gray-600">جاري جلب البيانات...</span>
+                </div>
+              </div>
+            ) : selectedPartner ? (
+              <div className="py-6 space-y-8">
+                {/* Header Section - Logo and Basic Info */}
+                <div className="flex flex-col sm:flex-row items-start gap-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden border-4 border-white">
+                      {selectedPartner.logo && selectedPartner.logo !== "" ? (
+                        <img
+                          src={
+                            buildImageUrl(selectedPartner.logo) ||
+                            "/placeholder.svg"
+                          }
+                          alt={selectedPartner.nameAr && selectedPartner.nameAr !== "" ? selectedPartner.nameAr : "صورة الشريك"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Building className="w-12 h-12 text-gray-400" />
+                      )}
+                    </div>
+                    {selectedPartner.logo && selectedPartner.logo !== "" && (
+                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded-full text-xs text-gray-500 shadow-sm border">
+                        {getImageSize(selectedPartner.logo)}
+                      </div>
                     )}
                   </div>
-                  {selectedPartner.logo && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      حجم الصورة: {getImageSize(selectedPartner.logo)}
+                  
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                        {selectedPartner.nameAr && selectedPartner.nameAr !== "" ? selectedPartner.nameAr : "غير محدد"}
+                      </h3>
+                      <p className="text-lg text-gray-600">
+                        {selectedPartner.nameEn && selectedPartner.nameEn !== "" ? selectedPartner.nameEn : "غير محدد"}
+                      </p>
                     </div>
-                  )}
-                  <div>
-                    <h3 className="text-xl font-bold">
-                      {selectedPartner.nameAr}
-                    </h3>
-                    <p className="text-gray-600">{selectedPartner.nameEn}</p>
+                    
+                    <div className="flex flex-wrap gap-3">
+                      <Badge 
+                        variant="outline" 
+                        className="px-3 py-1 text-sm border-blue-200 text-blue-700 bg-blue-50"
+                      >
+                        {selectedPartner.type && selectedPartner.type !== "" ? (
+                          selectedPartner.type === "org"
+                            ? "مؤسسة"
+                            : selectedPartner.type === "firm"
+                            ? "شركة"
+                            : selectedPartner.type === "member"
+                            ? "فرد"
+                            : selectedPartner.type
+                        ) : "غير محدد"}
+                      </Badge>
+                      
+                      <Badge className={`px-3 py-1 text-sm ${getStatusColor(selectedPartner.status)}`}>
+                        {selectedPartner.status && selectedPartner.status !== "" ? (
+                          selectedPartner.status === "active"
+                            ? "نشط"
+                            : "غير نشط"
+                        ) : (
+                          "غير محدد"
+                        )}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      النوع
-                    </Label>
-                    <p className="mt-1">
-                      {selectedPartner.type === "org"
-                        ? "مؤسسة"
-                        : selectedPartner.type === "firm"
-                        ? "شركة"
-                        : selectedPartner.type === "member"
-                        ? "فرد"
-                        : selectedPartner.type}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الحالة
-                    </Label>
-                    <p className="mt-1">
-                      <Badge className={getStatusColor(selectedPartner.status)}>
-                        {selectedPartner.status === "active"
-                          ? "نشط"
-                          : "غير نشط"}
-                      </Badge>
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      البريد الإلكتروني
-                    </Label>
-                    <p className="mt-1">{selectedPartner.email}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الهاتف
-                    </Label>
-                    <p className="mt-1">{selectedPartner.phone}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الموقع الإلكتروني
-                    </Label>
-                    <p className="mt-1">
-                      <a
-                        href={
-                          selectedPartner.website.startsWith("http")
-                            ? selectedPartner.website
-                            : `https://${selectedPartner.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {selectedPartner.website}
-                      </a>
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      تاريخ الانضمام
-                    </Label>
-                    <p className="mt-1">
-                      {formatDate(selectedPartner.joinDate)}
-                    </p>
+                {/* Contact Information */}
+                <div className="space-y-6">
+                  <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
+                    <Users className="h-5 w-5 text-green-600" />
+                    معلومات التواصل
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          البريد الإلكتروني
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <p className="text-gray-800 font-medium">
+                            {selectedPartner.email && selectedPartner.email !== "" ? selectedPartner.email : "غير محدد"}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          الهاتف
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <p className="text-gray-800 font-medium">
+                            {selectedPartner.phone && selectedPartner.phone !== "" ? selectedPartner.phone : "غير محدد"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          الموقع الإلكتروني
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                          {selectedPartner.website && selectedPartner.website !== "" ? (
+                            <a
+                              href={
+                                selectedPartner.website.startsWith("http")
+                                  ? selectedPartner.website
+                                  : `https://${selectedPartner.website}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center gap-1"
+                            >
+                              {selectedPartner.website}
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <p className="text-gray-500">غير محدد</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          تاريخ الانضمام
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <p className="text-gray-800 font-medium">
+                            {selectedPartner.joinDate && selectedPartner.joinDate !== "" ? formatDate(selectedPartner.joinDate) : "غير محدد"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-            <DialogFooter>
+            ) : null}
+            
+            <DialogFooter className="border-t pt-4">
               <Button
                 variant="outline"
                 onClick={() => setIsViewDialogOpen(false)}
+                className="px-6 py-2"
               >
                 إغلاق
               </Button>
