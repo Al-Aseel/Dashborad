@@ -39,7 +39,7 @@ export const archiveApi = {
     const queryParams = new URLSearchParams();
     
     if (params.page) queryParams.append("page", params.page.toString());
-    if (params.limit) queryParams.append("limit", params.limit.toString());
+    if (params.limit) queryParams.append("limit", (params.limit || 5).toString());
     if (params.q) queryParams.append("q", params.q);
     if (params.type) queryParams.append("type", params.type);
 

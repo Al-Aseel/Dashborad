@@ -1,16 +1,15 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { DashboardLayout } from "@/components/shared/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Archive, Search, FileText, ImageIcon, Loader2, Trash2, RotateCcw } from "lucide-react"
+import { Archive, Search, FileText, ImageIcon, Loader2, Trash2, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useArchive } from "@/hooks/use-archive"
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
@@ -22,12 +21,27 @@ export default function ArchivePage() {
     pagination,
     fetchArchivedItems,
     searchItems,
+    changePageSize,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
   } = useArchive()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const lastRequestRef = useRef<string>("")
+
+  // Page size options
+  const pageSizeOptions = [
+    { value: 5, label: "5 عناصر" },
+    { value: 10, label: "10 عناصر" },
+    { value: 20, label: "20 عنصر" },
+    { value: 30, label: "30 عنصر" },
+    { value: 50, label: "50 عنصر" },
+    { value: -1, label: "عرض الكل" },
+  ]
 
   const getTypeColor = (type: string) => {
     // معالجة أنواع مختلفة من الـ response
@@ -144,10 +158,8 @@ export default function ArchivePage() {
     }
   }
 
-
-
   // Handle type filter change
-  const handleTypeChange = useCallback(async (value: string) => {
+  const handleTypeChange = useCallback((value: string) => {
     let newSelectedTypes: string[]
     
     if (value === "all") {
@@ -163,18 +175,18 @@ export default function ArchivePage() {
     }
     
     setSelectedTypes(newSelectedTypes)
-    
-    // البحث سيتم تحديثه تلقائياً عبر useEffect
   }, [selectedTypes])
+
+  // Handle page size change
+  const handlePageSizeChange = useCallback(async (value: string) => {
+    const newLimit = parseInt(value)
+    await changePageSize(newLimit === -1 ? 1000 : newLimit) // Use large number for "show all"
+  }, [changePageSize])
 
   // Handle pagination
   const handlePageChange = useCallback(async (page: number) => {
-    await fetchArchivedItems({ 
-      page, 
-      type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined,
-      q: searchQuery.trim() || undefined 
-    })
-  }, [fetchArchivedItems, selectedTypes, searchQuery])
+    await goToPage(page)
+  }, [goToPage])
 
   // Debounced search effect
   useEffect(() => {
@@ -185,55 +197,85 @@ export default function ArchivePage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Search effect when debounced query changes
-  useEffect(() => {
-    setIsSearching(true);
-    
-    if (debouncedSearchQuery.trim()) {
-      // إذا كان هناك نص بحث، استخدم searchItems
-      searchItems(debouncedSearchQuery, { 
-        type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
-      }).finally(() => setIsSearching(false));
-    } else {
-      // إذا لم يكن هناك نص بحث، جلب البيانات حسب الفلتر فقط
-      fetchArchivedItems({ 
-        type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
-      }).finally(() => setIsSearching(false));
-    }
-  }, [debouncedSearchQuery, selectedTypes, searchItems, fetchArchivedItems]);
-
-  // Effect to update search when filter changes
+  // Effect for search query changes
   useEffect(() => {
     if (debouncedSearchQuery.trim()) {
-      // إذا كان هناك نص بحث، أعد البحث مع الفلتر الجديد
-      setIsSearching(true);
-      searchItems(debouncedSearchQuery, { 
-        type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
-      }).finally(() => setIsSearching(false));
+      const requestKey = `search:${debouncedSearchQuery}:${selectedTypes.join(',')}`;
+      if (lastRequestRef.current !== requestKey) {
+        lastRequestRef.current = requestKey;
+        setIsSearching(true);
+        searchItems(debouncedSearchQuery, { 
+          type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
+        }).finally(() => setIsSearching(false));
+      }
     }
-  }, [selectedTypes, debouncedSearchQuery, searchItems]);
+  }, [debouncedSearchQuery, selectedTypes, searchItems]);
 
-  // Effect to update data when filter changes without search
+  // Effect for type filter changes
   useEffect(() => {
     if (!debouncedSearchQuery.trim()) {
-      // إذا لم يكن هناك بحث، جلب البيانات حسب الفلتر فقط
-      setIsSearching(true);
-      fetchArchivedItems({ 
-        type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
-      }).finally(() => setIsSearching(false));
+      const requestKey = `filter:${selectedTypes.join(',')}`;
+      if (lastRequestRef.current !== requestKey) {
+        lastRequestRef.current = requestKey;
+        setIsSearching(true);
+        fetchArchivedItems({ 
+          type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
+        }).finally(() => setIsSearching(false));
+      }
     }
   }, [selectedTypes, debouncedSearchQuery, fetchArchivedItems]);
+
+  // Calculate display info
+  const currentPageSize = pagination.limit === 1000 ? -1 : pagination.limit
+  const startItem = (pagination.page - 1) * (currentPageSize === -1 ? pagination.total : currentPageSize) + 1
+  const endItem = Math.min(pagination.page * (currentPageSize === -1 ? pagination.total : currentPageSize), pagination.total)
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">الأرشيف</h1>
+            <p className="text-gray-600 mt-1">إدارة العناصر المؤرشفة في النظام</p>
+          </div>
+        </div>
+
+        {/* Filters and Search Section */}
         <Card>
-          <CardContent className="p-6">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold text-gray-900">البحث والفلترة</CardTitle>
+            <CardDescription className="text-gray-600">استخدم أدوات البحث والفلترة للعثور على العناصر المطلوبة</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Search Section */}
+            <div className="space-y-3">
+              <h3 className="text-base font-medium text-gray-900">البحث</h3>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input 
+                  placeholder="البحث في العنوان، الوصف، المؤلف، الكلمات المفتاحية..." 
+                  className="pl-10 pr-4 h-11 text-base" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                البحث يعمل تلقائياً في العنوان، الوصف، المؤلف، والكلمات المفتاحية
+              </p>
+            </div>
+
+            {/* Filters Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* قسم الفلتر */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">فلترة حسب النوع</h3>
-                <div className="space-y-3">
+              {/* Type Filter */}
+              <div className="space-y-3">
+                <h3 className="text-base font-medium text-gray-900">فلترة حسب النوع</h3>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="flex items-center space-x-2 space-x-reverse">
                     <Checkbox
                       id="all"
@@ -281,40 +323,43 @@ export default function ArchivePage() {
                 </div>
               </div>
 
-              {/* قسم البحث */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">البحث</h3>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input 
-                    placeholder="البحث في العنوان، الوصف، المؤلف، الكلمات المفتاحية..." 
-                    className="pl-10 pr-4 h-12 text-base" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  {isSearching && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                    </div>
-                  )}
+              {/* Page Size Filter */}
+              <div className="space-y-3">
+                <h3 className="text-base font-medium text-gray-900">عدد العناصر المعروضة</h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-600">عرض:</span>
+                  <Select value={currentPageSize.toString()} onValueChange={handlePageSizeChange}>
+                    <SelectTrigger className="w-40 h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pageSizeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="text-sm text-gray-600">
-                  <p className="font-medium mb-1">البحث يعمل تلقائياً أثناء الكتابة في:</p>
-                  <ul className="list-disc list-inside space-y-1 text-gray-500">
-                    <li>العنوان والوصف</li>
-                    <li>المؤلف والكلمات المفتاحية</li>
-                    <li>حسب نوع العنصر المحدد</li>
-                  </ul>
-                </div>
+                <p className="text-xs text-gray-500">
+                  اختر عدد العناصر التي تريد عرضها في كل صفحة
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
+        {/* Results Section */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-900">العناصر المؤرشفة</CardTitle>
-            <CardDescription className="text-gray-600">عرض جميع العناصر المؤرشفة في النظام</CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <CardTitle className="text-xl font-semibold text-gray-900">العناصر المؤرشفة</CardTitle>
+                <CardDescription className="text-gray-600">
+                  عرض <span className="font-medium text-gray-900">{startItem}</span> إلى <span className="font-medium text-gray-900">{endItem}</span> من أصل <span className="font-medium text-gray-900">{pagination.total}</span> عنصر
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -334,6 +379,7 @@ export default function ArchivePage() {
               </div>
             ) : (
               <>
+                {/* Table */}
                 <div className="rounded-lg border border-gray-200 overflow-hidden">
                   <Table>
                     <TableHeader className="bg-gray-50">
@@ -349,7 +395,7 @@ export default function ArchivePage() {
                       {archivedItems.map((item, index) => (
                         <TableRow key={item._id} className="hover:bg-gray-50 transition-colors">
                           <TableCell className="text-center text-gray-600 font-medium">
-                            {index + 1}
+                            {startItem + index}
                           </TableCell>
                           <TableCell className="py-4">
                             <div>
@@ -418,32 +464,56 @@ export default function ArchivePage() {
                     </TableBody>
                   </Table>
                 </div>
-                
-                {/* Pagination */}
+
+                {/* Pagination Controls - Bottom */}
                 {pagination.totalPages > 1 && (
-                  <div className="mt-6">
-                    <Pagination>
-                      <PaginationContent>
-                        <PaginationItem>
-                          <PaginationPrevious 
-                            onClick={() => handlePageChange(pagination.page - 1)}
-                            className={pagination.page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                          />
-                        </PaginationItem>
-                        
+                  <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 rounded-lg border">
+                    {/* Pagination Info */}
+                    <div className="text-sm text-gray-600">
+                      صفحة <span className="font-medium text-gray-900">{pagination.page}</span> من <span className="font-medium text-gray-900">{pagination.totalPages}</span>
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex items-center gap-2">
+                      {/* First Page */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(1)}
+                        disabled={pagination.page <= 1}
+                        className="h-9 w-9 p-0"
+                        title="أول صفحة"
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </Button>
+
+                      {/* Previous Page */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToPreviousPage}
+                        disabled={pagination.page <= 1}
+                        className="h-9 w-9 p-0"
+                        title="الصفحة السابقة"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+
+                      {/* Page Numbers */}
+                      <div className="flex items-center gap-1">
                         {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                           const page = i + 1;
                           if (pagination.totalPages <= 5) {
                             return (
-                              <PaginationItem key={page}>
-                                <PaginationLink
-                                  onClick={() => handlePageChange(page)}
-                                  isActive={page === pagination.page}
-                                  className="cursor-pointer"
-                                >
-                                  {page}
-                                </PaginationLink>
-                              </PaginationItem>
+                              <Button
+                                key={page}
+                                variant={page === pagination.page ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handlePageChange(page)}
+                                className="h-9 w-9 p-0"
+                              >
+                                {page}
+                              </Button>
                             );
                           }
                           
@@ -451,38 +521,53 @@ export default function ArchivePage() {
                           if (page === 1 || page === pagination.totalPages || 
                               (page >= pagination.page - 1 && page <= pagination.page + 1)) {
                             return (
-                              <PaginationItem key={page}>
-                                <PaginationLink
-                                  onClick={() => handlePageChange(page)}
-                                  isActive={page === pagination.page}
-                                  className="cursor-pointer"
-                                >
-                                  {page}
-                                </PaginationLink>
-                              </PaginationItem>
+                              <Button
+                                key={page}
+                                variant={page === pagination.page ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => handlePageChange(page)}
+                                className="h-9 w-9 p-0"
+                              >
+                                {page}
+                              </Button>
                             );
                           }
                           
                           // Show ellipsis
                           if (page === 2 || page === pagination.totalPages - 1) {
                             return (
-                              <PaginationItem key={page}>
-                                <span className="px-3 py-2">...</span>
-                              </PaginationItem>
+                              <span key={page} className="px-2 text-gray-500">...</span>
                             );
                           }
                           
                           return null;
                         })}
-                        
-                        <PaginationItem>
-                          <PaginationNext 
-                            onClick={() => handlePageChange(pagination.page + 1)}
-                            className={pagination.page >= pagination.totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                          />
-                        </PaginationItem>
-                      </PaginationContent>
-                    </Pagination>
+                      </div>
+
+                      {/* Next Page */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToNextPage}
+                        disabled={pagination.page >= pagination.totalPages}
+                        className="h-9 w-9 p-0"
+                        title="الصفحة التالية"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+
+                      {/* Last Page */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(pagination.totalPages)}
+                        disabled={pagination.page >= pagination.totalPages}
+                        className="h-9 w-9 p-0"
+                        title="آخر صفحة"
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>

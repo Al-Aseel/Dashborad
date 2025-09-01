@@ -13,7 +13,7 @@ export const useArchive = () => {
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 10,
+    limit: 5,
     total: 0,
     totalPages: 0,
   });
@@ -41,7 +41,7 @@ export const useArchive = () => {
       try {
         const response: ArchiveResponse = await archiveApi.getAll({
           page: params.page || 1,
-          limit: params.limit || 10,
+          limit: params.limit || 5,
           q: params.q,
           type: params.type,
         });
@@ -77,6 +77,41 @@ export const useArchive = () => {
     [fetchArchivedItems]
   );
 
+  // Change page size (limit)
+  const changePageSize = useCallback(
+    async (newLimit: number) => {
+      // Reset to first page when changing limit
+      await fetchArchivedItems({ 
+        page: 1, 
+        limit: newLimit
+      });
+    },
+    [fetchArchivedItems]
+  );
+
+  // Go to specific page
+  const goToPage = useCallback(
+    async (page: number) => {
+      if (page < 1 || page > pagination.totalPages) return;
+      await fetchArchivedItems({ page });
+    },
+    [fetchArchivedItems, pagination.totalPages]
+  );
+
+  // Go to next page
+  const goToNextPage = useCallback(async () => {
+    if (pagination.page < pagination.totalPages) {
+      await goToPage(pagination.page + 1);
+    }
+  }, [pagination.page, pagination.totalPages, goToPage]);
+
+  // Go to previous page
+  const goToPreviousPage = useCallback(async () => {
+    if (pagination.page > 1) {
+      await goToPage(pagination.page - 1);
+    }
+  }, [pagination.page, goToPage]);
+
   // Load archived items on mount
   useEffect(() => {
     fetchArchivedItems();
@@ -89,5 +124,9 @@ export const useArchive = () => {
     pagination,
     fetchArchivedItems,
     searchItems,
+    changePageSize,
+    goToPage,
+    goToNextPage,
+    goToPreviousPage,
   };
 };
