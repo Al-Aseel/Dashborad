@@ -37,6 +37,7 @@ export interface SettingsResponse {
 }
 
 export interface UpdateSettingsRequest {
+  mainColor: string;
   websiteName_ar: string;
   websiteName_en: string;
   websiteLogo: string | null; // سيحتوي على imageId بدلاً من URL

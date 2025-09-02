@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DynamicButton } from "@/components/ui/dynamic-button";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -71,7 +73,22 @@ export default function SettingsPage() {
   console.log("Settings page validationErrors:", validationErrors);
 
   // حالة النموذج
-  const [formData, setFormData] = useState<UpdateSettingsRequest>({});
+  const [formData, setFormData] = useState<UpdateSettingsRequest>({
+    mainColor: "#3B82F6",
+    websiteName_ar: "",
+    websiteName_en: "",
+    websiteLogo: null,
+    contactNumber: "",
+    email: "",
+    address: "",
+    facebook: "",
+    instagram: "",
+    twitter: "",
+    youtube: "",
+    whatsappNumber: "",
+    website: "",
+    description: "",
+  });
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
 
   // تحديث النموذج عند تحميل الإعدادات
@@ -88,6 +105,7 @@ export default function SettingsPage() {
       }
 
       setFormData({
+        mainColor: settings.mainColor || "#3B82F6",
         websiteName_ar: settings.websiteName_ar || "",
         websiteName_en: settings.websiteName_en || "",
         websiteLogo: websiteLogoId,
@@ -174,10 +192,30 @@ export default function SettingsPage() {
             size="lg"
           />
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="general">عام</TabsTrigger>
-            <TabsTrigger value="profile">الملف الشخصي</TabsTrigger>
-            <TabsTrigger value="security">الأمان</TabsTrigger>
-            <TabsTrigger value="system">النظام</TabsTrigger>
+            <TabsTrigger
+              value="general"
+              className="data-[state=active]:bg-[var(--main-color)] data-[state=active]:text-white"
+            >
+              عام
+            </TabsTrigger>
+            <TabsTrigger
+              value="profile"
+              className="data-[state=active]:bg-[var(--main-color)] data-[state=active]:text-white"
+            >
+              الملف الشخصي
+            </TabsTrigger>
+            <TabsTrigger
+              value="security"
+              className="data-[state=active]:bg-[var(--main-color)] data-[state=active]:text-white"
+            >
+              الأمان
+            </TabsTrigger>
+            <TabsTrigger
+              value="system"
+              className="data-[state=active]:bg-[var(--main-color)] data-[state=active]:text-white"
+            >
+              النظام
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-6">
@@ -186,7 +224,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <Settings className="w-5 h-5" />
+                      <DynamicIcon icon={Settings} className="w-5 h-5" />
                       الإعدادات العامة
                     </CardTitle>
                     <CardDescription>
@@ -236,6 +274,147 @@ export default function SettingsPage() {
                       fieldName="websiteName_en"
                     />
                   </div>
+                </div>
+
+                {/* اللون الأساسي للموقع */}
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <Label
+                      htmlFor="main-color"
+                      className="text-xl font-bold text-gray-800 mb-2 block"
+                    >
+                      🎨 اللون الأساسي للموقع
+                    </Label>
+                    <p className="text-gray-600 text-sm">
+                      اختر اللون الذي يمثل هوية موقعك وسيتم تطبيقه على جميع
+                      العناصر
+                    </p>
+                  </div>
+
+                  {/* معاينة مركزية كبيرة */}
+                  <div className="flex justify-center">
+                    <div className="relative group">
+                      <div
+                        className="w-32 h-32 rounded-3xl shadow-2xl border-8 border-white ring-4 ring-gray-100 flex items-center justify-center transition-all duration-500 hover:scale-110 hover:shadow-3xl"
+                        style={{
+                          backgroundColor: formData.mainColor || "#3B82F6",
+                          boxShadow: `0 25px 50px -12px ${
+                            formData.mainColor || "#3B82F6"
+                          }40`,
+                        }}
+                      >
+                        <div className="w-16 h-16 rounded-full bg-white/30 flex items-center justify-center backdrop-blur-sm">
+                          <div className="w-8 h-8 rounded-full bg-white shadow-lg"></div>
+                        </div>
+                      </div>
+
+                      {/* مؤشر اللون المختار */}
+                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                        <div className="w-4 h-4 bg-white rounded-full"></div>
+                      </div>
+
+                      {/* رمز اللون */}
+                      <div className="absolute -bottom-3 -left-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-gray-200">
+                        <span className="text-xs font-bold text-gray-700">
+                          🎯
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* معلومات اللون مع اسم اللون */}
+                  <div className="text-center">
+                    <div className="inline-flex items-center gap-3 px-6 py-3 bg-gray-100 rounded-full">
+                      <div
+                        className="w-5 h-5 rounded-full shadow-sm"
+                        style={{
+                          backgroundColor: formData.mainColor || "#3B82F6",
+                        }}
+                      ></div>
+                      <span className="text-base font-medium text-gray-700">
+                        اللون المختار:{" "}
+                        {(() => {
+                          const selectedColor = [
+                            { color: "#3B82F6", name: "أزرق" },
+                            { color: "#10B981", name: "أخضر" },
+                            { color: "#EF4444", name: "أحمر" },
+                            { color: "#F59E0B", name: "أصفر" },
+                            { color: "#8B5CF6", name: "بنفسجي" },
+                            { color: "#F97316", name: "برتقالي" },
+                            { color: "#06B6D4", name: "سماوي" },
+                            { color: "#EC4899", name: "وردي" },
+                            { color: "#059669", name: "أخضر غامق" },
+                            { color: "#DC2626", name: "أحمر غامق" },
+                            { color: "#7C3AED", name: "بنفسجي غامق" },
+                            { color: "#EA580C", name: "برتقالي غامق" },
+                          ].find(
+                            (item) =>
+                              item.color === (formData.mainColor || "#3B82F6")
+                          );
+                          return selectedColor
+                            ? `${selectedColor.name} (${
+                                formData.mainColor || "#3B82F6"
+                              })`
+                            : "اختر اللون";
+                        })()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      💡 سيتم تطبيق هذا اللون على جميع عناصر الموقع
+                    </p>
+                  </div>
+
+                  {/* معاينة سريعة للألوان */}
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <h4 className="text-sm font-medium text-gray-600">
+                        اختر من الألوان المتاحة
+                      </h4>
+                    </div>
+                    <div className="flex justify-center">
+                      <div className="grid grid-cols-6 gap-2 max-w-xs">
+                        {[
+                          "#3B82F6",
+                          "#10B981",
+                          "#EF4444",
+                          "#F59E0B",
+                          "#8B5CF6",
+                          "#F97316",
+                          "#06B6D4",
+                          "#EC4899",
+                          "#059669",
+                          "#DC2626",
+                          "#7C3AED",
+                          "#EA580C",
+                        ].map((color) => (
+                          <button
+                            key={color}
+                            onClick={() =>
+                              handleInputChange("mainColor", color)
+                            }
+                            className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                              formData.mainColor === color
+                                ? "scale-110 shadow-lg"
+                                : "border-gray-200 hover:border-gray-300 hover:scale-105"
+                            }`}
+                            style={{
+                              backgroundColor: color,
+                              borderColor:
+                                formData.mainColor === color
+                                  ? formData.mainColor
+                                  : undefined,
+                            }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="mainColor"
+                  />
                 </div>
 
                 {/* رقم الهاتف / البريد الإلكتروني */}
@@ -443,7 +622,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Button
+                <DynamicButton
                   onClick={handleSaveSettings}
                   disabled={updating}
                   className="w-full md:w-auto"
@@ -459,7 +638,7 @@ export default function SettingsPage() {
                       <Save className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
                     </>
                   )}
-                </Button>
+                </DynamicButton>
               </CardContent>
             </Card>
           </TabsContent>
@@ -478,7 +657,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <Database className="w-5 h-5" />
+                      <DynamicIcon icon={Database} className="w-5 h-5" />
                       إعدادات النظام
                     </CardTitle>
                     <CardDescription>إعدادات النظام والتطبيق</CardDescription>
@@ -551,10 +730,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Button className="w-full md:w-auto">
+                <DynamicButton className="w-full md:w-auto">
                   حفظ الإعدادات
                   <Save className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
-                </Button>
+                </DynamicButton>
 
                 {/* Logout from all devices */}
                 <div className="pt-4 border-t">

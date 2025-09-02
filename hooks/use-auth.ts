@@ -59,11 +59,12 @@ export function useAuth() {
 
         // Persist minimal user info for UX
         try {
-          const targetStorage = window.localStorage.getItem("auth_token")
-            ? window.localStorage
-            : window.sessionStorage;
-          targetStorage.setItem("userData", JSON.stringify(convertedUser));
-          targetStorage.setItem("isAuthenticated", "true");
+          // Always use localStorage for userData and isAuthenticated
+          window.localStorage.setItem(
+            "userData",
+            JSON.stringify(convertedUser)
+          );
+          window.localStorage.setItem("isAuthenticated", "true");
           if (!document.cookie.includes("isAuthenticated=true")) {
             document.cookie = "isAuthenticated=true; path=/";
           }
@@ -77,8 +78,6 @@ export function useAuth() {
         try {
           localStorage.removeItem("userData");
           localStorage.removeItem("isAuthenticated");
-          sessionStorage.removeItem("userData");
-          sessionStorage.removeItem("isAuthenticated");
         } catch {}
       } finally {
         setIsLoading(false);
@@ -108,11 +107,12 @@ export function useAuth() {
 
           // Persist minimal user info for UX
           try {
-            const targetStorage = window.localStorage.getItem("auth_token")
-              ? window.localStorage
-              : window.sessionStorage;
-            targetStorage.setItem("userData", JSON.stringify(convertedUser));
-            targetStorage.setItem("isAuthenticated", "true");
+            // Always use localStorage for userData and isAuthenticated
+            window.localStorage.setItem(
+              "userData",
+              JSON.stringify(convertedUser)
+            );
+            window.localStorage.setItem("isAuthenticated", "true");
             if (!document.cookie.includes("isAuthenticated=true")) {
               document.cookie = "isAuthenticated=true; path=/";
             }
@@ -161,9 +161,6 @@ export function useAuth() {
       localStorage.removeItem("auth_token");
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("auth_token");
-      sessionStorage.removeItem("userData");
-      sessionStorage.removeItem("isAuthenticated");
       document.cookie =
         "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     } catch {}
@@ -189,8 +186,6 @@ export function useAuth() {
     try {
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("userData");
-      sessionStorage.removeItem("isAuthenticated");
       document.cookie =
         "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     } catch {}

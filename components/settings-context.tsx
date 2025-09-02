@@ -14,6 +14,8 @@ import {
 } from "@/lib/settings";
 import { getSettings, updateSettings } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
+import { useDynamicColor } from "@/hooks/use-dynamic-color";
+import { useAuthContext } from "@/components/auth-provider";
 
 interface SettingsContextType {
   settings: Settings | null;
@@ -26,6 +28,7 @@ interface SettingsContextType {
   updateSettings: (newSettings: UpdateSettingsRequest) => Promise<Settings>;
   websiteName: string;
   websiteLogo: string | null;
+  mainColor: string;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(
@@ -48,7 +51,7 @@ interface SettingsProviderProps {
 
 export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // تغيير من true إلى false
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>(
@@ -57,11 +60,21 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
   const [initialized, setInitialized] = useState(false);
   const [websiteName, setWebsiteName] = useState("جمعية أصيل");
   const [websiteLogo, setWebsiteLogo] = useState<string | null>(null);
+  const [mainColor, setMainColor] = useState("#3B82F6");
 
   const { toast } = useToast();
+  const { isAuthenticated } = useAuthContext();
+
+  // استخدام اللون الديناميكي
+  useDynamicColor(mainColor);
 
   // جلب الإعدادات
   const fetchSettings = async () => {
+    // التحقق من حالة المصادقة قبل طلب الإعدادات
+    if (!isAuthenticated) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -77,6 +90,11 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
         const host = "http://localhost:5000";
         const logoUrl = `${host}/${data.websiteLogo.url}`;
         setWebsiteLogo(logoUrl);
+      }
+
+      // تحديث اللون الأساسي
+      if (data.mainColor) {
+        setMainColor(data.mainColor);
       }
 
       setInitialized(true);
@@ -132,10 +150,23 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     }
   };
 
-  // جلب الإعدادات عند تحميل المكون
+  // جلب الإعدادات عند تحميل المكون وعند تغيير حالة المصادقة
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (isAuthenticated) {
+      // تأخير بسيط لضمان اكتمال عملية تسجيل الدخول
+      const timer = setTimeout(() => {
+        fetchSettings();
+      }, 100);
+
+      return () => clearTimeout(timer);
+    } else {
+      // إعادة تعيين الإعدادات عند تسجيل الخروج
+      setSettings(null);
+      setInitialized(false);
+      setError(null);
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   const value: SettingsContextType = {
     settings,
@@ -148,6 +179,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
     updateSettings: updateSettingsData,
     websiteName,
     websiteLogo,
+    mainColor,
   };
 
   return (

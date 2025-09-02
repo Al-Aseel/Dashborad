@@ -104,240 +104,239 @@ const STATUS_CONFIG = {
 } as const;
 
 // Memoized Stats Card Component
-const StatsCard = React.memo(({ 
-  title, 
-  value, 
-  icon: Icon, 
-  iconBgColor, 
-  iconColor 
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  iconBgColor: string;
-  iconColor: string;
-}) => (
-  <Card>
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+const StatsCard = React.memo(
+  ({
+    title,
+    value,
+    icon: Icon,
+    iconBgColor,
+    iconColor,
+  }: {
+    title: string;
+    value: string | number;
+    icon: React.ComponentType<{ className?: string }>;
+    iconBgColor: string;
+    iconColor: string;
+  }) => (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+          </div>
+          <div className={`p-3 rounded-full ${iconBgColor} ${iconColor}`}>
+            <Icon className="w-6 h-6" />
+          </div>
         </div>
-        <div className={`p-3 rounded-full ${iconBgColor} ${iconColor}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-));
+      </CardContent>
+    </Card>
+  )
+);
 
-StatsCard.displayName = 'StatsCard';
+StatsCard.displayName = "StatsCard";
 
 // Memoized News Activity Item Component
-const NewsActivityItem = React.memo(({ 
-  item, 
-  onView, 
-  onEdit, 
-  onDelete,
-  StatusBadge 
-}: {
-  item: NewsActivity;
-  onView: (item: NewsActivity) => void;
-  onEdit: (item: NewsActivity) => void;
-  onDelete: (item: NewsActivity) => void;
-  StatusBadge: React.ComponentType<{ status: string }>;
-}) => (
-  <div className="flex gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
-    <div className="w-24 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-      <img
-        src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
-        alt={item.title}
-        className="w-full h-full object-cover"
-      />
+const NewsActivityItem = React.memo(
+  ({
+    item,
+    onView,
+    onEdit,
+    onDelete,
+    StatusBadge,
+  }: {
+    item: NewsActivity;
+    onView: (item: NewsActivity) => void;
+    onEdit: (item: NewsActivity) => void;
+    onDelete: (item: NewsActivity) => void;
+    StatusBadge: React.ComponentType<{ status: string }>;
+  }) => (
+    <div className="flex gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
+      <div className="w-24 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+        <img
+          src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
+          alt={item.title}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-bold text-lg truncate pr-4">{item.title}</h3>
+          <div className="flex gap-2 flex-shrink-0">
+            <Badge
+              className={item.type === "news" ? "bg-blue-500" : "bg-green-500"}
+            >
+              {item.type === "news" ? "خبر" : "نشاط"}
+            </Badge>
+            <Badge variant="outline">{item.category}</Badge>
+            <StatusBadge status={item.status} />
+            {item.featured && (
+              <Badge className="bg-orange-500">
+                <Star className="w-3 h-3 mr-1" />
+                مميز
+              </Badge>
+            )}
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {item.summary}
+        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <span>بواسطة: {item.author}</span>
+            <span>
+              {item.status === "scheduled" ? (
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>مجدول: {item.scheduledDate}</span>
+                  <Clock className="w-4 h-4" />
+                  <span>{item.scheduledTime}</span>
+                </div>
+              ) : (
+                `تاريخ النشر: ${item.publishDate}`
+              )}
+            </span>
+            <div className="flex items-center gap-1">
+              <Eye className="w-4 h-4" />
+              <span>{item.views}</span>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onView(item)}>
+                <Eye className="w-4 h-4 mr-2" />
+                عرض التفاصيل
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(item)}>
+                <Edit className="w-4 h-4 mr-2" />
+                تعديل
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDelete(item)}
+                className="text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                حذف
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
     </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-bold text-lg truncate pr-4">
-          {item.title}
-        </h3>
-        <div className="flex gap-2 flex-shrink-0">
+  )
+);
+
+NewsActivityItem.displayName = "NewsActivityItem";
+
+// Memoized Featured News Card Component
+const FeaturedNewsCard = React.memo(
+  ({
+    item,
+    onView,
+    onEdit,
+    onDelete,
+  }: {
+    item: NewsActivity;
+    onView: (item: NewsActivity) => void;
+    onEdit: (item: NewsActivity) => void;
+    onDelete: (item: NewsActivity) => void;
+  }) => (
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="relative aspect-video">
+        <img
+          src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
+          alt={item.title}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute top-2 right-2">
           <Badge
-            className={
-              item.type === "news"
-                ? "bg-blue-500"
-                : "bg-green-500"
-            }
+            className={item.type === "news" ? "bg-blue-500" : "bg-green-500"}
           >
             {item.type === "news" ? "خبر" : "نشاط"}
           </Badge>
-          <Badge variant="outline">{item.category}</Badge>
-          <StatusBadge status={item.status} />
-          {item.featured && (
-            <Badge className="bg-orange-500">
-              <Star className="w-3 h-3 mr-1" />
-              مميز
-            </Badge>
-          )}
+        </div>
+        <div className="absolute top-2 left-2">
+          <Badge variant="outline" className="bg-white">
+            {item.category}
+          </Badge>
+        </div>
+        <div className="absolute bottom-2 right-2">
+          <Badge className="bg-orange-500">
+            <Star className="w-3 h-3 mr-1" />
+            مميز
+          </Badge>
         </div>
       </div>
-      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-        {item.summary}
-      </p>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>بواسطة: {item.author}</span>
-          <span>
-            {item.status === "scheduled" ? (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                <span>مجدول: {item.scheduledDate}</span>
-                <Clock className="w-4 h-4" />
-                <span>{item.scheduledTime}</span>
-              </div>
-            ) : (
-              `تاريخ النشر: ${item.publishDate}`
-            )}
-          </span>
-          <div className="flex items-center gap-1">
+      <CardContent className="p-4">
+        <h3 className="font-bold text-lg mb-2 line-clamp-2">{item.title}</h3>
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {item.summary}
+        </p>
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+          <span>{item.author}</span>
+          <span>{item.publishDate}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-sm text-gray-500">
             <Eye className="w-4 h-4" />
             <span>{item.views}</span>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onView(item)}>
+                <Eye className="w-4 h-4 mr-2" />
+                عرض التفاصيل
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(item)}>
+                <Edit className="w-4 h-4 mr-2" />
+                تعديل
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(item)}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                حذف
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onView(item)}>
-              <Eye className="w-4 h-4 mr-2" />
-              عرض التفاصيل
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(item)}>
-              <Edit className="w-4 h-4 mr-2" />
-              تعديل
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(item)} className="text-red-600">
-              <Trash2 className="w-4 h-4 mr-2" />
-              حذف
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-  </div>
-));
+      </CardContent>
+    </Card>
+  )
+);
 
-NewsActivityItem.displayName = 'NewsActivityItem';
-
-// Memoized Featured News Card Component
-const FeaturedNewsCard = React.memo(({ 
-  item, 
-  onView, 
-  onEdit, 
-  onDelete 
-}: {
-  item: NewsActivity;
-  onView: (item: NewsActivity) => void;
-  onEdit: (item: NewsActivity) => void;
-  onDelete: (item: NewsActivity) => void;
-}) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-    <div className="relative aspect-video">
-      <img
-        src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
-        alt={item.title}
-        className="w-full h-full object-cover"
-      />
-      <div className="absolute top-2 right-2">
-        <Badge
-          className={
-            item.type === "news"
-              ? "bg-blue-500"
-              : "bg-green-500"
-          }
-        >
-          {item.type === "news" ? "خبر" : "نشاط"}
-        </Badge>
-      </div>
-      <div className="absolute top-2 left-2">
-        <Badge variant="outline" className="bg-white">
-          {item.category}
-        </Badge>
-      </div>
-      <div className="absolute bottom-2 right-2">
-        <Badge className="bg-orange-500">
-          <Star className="w-3 h-3 mr-1" />
-          مميز
-        </Badge>
-      </div>
-    </div>
-    <CardContent className="p-4">
-      <h3 className="font-bold text-lg mb-2 line-clamp-2">
-        {item.title}
-      </h3>
-      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-        {item.summary}
-      </p>
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-        <span>{item.author}</span>
-        <span>{item.publishDate}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-sm text-gray-500">
-          <Eye className="w-4 h-4" />
-          <span>{item.views}</span>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onView(item)}>
-              <Eye className="w-4 h-4 mr-2" />
-              عرض التفاصيل
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(item)}>
-              <Edit className="w-4 h-4 mr-2" />
-              تعديل
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(item)}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              حذف
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </CardContent>
-  </Card>
-));
-
-FeaturedNewsCard.displayName = 'FeaturedNewsCard';
+FeaturedNewsCard.displayName = "FeaturedNewsCard";
 
 // Memoized Form Field Component
-const FormField = React.memo(({ 
-  label, 
-  children, 
-  required = false 
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-}) => (
-  <div className="space-y-2">
-    <Label htmlFor={label.toLowerCase()}>
-      {label} {required && "*"}
-    </Label>
-    {children}
-  </div>
-));
+const FormField = React.memo(
+  ({
+    label,
+    children,
+    required = false,
+  }: {
+    label: string;
+    children: React.ReactNode;
+    required?: boolean;
+  }) => (
+    <div className="space-y-2">
+      <Label htmlFor={label.toLowerCase()}>
+        {label} {required && "*"}
+      </Label>
+      {children}
+    </div>
+  )
+);
 
-FormField.displayName = 'FormField';
+FormField.displayName = "FormField";
 
 export default function NewsActivitiesPage() {
   const { byModule, refreshCategories } = useCategories();
@@ -390,7 +389,9 @@ export default function NewsActivitiesPage() {
 
   // Memoized status badge component
   const StatusBadge = useCallback(({ status }: { status: string }) => {
-    const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.published;
+    const config =
+      STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ||
+      STATUS_CONFIG.published;
     return (
       <Badge variant={config.variant} className={config.color}>
         {config.label}
@@ -525,7 +526,11 @@ export default function NewsActivitiesPage() {
   // Dedicated fetch for featured items
   const refreshFeatured = useCallback(async () => {
     try {
-      const res = await activitiesApi.getAll({ isSpecial: true, limit: 1000, page: 1 });
+      const res = await activitiesApi.getAll({
+        isSpecial: true,
+        limit: 1000,
+        page: 1,
+      });
       // اعرض جميع العناصر المميزة بغض النظر عن حالة النشر
       setFeaturedItems(res.data.activities);
     } catch (e) {
@@ -539,9 +544,12 @@ export default function NewsActivitiesPage() {
   }, [refreshFeatured]);
 
   // Optimized form update handlers
-  const updateFormField = useCallback((field: keyof NewsActivity, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const updateFormField = useCallback(
+    (field: keyof NewsActivity, value: any) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
 
   const handleAdd = useCallback(async () => {
     await refreshCategories("news-activities");
@@ -1029,28 +1037,37 @@ export default function NewsActivitiesPage() {
   }, []);
 
   // Memoized pagination handlers
-  const handlePageChange = useCallback((page: number) => {
-    fetchActivities({ page });
-  }, [fetchActivities]);
+  const handlePageChange = useCallback(
+    (page: number) => {
+      fetchActivities({ page });
+    },
+    [fetchActivities]
+  );
 
-  const handleLimitChange = useCallback((limit: number) => {
-    fetchActivities({ limit, page: 1 });
-  }, [fetchActivities]);
+  const handleLimitChange = useCallback(
+    (limit: number) => {
+      fetchActivities({ limit, page: 1 });
+    },
+    [fetchActivities]
+  );
 
   // Memoized pagination info
-  const paginationInfo = useMemo(() => ({
-    start: (pagination.page - 1) * pagination.limit + 1,
-    end: Math.min(pagination.page * pagination.limit, pagination.total),
-    total: pagination.total,
-    page: pagination.page,
-    totalPages: pagination.totalPages,
-  }), [pagination]);
+  const paginationInfo = useMemo(
+    () => ({
+      start: (pagination.page - 1) * pagination.limit + 1,
+      end: Math.min(pagination.page * pagination.limit, pagination.total),
+      total: pagination.total,
+      page: pagination.page,
+      totalPages: pagination.totalPages,
+    }),
+    [pagination]
+  );
 
   // Memoized pagination buttons
   const paginationButtons = useMemo(() => {
     const buttons = [];
     const maxButtons = Math.min(5, pagination.totalPages);
-    
+
     for (let i = 1; i <= maxButtons; i++) {
       buttons.push(
         <Button
@@ -1058,12 +1075,13 @@ export default function NewsActivitiesPage() {
           variant={pagination.page === i ? "default" : "outline"}
           size="sm"
           onClick={() => handlePageChange(i)}
+          className={pagination.page === i ? "btn-primary" : ""}
         >
           {i}
         </Button>
       );
     }
-    
+
     return buttons;
   }, [pagination.page, pagination.totalPages, handlePageChange]);
 
@@ -1077,10 +1095,7 @@ export default function NewsActivitiesPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex gap-2">
-              <Button
-                onClick={handleAdd}
-                className="bg-gradient-to-r from-blue-500 to-purple-600"
-              >
+              <Button onClick={handleAdd} className="btn-primary">
                 <Plus className="w-4 h-4 mr-2" />
                 إضافة خبر/نشاط جديد
               </Button>
@@ -1097,10 +1112,7 @@ export default function NewsActivitiesPage() {
                 تحديث
               </Button>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleCategoriesDialog}
-            >
+            <Button variant="outline" onClick={handleCategoriesDialog}>
               إدارة الفئات
             </Button>
           </div>
@@ -1109,8 +1121,9 @@ export default function NewsActivitiesPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <StatsCard
               title="إجمالي الأخبار"
-              value={useMemo(() => 
-                newsActivities.filter((item) => item.type === "news").length,
+              value={useMemo(
+                () =>
+                  newsActivities.filter((item) => item.type === "news").length,
                 [newsActivities]
               )}
               icon={FileText}
@@ -1120,8 +1133,10 @@ export default function NewsActivitiesPage() {
 
             <StatsCard
               title="إجمالي الأنشطة"
-              value={useMemo(() => 
-                newsActivities.filter((item) => item.type === "activity").length,
+              value={useMemo(
+                () =>
+                  newsActivities.filter((item) => item.type === "activity")
+                    .length,
                 [newsActivities]
               )}
               icon={Heart}
@@ -1131,8 +1146,10 @@ export default function NewsActivitiesPage() {
 
             <StatsCard
               title="المحتوى المنشور"
-              value={useMemo(() => 
-                newsActivities.filter((item) => item.status === "published").length,
+              value={useMemo(
+                () =>
+                  newsActivities.filter((item) => item.status === "published")
+                    .length,
                 [newsActivities]
               )}
               icon={Eye}
@@ -1142,8 +1159,11 @@ export default function NewsActivitiesPage() {
 
             <StatsCard
               title="إجمالي المشاهدات"
-              value={useMemo(() => 
-                newsActivities.reduce((sum, item) => sum + item.views, 0).toLocaleString(),
+              value={useMemo(
+                () =>
+                  newsActivities
+                    .reduce((sum, item) => sum + item.views, 0)
+                    .toLocaleString(),
                 [newsActivities]
               )}
               icon={BarChart3}
@@ -1188,7 +1208,10 @@ export default function NewsActivitiesPage() {
                     className="w-full"
                   />
                 </div>
-                <Select value={filterType} onValueChange={handleFilterTypeChange}>
+                <Select
+                  value={filterType}
+                  onValueChange={handleFilterTypeChange}
+                >
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="فلترة حسب النوع" />
                   </SelectTrigger>
@@ -1198,7 +1221,10 @@ export default function NewsActivitiesPage() {
                     <SelectItem value="activity">أنشطة</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterStatus} onValueChange={handleFilterStatusChange}>
+                <Select
+                  value={filterStatus}
+                  onValueChange={handleFilterStatusChange}
+                >
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="فلترة حسب الحالة" />
                   </SelectTrigger>
@@ -1295,10 +1321,7 @@ export default function NewsActivitiesPage() {
                     {(searchTerm ||
                       filterType !== "all" ||
                       filterStatus !== "all") && (
-                      <Button
-                        variant="outline"
-                        onClick={handleResetFilters}
-                      >
+                      <Button variant="outline" onClick={handleResetFilters}>
                         إعادة تعيين الفلاتر
                       </Button>
                     )}
@@ -1322,10 +1345,12 @@ export default function NewsActivitiesPage() {
                 <div className="mt-6 pt-4 border-t">
                   <div className="flex items-center justify-between text-sm text-gray-600">
                     <span>
-                      عرض {paginationInfo.start} إلى {paginationInfo.end} من {paginationInfo.total} نتيجة
+                      عرض {paginationInfo.start} إلى {paginationInfo.end} من{" "}
+                      {paginationInfo.total} نتيجة
                     </span>
                     <span>
-                      الصفحة {paginationInfo.page} من {paginationInfo.totalPages}
+                      الصفحة {paginationInfo.page} من{" "}
+                      {paginationInfo.totalPages}
                     </span>
                   </div>
 
@@ -1461,7 +1486,9 @@ export default function NewsActivitiesPage() {
                     id="publishDate"
                     type="date"
                     value={formData.publishDate || ""}
-                    onChange={(e) => updateFormField("publishDate", e.target.value)}
+                    onChange={(e) =>
+                      updateFormField("publishDate", e.target.value)
+                    }
                   />
                 </FormField>
               </div>
@@ -1474,7 +1501,9 @@ export default function NewsActivitiesPage() {
                       id="scheduledDate"
                       type="date"
                       value={formData.scheduledDate || ""}
-                      onChange={(e) => updateFormField("scheduledDate", e.target.value)}
+                      onChange={(e) =>
+                        updateFormField("scheduledDate", e.target.value)
+                      }
                     />
                   </FormField>
                   <FormField label="وقت الجدولة" required>
@@ -1482,7 +1511,9 @@ export default function NewsActivitiesPage() {
                       id="scheduledTime"
                       type="time"
                       value={formData.scheduledTime || ""}
-                      onChange={(e) => updateFormField("scheduledTime", e.target.value)}
+                      onChange={(e) =>
+                        updateFormField("scheduledTime", e.target.value)
+                      }
                     />
                   </FormField>
                 </div>
@@ -1548,7 +1579,9 @@ export default function NewsActivitiesPage() {
                 <Switch
                   id="featured"
                   checked={formData.featured || false}
-                  onCheckedChange={(checked) => updateFormField("featured", checked)}
+                  onCheckedChange={(checked) =>
+                    updateFormField("featured", checked)
+                  }
                 />
                 <Label htmlFor="featured">مميز</Label>
               </div>
@@ -1671,7 +1704,11 @@ export default function NewsActivitiesPage() {
                   <div className="ql-snow">
                     <div
                       className="ql-editor"
-                      dir={(/[\u0600-\u06FF]/.test(selectedItem.content || "") ? "rtl" : "ltr") as any}
+                      dir={
+                        (/[\u0600-\u06FF]/.test(selectedItem.content || "")
+                          ? "rtl"
+                          : "ltr") as any
+                      }
                       dangerouslySetInnerHTML={{ __html: selectedItem.content }}
                     />
                   </div>
