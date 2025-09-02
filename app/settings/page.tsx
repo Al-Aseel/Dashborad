@@ -43,6 +43,8 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettingsContext } from "@/components/settings-context";
 import { UpdateSettingsRequest } from "@/lib/settings";
+import { useSystemSettings } from "@/hooks/use-system-settings";
+import { UpdateSystemSettingsRequest } from "@/lib/system-settings";
 import { SettingsPageSkeleton } from "@/components/shared/settings-page-skeleton";
 import { LoadingOverlay } from "@/components/shared/loading-overlay";
 import { ErrorState } from "@/components/shared/error-state";
@@ -90,6 +92,54 @@ export default function SettingsPage() {
     description: "",
   });
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
+
+  // System settings state & logic
+  const {
+    settings: systemSettings,
+    loading: sysLoading,
+    updating: sysUpdating,
+    updateSettings: updateSystemSettings,
+    initialized: sysInitialized,
+    error: sysError,
+    validationErrors: sysValidationErrors,
+    fetchSettings: fetchSystemSettings,
+  } = useSystemSettings();
+
+  const [systemForm, setSystemForm] = useState<UpdateSystemSettingsRequest>({
+    maxSizeAllowedForFilesInMB: 10,
+    typesOfImagesAllowed: ".jpg,.png,.gif,.jpeg,.webp",
+    typesOfFilesAllowed: ".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar",
+    timeToDeleteTempFile: "daily",
+    maxFilesPerUpload: 10,
+    enableFileCompression: false,
+    tempFileRetentionHours: 24,
+    systemMaintenanceMode: false,
+    maintenanceMessage: "النظام تحت الصيانة، يرجى المحاولة لاحقاً",
+  });
+
+  useEffect(() => {
+    if (systemSettings) {
+      setSystemForm({
+        maxSizeAllowedForFilesInMB:
+          systemSettings.maxSizeAllowedForFilesInMB ?? 10,
+        typesOfImagesAllowed: systemSettings.typesOfImagesAllowed ?? "",
+        typesOfFilesAllowed: systemSettings.typesOfFilesAllowed ?? "",
+        timeToDeleteTempFile: systemSettings.timeToDeleteTempFile,
+        maxFilesPerUpload: systemSettings.maxFilesPerUpload ?? 10,
+        enableFileCompression: systemSettings.enableFileCompression ?? false,
+        tempFileRetentionHours: systemSettings.tempFileRetentionHours ?? 24,
+        systemMaintenanceMode: systemSettings.systemMaintenanceMode ?? false,
+        maintenanceMessage: systemSettings.maintenanceMessage ?? "",
+      });
+    }
+  }, [systemSettings]);
+
+  const handleSystemChange = (
+    field: keyof UpdateSystemSettingsRequest,
+    value: string | number | boolean
+  ) => {
+    setSystemForm((prev) => ({ ...prev, [field]: value as any }));
+  };
 
   // تحديث النموذج عند تحميل الإعدادات
   useEffect(() => {
@@ -663,8 +713,8 @@ export default function SettingsPage() {
                     <CardDescription>إعدادات النظام والتطبيق</CardDescription>
                   </div>
                   <RefreshButton
-                    onRefresh={fetchSettings}
-                    loading={loading}
+                    onRefresh={fetchSystemSettings}
+                    loading={sysLoading}
                     variant="ghost"
                     size="sm"
                   />
@@ -678,43 +728,95 @@ export default function SettingsPage() {
                   </Label>
                   <Input
                     id="max-file"
-                    placeholder="10"
-                    defaultValue="10"
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={systemForm.maxSizeAllowedForFilesInMB}
+                    onChange={(e) =>
+                      handleSystemChange(
+                        "maxSizeAllowedForFilesInMB",
+                        Number(e.target.value)
+                      )
+                    }
                     dir="ltr"
                     className="text-left md:order-1"
                   />
                 </div>
+                <ValidationErrors
+                  errors={sysValidationErrors}
+                  fieldName="maxSizeAllowedForFilesInMB"
+                />
+
+                {/* أنواع الصور المسموحه */}
+                <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+                  <Label htmlFor="allowed-image-types" className="md:order-2">
+                    أنواع الصور المسموحه
+                  </Label>
+                  <Input
+                    id="allowed-image-types"
+                    placeholder=".jpg,.png,.gif,.jpeg,.webp"
+                    value={systemForm.typesOfImagesAllowed}
+                    onChange={(e) =>
+                      handleSystemChange("typesOfImagesAllowed", e.target.value)
+                    }
+                    dir="ltr"
+                    className="text-left md:order-1"
+                  />
+                </div>
+                <ValidationErrors
+                  errors={sysValidationErrors}
+                  fieldName="typesOfImagesAllowed"
+                />
 
                 {/* أنواع الملفات المسموحه */}
                 <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
-                  <Label htmlFor="allowed-types" className="md:order-2">
+                  <Label htmlFor="allowed-file-types" className="md:order-2">
                     أنواع الملفات المسموحه
                   </Label>
                   <Input
-                    id="allowed-types"
-                    placeholder="jpg,jpeg,png,pdf,doc,docx"
-                    defaultValue="jpg,jpeg,png,pdf,doc,docx"
+                    id="allowed-file-types"
+                    placeholder=".pdf,.doc,.docx,.xls,.xlsx,.txt,.zip,.rar"
+                    value={systemForm.typesOfFilesAllowed}
+                    onChange={(e) =>
+                      handleSystemChange("typesOfFilesAllowed", e.target.value)
+                    }
                     dir="ltr"
                     className="text-left md:order-1"
                   />
                 </div>
-
-                {/* تمت إزالة اللغة الافتراضية والمنطقة الزمنية وتنسيق التاريخ والعملة */}
+                <ValidationErrors
+                  errors={sysValidationErrors}
+                  fieldName="typesOfFilesAllowed"
+                />
 
                 {/* إعدادات الأداء */}
                 <div className="space-y-4">
                   <p className="text-sm text-gray-700">إعدادات الأداء</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
                     <div className="flex items-center gap-3">
-                      <Switch id="image-opt" />
+                      <Switch
+                        id="image-opt"
+                        checked={!!systemForm.enableFileCompression}
+                        onCheckedChange={(v) =>
+                          handleSystemChange("enableFileCompression", !!v)
+                        }
+                      />
                       <span className="text-sm">
-                        ضغط الصور تلقائياً عند الرفع
+                        ضغط الملفات/الصور تلقائياً عند الرفع
                       </span>
                     </div>
                     <span className="hidden md:block"></span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
-                    <Select defaultValue="weekly">
+                    <Select
+                      value={systemForm.timeToDeleteTempFile}
+                      onValueChange={(v) =>
+                        handleSystemChange(
+                          "timeToDeleteTempFile",
+                          v as UpdateSystemSettingsRequest["timeToDeleteTempFile"]
+                        )
+                      }
+                    >
                       <SelectTrigger id="cleanup-schedule" className="w-full">
                         <SelectValue placeholder="اختر الجدولة" />
                       </SelectTrigger>
@@ -728,11 +830,113 @@ export default function SettingsPage() {
                       حذف الملفات المؤقتة دوريًا
                     </Label>
                   </div>
+                  <ValidationErrors
+                    errors={sysValidationErrors}
+                    fieldName="timeToDeleteTempFile"
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+                    <Label htmlFor="max-files" className="md:order-2">
+                      الحد الأقصى لعدد الملفات بالرفع الواحد
+                    </Label>
+                    <Input
+                      id="max-files"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={systemForm.maxFilesPerUpload ?? 10}
+                      onChange={(e) =>
+                        handleSystemChange(
+                          "maxFilesPerUpload",
+                          Number(e.target.value)
+                        )
+                      }
+                      dir="ltr"
+                      className="text-left md:order-1"
+                    />
+                  </div>
+                  <ValidationErrors
+                    errors={sysValidationErrors}
+                    fieldName="maxFilesPerUpload"
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+                    <Label htmlFor="temp-retention" className="md:order-2">
+                      مدة الاحتفاظ بالملفات المؤقتة (ساعات)
+                    </Label>
+                    <Input
+                      id="temp-retention"
+                      type="number"
+                      min={1}
+                      max={8760}
+                      value={systemForm.tempFileRetentionHours ?? 24}
+                      onChange={(e) =>
+                        handleSystemChange(
+                          "tempFileRetentionHours",
+                          Number(e.target.value)
+                        )
+                      }
+                      dir="ltr"
+                      className="text-left md:order-1"
+                    />
+                  </div>
+                  <ValidationErrors
+                    errors={sysValidationErrors}
+                    fieldName="tempFileRetentionHours"
+                  />
                 </div>
 
-                <DynamicButton className="w-full md:w-auto">
-                  حفظ الإعدادات
-                  <Save className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                {/* وضع الصيانة */}
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-700">وضع الصيانة</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <Switch
+                        id="maintenance-mode"
+                        checked={!!systemForm.systemMaintenanceMode}
+                        onCheckedChange={(v) =>
+                          handleSystemChange("systemMaintenanceMode", !!v)
+                        }
+                      />
+                      <span className="text-sm">تفعيل وضع الصيانة</span>
+                    </div>
+                    <span className="hidden md:block"></span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maintenance-message">رسالة الصيانة</Label>
+                    <Textarea
+                      id="maintenance-message"
+                      value={systemForm.maintenanceMessage ?? ""}
+                      onChange={(e) =>
+                        handleSystemChange("maintenanceMessage", e.target.value)
+                      }
+                      placeholder="النظام تحت الصيانة، يرجى المحاولة لاحقاً"
+                    />
+                    <ValidationErrors
+                      errors={sysValidationErrors}
+                      fieldName="maintenanceMessage"
+                    />
+                  </div>
+                </div>
+
+                <DynamicButton
+                  onClick={async () => {
+                    try {
+                      await updateSystemSettings(systemForm);
+                    } catch {}
+                  }}
+                  disabled={sysUpdating}
+                  className="w-full md:w-auto"
+                >
+                  {sysUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0 animate-spin" />
+                      جاري الحفظ...
+                    </>
+                  ) : (
+                    <>
+                      حفظ الإعدادات
+                      <Save className="w-4 h-4 mr-2 rtl:ml-2 rtl:mr-0" />
+                    </>
+                  )}
                 </DynamicButton>
 
                 {/* Logout from all devices */}

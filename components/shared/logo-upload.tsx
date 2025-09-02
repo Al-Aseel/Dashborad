@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, Image as ImageIcon, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api, API_BASE_URL } from "@/lib/api";
+import { useSystemSettings } from "@/hooks/use-system-settings";
 
 // Interface لاستجابة رفع الصورة
 interface UploadResponse {
@@ -71,6 +72,7 @@ export const LogoUpload = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { settings: systemSettings } = useSystemSettings();
 
   // تحميل URL الصورة عندما يكون هناك imageId موجود
   useEffect(() => {
@@ -107,7 +109,17 @@ export const LogoUpload = ({
 
       // إنشاء FormData لرفع الصورة
       const formData = new FormData();
-      formData.append("image", file);
+      let fileToUpload: File = file;
+      // ضغط الصورة إذا كان خيار الضغط مفعلًا
+      try {
+        if (systemSettings?.enableFileCompression) {
+          const mod = await import("@/lib/image-compression");
+          const { compressLogoImage } = mod;
+          fileToUpload = await compressLogoImage(file);
+        }
+      } catch {}
+
+      formData.append("image", fileToUpload);
 
       // رفع الصورة إلى الخادم
       const response = await api.post<UploadResponse>(

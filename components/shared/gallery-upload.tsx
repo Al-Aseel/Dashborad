@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { X, Camera, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { toBackendUrl } from "@/lib/utils";
+import { useSystemSettings } from "@/hooks/use-system-settings";
 
 interface GalleryImage {
   url: string;
@@ -38,6 +39,7 @@ export function GalleryUpload({
   onRemove,
 }: GalleryUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { settings: systemSettings } = useSystemSettings();
 
   const handleFileSelect = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -46,17 +48,16 @@ export function GalleryUpload({
     const remainingSlots = maxImages - currentImages.length;
     const filesToProcess = files.slice(0, remainingSlots);
 
-    // Compress images before proceeding
+    // Compress images before proceeding (if enabled)
     let processedFiles = filesToProcess;
     try {
-      const { compressImages } = await import("@/lib/image-compression");
-      const results = await compressImages(filesToProcess, {
-        maxWidth: 1920,
-        maxHeight: 1080,
-        quality: 0.8,
-        format: "jpeg",
-      });
-      processedFiles = results.map((r) => r.file);
+      if (systemSettings?.enableFileCompression) {
+        const mod = await import("@/lib/image-compression");
+        const { compressImage } = mod as any;
+        const promises = filesToProcess.map((f) => compressImage(f));
+        const results: File[] = await Promise.all(promises);
+        processedFiles = results;
+      }
     } catch {}
 
     if (onUpload) {

@@ -21,6 +21,7 @@ import {
   isValidImageFile,
   isValidFileSize,
 } from "@/lib/partner-images";
+import { useSystemSettings } from "@/hooks/use-system-settings";
 
 interface SingleImageUploadProps {
   onImageChange: (image: string | null) => void;
@@ -51,6 +52,7 @@ export function SingleImageUpload({
   >("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
+  const { settings: systemSettings } = useSystemSettings();
 
   // Lazy import to avoid SSR issues if used server-side indirectly
   const compressAndPrepare = async (file: File) => {
@@ -60,27 +62,33 @@ export function SingleImageUpload({
     try {
       const mod = await import("@/lib/image-compression");
       const { compressLogoImage, isImageFile, formatFileSize } = mod;
-      
+
       if (!isImageFile(file)) {
         setProcessing(false);
         setUploadStatus("idle");
         return { file, url: URL.createObjectURL(file) };
       }
 
-      // ضغط الصورة باستخدام خيارات مخصصة للشعارات
-      const compressedFile = await compressLogoImage(file);
+      // ضغط الصورة فقط إذا كان مفعلاً في الإعدادات
+      const shouldCompress = !!systemSettings?.enableFileCompression;
+      const processedFile = shouldCompress
+        ? await compressLogoImage(file)
+        : file;
 
-      console.log('معلومات ضغط الصورة:', {
+      console.log("معلومات ضغط الصورة:", {
         original: formatFileSize(file.size),
-        compressed: formatFileSize(compressedFile.size),
-        reduction: `${(((file.size - compressedFile.size) / file.size) * 100).toFixed(1)}%`,
+        compressed: formatFileSize(processedFile.size),
+        reduction: `${(
+          ((file.size - processedFile.size) / file.size) *
+          100
+        ).toFixed(1)}%`,
       });
 
       setProcessing(false);
       setUploadStatus("idle");
-      return { file: compressedFile, url: URL.createObjectURL(compressedFile) };
+      return { file: processedFile, url: URL.createObjectURL(processedFile) };
     } catch (error) {
-      console.error('خطأ في ضغط الصورة:', error);
+      console.error("خطأ في ضغط الصورة:", error);
       setProcessing(false);
       setUploadStatus("error");
       // في حالة فشل الضغط، استخدم الملف الأصلي
@@ -386,13 +394,19 @@ export function SingleImageUpload({
             <p className="text-xs text-blue-500 mt-1">ضغط وتحسين الصورة...</p>
           )}
           {uploadStatus === "uploading" && (
-            <p className="text-xs text-blue-500 mt-1">جاري رفع الصورة المضغوطة...</p>
+            <p className="text-xs text-blue-500 mt-1">
+              جاري رفع الصورة المضغوطة...
+            </p>
           )}
           {uploadStatus === "success" && (
-            <p className="text-xs text-green-500 mt-1">تم رفع الصورة المضغوطة بنجاح!</p>
+            <p className="text-xs text-green-500 mt-1">
+              تم رفع الصورة المضغوطة بنجاح!
+            </p>
           )}
           {uploadStatus === "error" && (
-            <p className="text-xs text-red-500 mt-1">حدث خطأ في معالجة الصورة</p>
+            <p className="text-xs text-red-500 mt-1">
+              حدث خطأ في معالجة الصورة
+            </p>
           )}
 
           {required && uploadStatus === "idle" && (
