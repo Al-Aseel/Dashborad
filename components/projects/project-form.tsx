@@ -109,7 +109,9 @@ export function ProjectForm({
 
   const [newObjective, setNewObjective] = useState("");
   const [newActivity, setNewActivity] = useState("");
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     if (isOpen) {
@@ -127,7 +129,9 @@ export function ProjectForm({
           endDate: initialData.endDate || "",
           status: initialData.status || "مخطط",
           details: initialData.details || "",
-          mainImage: initialData.mainImage ? toBackendUrl(initialData.mainImage) : null,
+          mainImage: initialData.mainImage
+            ? toBackendUrl(initialData.mainImage)
+            : null,
           gallery: Array.isArray(initialData.gallery)
             ? initialData.gallery.map((g: any) => ({
                 ...g,
@@ -135,6 +139,8 @@ export function ProjectForm({
               }))
             : [],
         });
+        // Ensure existing cover image id is respected in edit mode
+        setCoverFileId(initialData.coverFileId || null);
         setObjectives(initialData.objectives || []);
         setActivities(initialData.activities || []);
       } else {
@@ -190,7 +196,10 @@ export function ProjectForm({
         title: "",
         fileId: String(img?.id ?? img?._id ?? img?.fileName),
       }));
-      setFormData((prev: any) => ({ ...prev, gallery: [...prev.gallery, ...newItems] }));
+      setFormData((prev: any) => ({
+        ...prev,
+        gallery: [...prev.gallery, ...newItems],
+      }));
     } finally {
       setUploadingGallery(false);
     }
@@ -210,10 +219,10 @@ export function ProjectForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Clear previous validation errors
     setValidationErrors({});
-    
+
     // Validate required fields (client-side)
     const errors: Record<string, string> = {};
     if (!formData.description?.trim()) {
@@ -246,15 +255,18 @@ export function ProjectForm({
     }
 
     try {
-      await Promise.resolve(onSubmit({
-        ...formData,
-        objectives,
-        activities,
-        coverFileId,
-      }));
+      await Promise.resolve(
+        onSubmit({
+          ...formData,
+          objectives,
+          activities,
+          coverFileId,
+        })
+      );
     } catch (err: any) {
       // Map server-side validation errors if present
-      const serverDetails: Array<{ param?: string; msg?: string }> = err?.response?.data?.details || [];
+      const serverDetails: Array<{ param?: string; msg?: string }> =
+        err?.response?.data?.details || [];
       if (Array.isArray(serverDetails) && serverDetails.length > 0) {
         const mapped: Record<string, string> = {};
         for (const d of serverDetails) {
@@ -337,7 +349,9 @@ export function ProjectForm({
                   className="text-right"
                 />
                 {validationErrors.location && (
-                  <p className="text-sm text-red-600">{validationErrors.location}</p>
+                  <p className="text-sm text-red-600">
+                    {validationErrors.location}
+                  </p>
                 )}
               </div>
 
@@ -415,7 +429,9 @@ export function ProjectForm({
                   }
                 />
                 {validationErrors.startDate && (
-                  <p className="text-sm text-red-600">{validationErrors.startDate}</p>
+                  <p className="text-sm text-red-600">
+                    {validationErrors.startDate}
+                  </p>
                 )}
               </div>
 
@@ -433,7 +449,9 @@ export function ProjectForm({
                   }
                 />
                 {validationErrors.endDate && (
-                  <p className="text-sm text-red-600">{validationErrors.endDate}</p>
+                  <p className="text-sm text-red-600">
+                    {validationErrors.endDate}
+                  </p>
                 )}
               </div>
             </div>
@@ -453,7 +471,9 @@ export function ProjectForm({
                 rows={3}
               />
               {validationErrors.description && (
-                <p className="text-sm text-red-600">{validationErrors.description}</p>
+                <p className="text-sm text-red-600">
+                  {validationErrors.description}
+                </p>
               )}
             </div>
 
@@ -554,7 +574,9 @@ export function ProjectForm({
                 }
               />
               {validationErrors.content && (
-                <p className="text-sm text-red-600">{validationErrors.content}</p>
+                <p className="text-sm text-red-600">
+                  {validationErrors.content}
+                </p>
               )}
             </div>
 
@@ -581,7 +603,9 @@ export function ProjectForm({
             <div className="space-y-2">
               <CoverImageUpload
                 currentImage={formData.mainImage}
-                onImageChange={(image) => setFormData((prev) => ({ ...prev, mainImage: image }))}
+                onImageChange={(image) =>
+                  setFormData((prev) => ({ ...prev, mainImage: image }))
+                }
                 onUpload={handleCoverUpload}
                 label="الصورة الرئيسية للمشروع"
                 required
@@ -594,7 +618,9 @@ export function ProjectForm({
             <div className="space-y-2">
               <GalleryUpload
                 currentImages={formData.gallery as any}
-                onImagesChange={(gallery) => setFormData((prev) => ({ ...prev, gallery }))}
+                onImagesChange={(gallery) =>
+                  setFormData((prev) => ({ ...prev, gallery }))
+                }
                 label="معرض الصور (اختياري)"
                 maxImages={10}
                 onUpload={handleGalleryUpload}

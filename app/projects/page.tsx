@@ -54,9 +54,9 @@ import {
   Plus,
   Search,
   Filter,
-  Edit,
   Trash2,
   Eye,
+  Pencil,
   Target,
   Activity,
   Loader2,
@@ -111,14 +111,18 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState("الكل");
   const [categoryFilter, setCategoryFilter] = useState("الكل");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isViewLoading, setIsViewLoading] = useState(false);
-  const [isEditFetching, setIsEditFetching] = useState(false);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProjectInitial, setEditingProjectInitial] = useState<
+    any | null
+  >(null);
+  const [isEditLoading, setIsEditLoading] = useState(false);
 
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -415,104 +419,6 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleEditProject = async (projectData: any) => {
-    if (!selectedProject) return;
-    setIsLoading(true);
-    try {
-      const statusMap: Record<string, string> = {
-        نشط: "active",
-        مكتمل: "completed",
-        "قيد التنفيذ": "active",
-        متوقف: "stopped",
-        مخطط: "scheduled",
-      };
-
-      const payload: any = {
-        name: projectData.name,
-        description: projectData.description,
-        category: projectData.category,
-        status: statusMap[projectData.status] || "active",
-        location: projectData.location,
-        budget: Number(String(projectData.budget).replace(/[^\d.]/g, "")) || 0,
-        startDate: projectData.startDate,
-        endDate: projectData.endDate,
-        manager: projectData.manager,
-        numberOfBeneficiary:
-          Number(String(projectData.beneficiaries).replace(/[^\d]/g, "")) || 0,
-        content: projectData.details || "",
-        goals: projectData.objectives || [],
-        activities: projectData.activities || [],
-      };
-      // Use new uploaded cover fileId if provided, otherwise keep existing server cover id
-      const coverIdCandidate =
-        (projectData as any).coverFileId || selectedProject.coverFileId;
-      if (coverIdCandidate) payload.coverImage = coverIdCandidate;
-      else {
-        toast({ title: "صورة الغلاف مطلوبة", variant: "destructive" });
-        setIsLoading(false);
-        return;
-      }
-      if (Array.isArray(projectData.gallery)) {
-        const galleryItems = projectData.gallery
-          .map((g: any) => {
-            const fileId = g?.fileId || g?.title;
-            if (!fileId) return null;
-            return {
-              fileId: String(fileId),
-              title: g?.title && g.fileId ? g.title : undefined,
-            };
-          })
-          .filter(Boolean);
-        if (galleryItems.length) payload.gallery = galleryItems;
-      }
-
-      await ProgramsApi.updateProgram(selectedProject.id, payload);
-
-      const updatedProjects = projects.map((project) =>
-        project.id === selectedProject.id
-          ? {
-              ...project,
-              title: payload.name,
-              description: payload.description,
-              manager: payload.manager,
-              location: payload.location,
-              budget: String(payload.budget),
-              beneficiaries: String(payload.numberOfBeneficiary),
-              category: projectData.category,
-              status: projectData.status,
-              startDate: payload.startDate,
-              endDate: payload.endDate,
-              objectives: payload.goals,
-              activities: payload.activities,
-              details: payload.content,
-              mainImage: projectData.mainImage,
-              gallery: (projectData.gallery || []).map((g: any) => ({
-                url: g.url,
-                title: g.title,
-              })),
-            }
-          : project
-      );
-      setProjects(updatedProjects);
-      setSelectedProject(null);
-      setIsEditDialogOpen(false);
-
-      toast({
-        title: "تم تحديث البرنامج بنجاح",
-        description: `تم تحديث برنامج "${projectData.name}" بنجاح`,
-        variant: "default",
-      });
-    } catch (error) {
-      toast({
-        title: "خطأ في تحديث المشروع",
-        description: "حدث خطأ أثناء تحديث المشروع. يرجى المحاولة مرة أخرى",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleDeleteProject = async (id: string) => {
     setDeletingId(id);
     try {
@@ -537,25 +443,6 @@ export default function ProjectsPage() {
     }
   };
 
-  const openEditDialog = async (project: Project) => {
-    setIsEditDialogOpen(true);
-    setIsEditFetching(true);
-    try {
-      const res = await ProgramsApi.getProgramById(project.id);
-      const data: any = (res as any).data;
-      const detailed = mapProgramToProject(data);
-      // Ensure category value is the ID for the edit Select
-      const categoryId =
-        data?.category?._id || data?.category?.id || data?.category;
-      detailed.category = String(categoryId ?? detailed.category);
-      setSelectedProject(detailed);
-    } catch {
-      setSelectedProject(project);
-    } finally {
-      setIsEditFetching(false);
-    }
-  };
-
   const openViewDialog = async (project: Project) => {
     setIsViewDialogOpen(true);
     setIsViewLoading(true);
@@ -568,6 +455,164 @@ export default function ProjectsPage() {
       setSelectedProject(project);
     } finally {
       setIsViewLoading(false);
+    }
+  };
+
+  const openEditDialog = async (project: Project) => {
+    setIsEditDialogOpen(true);
+    setIsViewLoading(true);
+    try {
+      const res = await ProgramsApi.getProgramById(project.id);
+      const p: any = (res as any).data;
+      const initial = {
+        name: p.name || "",
+        description: p.description || "",
+        location: p.location || "",
+        category: String(p?.category?.id || p?.category?._id || ""),
+        topic: "",
+        budget: String(p.budget ?? ""),
+        beneficiaries: String(p.numberOfBeneficiary ?? ""),
+        manager: p.manager || "",
+        startDate: p.startDate || "",
+        endDate: p.endDate || "",
+        status:
+          p.status === "active"
+            ? "نشط"
+            : p.status === "completed"
+            ? "مكتمل"
+            : p.status === "in_progress" || p.status === "scheduled"
+            ? "قيد التنفيذ"
+            : p.status === "paused" || p.status === "stopped"
+            ? "متوقف"
+            : "مخطط",
+        details: p.content || "",
+        mainImage: p.coverImage
+          ? toBackendUrl(p.coverImage.url || p.coverImage)
+          : null,
+        gallery: Array.isArray(p.gallery)
+          ? p.gallery.map((g: any) => ({
+              url: toBackendUrl(g.url || ""),
+              title: g.title || "",
+              fileId: String(g?.id || g?._id || g?.fileName || ""),
+            }))
+          : [],
+        objectives: p.goals || [],
+        activities: p.activities || [],
+        coverFileId:
+          String(
+            p?.coverImage?.id ||
+              p?.coverImage?._id ||
+              p?.coverImage?.fileName ||
+              ""
+          ) || undefined,
+        _id: String(p._id || p.id || project.id),
+      };
+      setEditingProjectInitial(initial);
+    } catch {
+      // fallback from table data
+      setEditingProjectInitial({
+        name: project.title,
+        description: project.description,
+        location: project.location,
+        category: "",
+        topic: "",
+        budget: String(project.budget),
+        beneficiaries: String(project.beneficiaries),
+        manager: project.manager,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        status: project.status,
+        details: project.details,
+        mainImage: project.mainImage || null,
+        gallery: project.gallery || [],
+        objectives: project.objectives || [],
+        activities: project.activities || [],
+        coverFileId: project.coverFileId,
+        _id: project.id,
+      });
+    } finally {
+      setIsViewLoading(false);
+    }
+  };
+
+  const handleUpdateProject = async (formValues: any) => {
+    if (!editingProjectInitial?._id) return;
+    setIsEditLoading(true);
+    try {
+      const statusMap: Record<string, string> = {
+        نشط: "active",
+        مكتمل: "completed",
+        "قيد التنفيذ": "active",
+        متوقف: "stopped",
+        مخطط: "scheduled",
+      };
+
+      const payload = {
+        name: formValues.name,
+        description: formValues.description,
+        category: formValues.category,
+        status: statusMap[formValues.status] || "active",
+        location: formValues.location,
+        budget: Number(String(formValues.budget).replace(/[^\d.]/g, "")) || 0,
+        startDate: formValues.startDate,
+        endDate: formValues.endDate,
+        manager: formValues.manager,
+        numberOfBeneficiary:
+          Number(String(formValues.beneficiaries).replace(/[^\d]/g, "")) || 0,
+        content: formValues.details || "",
+        goals: formValues.objectives || [],
+        activities: formValues.activities || [],
+        coverImage: undefined as string | undefined,
+        gallery: undefined as
+          | Array<{ fileId: string; title?: string }>
+          | undefined,
+      };
+
+      if (formValues.coverFileId) {
+        (payload as any).coverImage = formValues.coverFileId;
+      }
+      if (Array.isArray(formValues.gallery)) {
+        const galleryItems = formValues.gallery
+          .map((g: any) => {
+            const fileId = g?.fileId || g?.title;
+            if (!fileId) return null;
+            return {
+              fileId: String(fileId),
+              title: g?.title && g.fileId ? g.title : undefined,
+            };
+          })
+          .filter(Boolean) as Array<{ fileId: string; title?: string }>;
+        if (galleryItems.length) (payload as any).gallery = galleryItems;
+      }
+
+      const res = await ProgramsApi.updateProgram(
+        editingProjectInitial._id,
+        payload as any
+      );
+
+      // Refresh list
+      const refreshRes = await ProgramsApi.getPrograms({
+        page,
+        limit,
+        search: debouncedSearchTerm,
+      });
+      const items = (refreshRes.data?.programs || []) as any[];
+      const mapped: Project[] = items.map((p: any) => mapProgramToProject(p));
+      setProjects(mapped);
+      setTotal(refreshRes.data?.pagination?.total || 0);
+
+      setIsEditDialogOpen(false);
+      setEditingProjectInitial(null);
+      toast({ title: res?.message || "تم تحديث المشروع بنجاح" });
+    } catch (error) {
+      toast({
+        title: "خطأ في تحديث المشروع",
+        description: "حدث خطأ أثناء تحديث المشروع. يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsEditLoading(false);
     }
   };
 
@@ -772,14 +817,15 @@ export default function ProjectsPage() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
+
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => openEditDialog(project)}
-                            disabled={isLoading}
                           >
-                            <Edit className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           </Button>
+
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -923,30 +969,10 @@ export default function ProjectsPage() {
         <ProjectForm
           isOpen={isEditDialogOpen}
           onClose={() => setIsEditDialogOpen(false)}
-          onSubmit={handleEditProject}
-          initialData={
-            selectedProject
-              ? {
-                  name: selectedProject.title,
-                  description: selectedProject.description,
-                  manager: selectedProject.manager,
-                  location: selectedProject.location,
-                  budget: selectedProject.budget,
-                  beneficiaries: selectedProject.beneficiaries,
-                  category: selectedProject.category,
-                  status: selectedProject.status,
-                  startDate: toDateInputValue(selectedProject.startDate),
-                  endDate: toDateInputValue(selectedProject.endDate),
-                  objectives: selectedProject.objectives,
-                  activities: selectedProject.activities,
-                  details: selectedProject.details,
-                  mainImage: selectedProject.mainImage,
-                  gallery: selectedProject.gallery,
-                }
-              : undefined
-          }
-          title="تعديل المشروع"
-          isLoading={isLoading || isEditFetching}
+          onSubmit={handleUpdateProject}
+          initialData={editingProjectInitial || undefined}
+          title="تعديل مشروع"
+          isLoading={isEditLoading}
         />
 
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
@@ -1126,15 +1152,6 @@ export default function ProjectsPage() {
                 onClick={() => setIsViewDialogOpen(false)}
               >
                 إغلاق
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsViewDialogOpen(false);
-                  if (selectedProject) openEditDialog(selectedProject);
-                }}
-                className="btn-primary"
-              >
-                تعديل المشروع
               </Button>
             </DialogFooter>
           </DialogContent>
