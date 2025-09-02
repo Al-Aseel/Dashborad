@@ -11,6 +11,13 @@ export const useArchive = () => {
   const [archivedItems, setArchivedItems] = useState<ArchivedItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    totalNumberOfArchivedItems: 0,
+    totalNumberOfArchivedActivities: 0,
+    totalNumberOfArchivedPrograms: 0,
+    totalNumberOfArchivedReports: 0,
+    totalNumberOfArchivedUsers: 0,
+  });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 5,
@@ -48,6 +55,18 @@ export const useArchive = () => {
 
         setArchivedItems(response.data.items);
         setPagination(response.data.pagination);
+        setStats({
+          totalNumberOfArchivedItems:
+            response.data.totalNumberOfArchivedItems ?? 0,
+          totalNumberOfArchivedActivities:
+            response.data.totalNumberOfArchivedActivities ?? 0,
+          totalNumberOfArchivedPrograms:
+            response.data.totalNumberOfArchivedPrograms ?? 0,
+          totalNumberOfArchivedReports:
+            response.data.totalNumberOfArchivedReports ?? 0,
+          totalNumberOfArchivedUsers:
+            response.data.totalNumberOfArchivedUsers ?? 0,
+        });
 
         return response;
       } catch (err: any) {
@@ -122,6 +141,7 @@ export const useArchive = () => {
     loading,
     error,
     pagination,
+    stats,
     fetchArchivedItems,
     searchItems,
     changePageSize,

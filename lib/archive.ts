@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, API_BASE_URL } from "./api";
 
 // Types
 export interface ArchivedItem {
@@ -29,6 +29,12 @@ export interface ArchiveResponse {
       total: number;
       totalPages: number;
     };
+    // Optional stats for dashboard cards
+    totalNumberOfArchivedItems?: number;
+    totalNumberOfArchivedActivities?: number;
+    totalNumberOfArchivedPrograms?: number;
+    totalNumberOfArchivedReports?: number;
+    totalNumberOfArchivedUsers?: number;
   };
 }
 
@@ -51,5 +57,27 @@ export const archiveApi = {
   // Search archived items
   search: async (query: string, params: Omit<GetArchiveParams, "q"> = {}): Promise<ArchiveResponse> => {
     return archiveApi.getAll({ ...params, q: query });
+  },
+
+  // Permanently delete archived item by type and id
+  permanentDelete: async (
+    type: string,
+    id: string
+  ): Promise<{ success: boolean; message: string; data: null }> => {
+    const normalizedType = (type || "").toLowerCase();
+    const basePath = API_BASE_URL.includes("/api/v1") ? "/archive" : "/api/v1/archive";
+    const response = await api.delete(`${basePath}/${normalizedType}/${id}`);
+    return response.data;
+  },
+
+  // Restore archived item
+  restore: async (
+    type: string,
+    id: string
+  ): Promise<{ success: boolean; message: string; data: any }> => {
+    const normalizedType = (type || "").toLowerCase();
+    const basePath = API_BASE_URL.includes("/api/v1") ? "/archive" : "/api/v1/archive";
+    const response = await api.patch(`${basePath}/${normalizedType}/${id}/restore`);
+    return response.data;
   },
 };
