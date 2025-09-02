@@ -7,10 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Archive, Search, FileText, ImageIcon, Loader2, Trash2, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Archive, Search, FileText, ImageIcon, Loader2, Trash2, RotateCcw, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, BarChart2, Newspaper, Users, FolderArchive } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useArchive } from "@/hooks/use-archive"
+import { useToast } from "@/hooks/use-toast"
+import { archiveApi } from "@/lib/archive"
 import { Button } from "@/components/ui/button"
+import { RefreshButton } from "@/components/shared/refresh-button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 export default function ArchivePage() {
@@ -19,6 +22,7 @@ export default function ArchivePage() {
     loading,
     error,
     pagination,
+    stats,
     fetchArchivedItems,
     searchItems,
     changePageSize,
@@ -32,6 +36,17 @@ export default function ArchivePage() {
   const [isSearching, setIsSearching] = useState(false)
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const lastRequestRef = useRef<string>("")
+  const { toast } = useToast()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [restoringId, setRestoringId] = useState<string | null>(null)
+
+  const typeOptions = [
+    { value: "all", label: "الكل" },
+    { value: "activity", label: "الأخبار والأنشطة" },
+    { value: "report", label: "التقارير" },
+    { value: "user", label: "المستخدمين" },
+    { value: "program", label: "البرامج" },
+  ]
 
   // Page size options
   const pageSizeOptions = [
@@ -137,6 +152,13 @@ export default function ArchivePage() {
     }
   }
 
+  const truncateWords = (text: string | undefined | null, maxWords: number): string => {
+    if (!text) return "-"
+    const words = text.trim().split(/\s+/)
+    if (words.length <= maxWords) return text
+    return `${words.slice(0, maxWords).join(' ')}…`
+  }
+
   const formatDate = (dateString: string | Date | undefined | null) => {
     if (!dateString) return "غير محدد"
     
@@ -148,7 +170,7 @@ export default function ArchivePage() {
         return "تاريخ غير صحيح"
       }
       
-      return date.toLocaleDateString('ar-SA', {
+      return date.toLocaleDateString('ar-EG', {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
@@ -187,6 +209,40 @@ export default function ArchivePage() {
   const handlePageChange = useCallback(async (page: number) => {
     await goToPage(page)
   }, [goToPage])
+
+  // Permanently delete item
+  const handlePermanentDelete = useCallback(async (id: string, type: string, displayTitle?: string) => {
+    try {
+      setDeletingId(id)
+      const res = await archiveApi.permanentDelete(type, id)
+      toast({ title: "تم الحذف نهائياً", description: res.message })
+      await fetchArchivedItems({ 
+        type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
+      })
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "حدث خطأ أثناء الحذف النهائي"
+      toast({ title: "خطأ", description: msg, variant: "destructive" })
+    } finally {
+      setDeletingId(null)
+    }
+  }, [toast, fetchArchivedItems, selectedTypes])
+
+  // Restore item
+  const handleRestore = useCallback(async (id: string, type: string) => {
+    try {
+      setRestoringId(id)
+      const res = await archiveApi.restore(type, id)
+      toast({ title: "تم الاسترجاع", description: res.message })
+      await fetchArchivedItems({ 
+        type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined 
+      })
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "حدث خطأ أثناء الاسترجاع"
+      toast({ title: "خطأ", description: msg, variant: "destructive" })
+    } finally {
+      setRestoringId(null)
+    }
+  }, [toast, fetchArchivedItems, selectedTypes])
 
   // Debounced search effect
   useEffect(() => {
@@ -229,6 +285,7 @@ export default function ArchivePage() {
   const currentPageSize = pagination.limit === 1000 ? -1 : pagination.limit
   const startItem = (pagination.page - 1) * (currentPageSize === -1 ? pagination.total : currentPageSize) + 1
   const endItem = Math.min(pagination.page * (currentPageSize === -1 ? pagination.total : currentPageSize), pagination.total)
+  // stats now provided from hook
 
   return (
     <DashboardLayout>
@@ -239,23 +296,81 @@ export default function ArchivePage() {
             <h1 className="text-2xl font-bold text-gray-900">الأرشيف</h1>
             <p className="text-gray-600 mt-1">إدارة العناصر المؤرشفة في النظام</p>
           </div>
+          <RefreshButton
+            onRefresh={() => fetchArchivedItems({ type: selectedTypes.length > 0 ? selectedTypes.join(',') : undefined })}
+            loading={loading || isSearching}
+            variant="outline"
+            size="sm"
+          />
         </div>
 
-        {/* Filters and Search Section */}
-        <Card>
-          <CardHeader className="pb-4">
+        {/* Stats cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Card className="overflow-hidden border border-blue-100 shadow-sm bg-white">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm text-blue-700">إجمالي المؤرشف</CardTitle>
+              <FolderArchive className="w-5 h-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-black">{stats.totalNumberOfArchivedItems}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border border-amber-100 shadow-sm bg-white">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm text-amber-700">الأخبار والأنشطة</CardTitle>
+              <Newspaper className="w-5 h-5 text-amber-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-black">{stats.totalNumberOfArchivedActivities}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border border-teal-100 shadow-sm bg-white">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm text-teal-700">البرامج</CardTitle>
+              <BarChart2 className="w-5 h-5 text-teal-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-black">{stats.totalNumberOfArchivedPrograms}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border border-purple-100 shadow-sm bg-white">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm text-purple-700">التقارير</CardTitle>
+              <FileText className="w-5 h-5 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-black">{stats.totalNumberOfArchivedReports}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden border border-indigo-100 shadow-sm bg-white">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm text-indigo-700">المستخدمون</CardTitle>
+              <Users className="w-5 h-5 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-black">{stats.totalNumberOfArchivedUsers}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters and Search Section (Condensed single row) */}
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-3">
             <CardTitle className="text-lg font-semibold text-gray-900">البحث والفلترة</CardTitle>
-            <CardDescription className="text-gray-600">استخدم أدوات البحث والفلترة للعثور على العناصر المطلوبة</CardDescription>
+            <CardDescription className="text-gray-600">شريط واحد يضم البحث، الفلاتر، وخيارات العرض</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Search Section */}
-            <div className="space-y-3">
-              <h3 className="text-base font-medium text-gray-900">البحث</h3>
-              <div className="relative">
+          <CardContent>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              {/* Search */}
+              <div className="relative w-full md:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input 
-                  placeholder="البحث في العنوان، الوصف، المؤلف، الكلمات المفتاحية..." 
-                  className="pl-10 pr-4 h-11 text-base" 
+                <Input
+                  placeholder="ابحث في العنوان، الوصف والكلمات المفتاحية..."
+                  className="pl-10 pr-4 h-11 text-base focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -265,85 +380,49 @@ export default function ArchivePage() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500">
-                البحث يعمل تلقائياً في العنوان، الوصف، المؤلف، والكلمات المفتاحية
-              </p>
-            </div>
 
-            {/* Filters Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Type Filter */}
-              <div className="space-y-3">
-                <h3 className="text-base font-medium text-gray-900">فلترة حسب النوع</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
-                      id="all"
-                      checked={selectedTypes.length === 0}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
+              {/* Type badges (toggles) */}
+              <div className="flex flex-wrap items-center gap-2">
+                {typeOptions.map((opt) => {
+                  const isActive = opt.value === 'all' ? selectedTypes.length === 0 : selectedTypes.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        if (opt.value === 'all') {
                           setSelectedTypes([])
+                        } else {
+                          handleTypeChange(opt.value)
                         }
                       }}
-                    />
-                    <label htmlFor="all" className="text-sm font-medium text-gray-700 cursor-pointer">الكل</label>
-                  </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
-                      id="activity"
-                      checked={selectedTypes.includes('activity')}
-                      onCheckedChange={(checked) => handleTypeChange('activity')}
-                    />
-                    <label htmlFor="activity" className="text-sm font-medium text-gray-700 cursor-pointer">الأخبار والأنشطة</label>
-                  </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
-                      id="report"
-                      checked={selectedTypes.includes('report')}
-                      onCheckedChange={(checked) => handleTypeChange('report')}
-                    />
-                    <label htmlFor="report" className="text-sm font-medium text-gray-700 cursor-pointer">التقارير</label>
-                  </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
-                      id="user"
-                      checked={selectedTypes.includes('user')}
-                      onCheckedChange={(checked) => handleTypeChange('user')}
-                    />
-                    <label htmlFor="user" className="text-sm font-medium text-gray-700 cursor-pointer">المستخدمين</label>
-                  </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
-                      id="program"
-                      checked={selectedTypes.includes('program')}
-                      onCheckedChange={(checked) => handleTypeChange('program')}
-                    />
-                    <label htmlFor="program" className="text-sm font-medium text-gray-700 cursor-pointer">البرامج</label>
-                  </div>
-                </div>
+                      className={`text-sm px-3 py-1.5 rounded-full border transition ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
               </div>
 
-              {/* Page Size Filter */}
-              <div className="space-y-3">
-                <h3 className="text-base font-medium text-gray-900">عدد العناصر المعروضة</h3>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">عرض:</span>
-                  <Select value={currentPageSize.toString()} onValueChange={handlePageSizeChange}>
-                    <SelectTrigger className="w-40 h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {pageSizeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value.toString()}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <p className="text-xs text-gray-500">
-                  اختر عدد العناصر التي تريد عرضها في كل صفحة
-                </p>
+              {/* Page size */}
+              <div className="flex items-center gap-2 md:min-w-[220px]">
+                <span className="text-sm text-gray-600">عرض:</span>
+                <Select value={currentPageSize.toString()} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageSizeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value.toString()}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardContent>
@@ -385,7 +464,7 @@ export default function ArchivePage() {
                     <TableHeader className="bg-gray-50">
                       <TableRow className="hover:bg-gray-50">
                         <TableHead className="text-right font-semibold text-gray-700 py-4">#</TableHead>
-                        <TableHead className="text-right font-semibold text-gray-700 py-4">العنوان</TableHead>
+                        <TableHead className="text-right font-semibold text-gray-700 py-4 w-1/2">العنوان</TableHead>
                         <TableHead className="text-right font-semibold text-gray-700 py-4">النوع</TableHead>
                         <TableHead className="text-right font-semibold text-gray-700 py-4">تاريخ الأرشفة</TableHead>
                         <TableHead className="text-center font-semibold text-gray-700 py-4">الإجراءات</TableHead>
@@ -398,9 +477,19 @@ export default function ArchivePage() {
                             {startItem + index}
                           </TableCell>
                           <TableCell className="py-4">
-                            <div>
-                              <h4 className="font-medium text-gray-900 mb-1">{item.title}</h4>
-                              <p className="text-sm text-gray-500">{item.description}</p>
+                            <div className="max-w-[560px]">
+                              <h4
+                                className="font-medium text-gray-900 mb-1 overflow-hidden text-ellipsis whitespace-nowrap"
+                                title={item.title ?? item.name ?? "-"}
+                              >
+                                {truncateWords(item.title ?? item.name, 5)}
+                              </h4>
+                              <p
+                                className="text-sm text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap"
+                                title={item.description}
+                              >
+                                {item.description}
+                              </p>
                             </div>
                           </TableCell>
                           <TableCell className="py-4">
@@ -422,36 +511,47 @@ export default function ArchivePage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                disabled={loading}
+                                disabled={loading || restoringId === item._id}
                                 className="h-8 px-3 text-green-600 border-green-200 hover:bg-green-50"
+                                onClick={() => handleRestore(item._id, item.type)}
                               >
-                                <RotateCcw className="w-4 h-4 ml-1" />
-                                استرجاع
+                                {restoringId === item._id ? (
+                                  <Loader2 className="w-4 h-4 ml-1 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-4 h-4 ml-1" />
+                                )}
+                                {restoringId === item._id ? "جارِ الاسترجاع" : "استرجاع"}
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={loading}
+                                    disabled={loading || deletingId === item._id}
                                     className="h-8 px-3 text-red-600 border-red-200 hover:bg-red-50"
                                   >
-                                    <Trash2 className="w-4 h-4 ml-1" />
-                                    حذف
+                                    {deletingId === item._id ? (
+                                      <Loader2 className="w-4 h-4 ml-1 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4 ml-1" />
+                                    )}
+                                    {deletingId === item._id ? "جارِ الحذف" : "حذف"}
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>تأكيد الحذف النهائي</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      هل أنت متأكد من حذف "{item.title}" نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
+                                      هل أنت متأكد من حذف "{item.title ?? item.name ?? "-"}" نهائياً؟ لا يمكن التراجع عن هذا الإجراء.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>إلغاء</AlertDialogCancel>
                                     <AlertDialogAction
                                       className="bg-red-600 hover:bg-red-700"
+                                      onClick={() => handlePermanentDelete(item._id, item.type, item.title || item.name)}
                                     >
+                                      {deletingId === item._id && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}
                                       حذف نهائي
                                     </AlertDialogAction>
                                   </AlertDialogFooter>
@@ -469,12 +569,12 @@ export default function ArchivePage() {
                 {pagination.totalPages > 1 && (
                   <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-gray-50 rounded-lg border">
                     {/* Pagination Info */}
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 order-2 sm:order-1">
                       صفحة <span className="font-medium text-gray-900">{pagination.page}</span> من <span className="font-medium text-gray-900">{pagination.totalPages}</span>
                     </div>
 
-                    {/* Pagination Controls */}
-                    <div className="flex items-center gap-2">
+                    {/* Pagination Controls (centered) */}
+                    <div className="flex items-center gap-2 order-1 sm:order-2 mx-auto">
                       {/* First Page */}
                       <Button
                         variant="outline"
@@ -493,10 +593,11 @@ export default function ArchivePage() {
                         size="sm"
                         onClick={goToPreviousPage}
                         disabled={pagination.page <= 1}
-                        className="h-9 w-9 p-0"
-                        title="الصفحة السابقة"
+                        className="h-9 px-3"
+                        title="السابق"
                       >
-                        <ChevronLeft className="w-4 h-4" />
+                        <ChevronLeft className="w-4 h-4 ml-1" />
+                        السابق
                       </Button>
 
                       {/* Page Numbers */}
@@ -550,10 +651,11 @@ export default function ArchivePage() {
                         size="sm"
                         onClick={goToNextPage}
                         disabled={pagination.page >= pagination.totalPages}
-                        className="h-9 w-9 p-0"
-                        title="الصفحة التالية"
+                        className="h-9 px-3"
+                        title="التالي"
                       >
-                        <ChevronRight className="w-4 h-4" />
+                        التالي
+                        <ChevronRight className="w-4 h-4 mr-1" />
                       </Button>
 
                       {/* Last Page */}
