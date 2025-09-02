@@ -58,13 +58,14 @@ export function CoverImageUpload({
     // Compress image before preview/upload
     let processed = file;
     try {
-      const { compressImage, isImageFile } = await import("@/lib/image-compression");
+      const { compressImage, isImageFile } = await import(
+        "@/lib/image-compression"
+      );
       if (isImageFile(file)) {
-        const { file: compressed } = await compressImage(file, {
-          maxWidth: 1920,
-          maxHeight: 1080,
+        const compressed = await compressImage(file, {
+          maxWidthOrHeight: 1920,
           quality: 0.8,
-          format: "jpeg",
+          fileType: "image/jpeg",
         });
         processed = compressed;
       }
