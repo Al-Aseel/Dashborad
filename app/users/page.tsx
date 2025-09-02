@@ -102,7 +102,9 @@ export default function UsersPage() {
         ? "منسق"
         : "مدير عام",
     status: u.isDeleted ? "محظور" : u.isActivated ? "نشط" : "معلق",
-    lastLogin: u.last_logged_in || (u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "-"),
+    lastLogin:
+      u.last_logged_in ||
+      (u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "-"),
     joinDate: u.createdAt ? u.createdAt.split("T")[0] : "-",
     avatar: u.photo || undefined,
     hasPassword: u.hasPassword ?? true,
@@ -333,7 +335,11 @@ export default function UsersPage() {
       await UsersService.triggerResetPassword(selectedUser.id);
 
       // تحديث حالة المستخدم
-      setUsers((prev) => prev.map((user) => (user.id === selectedUser.id ? { ...user, hasPassword: false } : user)));
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === selectedUser.id ? { ...user, hasPassword: false } : user
+        )
+      );
 
       toast({
         title: "تم بنجاح",
@@ -452,541 +458,553 @@ export default function UsersPage() {
 
   return (
     <ProtectedRoute allowRoles={["superadmin" as Role]}>
-    <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              إدارة المستخدمين
-            </h1>
-            <p className="text-gray-600 mt-2">
-              إدارة مستخدمي النظام والصلاحيات
-            </p>
+      <DashboardLayout>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                إدارة المستخدمين
+              </h1>
+              <p className="text-gray-600 mt-2">
+                إدارة مستخدمي النظام والصلاحيات
+              </p>
+            </div>
+            <Button
+              onClick={openAddDialog}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            >
+              <Plus className="w-4 h-4 ml-2" />
+              إضافة مستخدم جديد
+            </Button>
           </div>
-          <Button
-            onClick={openAddDialog}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            إضافة مستخدم جديد
-          </Button>
-        </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                إجمالي المستخدمين
-              </CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground">+2 هذا الشهر</p>
-            </CardContent>
-          </Card>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  إجمالي المستخدمين
+                </CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.total}</div>
+                <p className="text-xs text-muted-foreground">+2 هذا الشهر</p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                المستخدمون النشطون
-              </CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.active}</div>
-              <p className="text-xs text-muted-foreground">
-                {Math.round((stats.active / stats.total) * 100)}% من الإجمالي
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                المستخدمون المعلقون
-              </CardTitle>
-              <UserX className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.inactive}</div>
-              <p className="text-xs text-muted-foreground">
-                {Math.round((stats.inactive / stats.total) * 100)}% من الإجمالي
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">المديرون</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.admins}</div>
-              <p className="text-xs text-muted-foreground">
-                {Math.round((stats.admins / stats.total) * 100)}% من الإجمالي
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="البحث في المستخدمين..."
-                  className="pr-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="الكل">جميع الحالات</SelectItem>
-                  <SelectItem value="نشط">نشط</SelectItem>
-                  <SelectItem value="معلق">معلق</SelectItem>
-                  <SelectItem value="محظور">محظور</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Users Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>قائمة المستخدمين ({filteredUsers.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">المستخدم</TableHead>
-                  <TableHead className="text-right">الدور</TableHead>
-                  <TableHead className="text-right">تاريخ الانضمام</TableHead>
-                  <TableHead className="text-right">آخر دخول</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                  <TableHead className="text-right">الإجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage
-                            src={user.avatar || "/placeholder.svg"}
-                            alt={user.name}
-                          />
-                          <AvatarFallback>
-                            {user.name.split(" ")[0][0]}
-                            {user.name.split(" ")[1]?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-gray-500">
-                            {user.email}
-                          </div>
-                          {!user.hasPassword && (
-                            <div className="text-xs text-amber-600 flex items-center gap-1 mt-1">
-                              <KeyRound className="w-3 h-3" />
-                              في انتظار إعداد كلمة المرور
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getRoleColor(user.role)}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{user.joinDate}</TableCell>
-                    <TableCell>{user.lastLogin}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(user.status)}>
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => openViewDialog(user)}
-                          >
-                            <Eye className="ml-2 h-4 w-4" />
-                            عرض الملف
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openEditDialog(user)}
-                          >
-                            <Edit className="ml-2 h-4 w-4" />
-                            تعديل
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openResetPasswordDialog(user)}
-                          >
-                            <KeyRound className="ml-2 h-4 w-4" />
-                            إعادة تعيين كلمة المرور
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openDeleteDialog(user)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="ml-2 h-4 w-4" />
-                            حذف
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Add User Dialog */}
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>إضافة مستخدم</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">الاسم *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    placeholder="أدخل الاسم"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">البريد الإلكتروني *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    placeholder="أدخل البريد الإلكتروني"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="role">الدور *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, role: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الدور" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="مدير">مدير</SelectItem>
-                      <SelectItem value="مدير قسم">مدير قسم</SelectItem>
-                      <SelectItem value="محاسب">محاسب</SelectItem>
-                      <SelectItem value="منسق">منسق</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">الحالة *</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, status: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الحالة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="نشط">نشط</SelectItem>
-                      <SelectItem value="معلق">معلق</SelectItem>
-                      <SelectItem value="محظور">محظور</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <div className="flex items-center gap-2 text-blue-800">
-                  <Mail className="w-4 h-4" />
-                  <span className="text-sm font-medium">ملاحظة</span>
-                </div>
-                <p className="text-sm text-blue-700 mt-1">
-                  سيتم إرسال رابط إعداد كلمة المرور إلى البريد الإلكتروني المحدد
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  المستخدمون النشطون
+                </CardTitle>
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.active}</div>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((stats.active / stats.total) * 100)}% من الإجمالي
                 </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={closeAddDialog}>
-                إلغاء
-              </Button>
-              <Button onClick={handleAddUser} disabled={isLoading}>
-                {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                إضافة
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+              </CardContent>
+            </Card>
 
-        {/* Reset Password Confirmation Dialog */}
-        <AlertDialog
-          open={isResetPasswordDialogOpen}
-          onOpenChange={(open) => {
-            if (!open && !isResettingPassword) {
-              closeResetPasswordDialog();
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>إعادة تعيين كلمة المرور</AlertDialogTitle>
-              <AlertDialogDescription>
-                هل أنت متأكد من إعادة تعيين كلمة المرور لهذا المستخدم؟ سيتم
-                إرسال رابط إعادة التعيين إلى بريده الإلكتروني.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel
-                onClick={closeResetPasswordDialog}
-                disabled={isResettingPassword}
-              >
-                إلغاء
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleResetPassword}
-                disabled={isResettingPassword}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isResettingPassword && (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                )}
-                <KeyRound className="ml-2 h-4 w-4" />
-                إرسال رابط إعادة التعيين
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  المستخدمون المعلقون
+                </CardTitle>
+                <UserX className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.inactive}</div>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((stats.inactive / stats.total) * 100)}% من
+                  الإجمالي
+                </p>
+              </CardContent>
+            </Card>
 
-        {/* Edit User Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>تعديل مستخدم</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">الاسم *</Label>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">المديرون</CardTitle>
+                <Shield className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.admins}</div>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((stats.admins / stats.total) * 100)}% من الإجمالي
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search and Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    id="edit-name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    placeholder="أدخل الاسم"
+                    placeholder="البحث في المستخدمين..."
+                    className="pr-10"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-email">البريد الإلكتروني *</Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        email: e.target.value,
-                      }))
-                    }
-                    placeholder="أدخل البريد الإلكتروني"
-                  />
-                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="الكل">جميع الحالات</SelectItem>
+                    <SelectItem value="نشط">نشط</SelectItem>
+                    <SelectItem value="معلق">معلق</SelectItem>
+                    <SelectItem value="محظور">محظور</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-role">الدور *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, role: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الدور" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="مدير">مدير</SelectItem>
-                      <SelectItem value="مدير قسم">مدير قسم</SelectItem>
-                      <SelectItem value="محاسب">محاسب</SelectItem>
-                      <SelectItem value="منسق">منسق</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">الحالة *</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, status: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="اختر الحالة" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="نشط">نشط</SelectItem>
-                      <SelectItem value="معلق">معلق</SelectItem>
-                      <SelectItem value="محظور">محظور</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={closeEditDialog}>
-                إلغاء
-              </Button>
-              <Button onClick={handleUpdateUser} disabled={isLoading}>
-                {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                تحديث
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </CardContent>
+          </Card>
 
-        {/* View User Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>تفاصيل المستخدم</DialogTitle>
-            </DialogHeader>
-            {selectedUser && (
+          {/* Users Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>قائمة المستخدمين ({filteredUsers.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">المستخدم</TableHead>
+                    <TableHead className="text-right">الدور</TableHead>
+                    <TableHead className="text-right">تاريخ الانضمام</TableHead>
+                    <TableHead className="text-right">آخر دخول</TableHead>
+                    <TableHead className="text-right">الحالة</TableHead>
+                    <TableHead className="text-right">الإجراءات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage
+                              src={user.avatar || "/placeholder.svg"}
+                              alt={user.name}
+                            />
+                            <AvatarFallback>
+                              {user.name.split(" ")[0][0]}
+                              {user.name.split(" ")[1]?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {user.email}
+                            </div>
+                            {!user.hasPassword && (
+                              <div className="text-xs text-amber-600 flex items-center gap-1 mt-1">
+                                <KeyRound className="w-3 h-3" />
+                                في انتظار إعداد كلمة المرور
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getRoleColor(user.role)}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{user.joinDate}</TableCell>
+                      <TableCell>{user.lastLogin}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(user.status)}>
+                          {user.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => openViewDialog(user)}
+                            >
+                              <Eye className="ml-2 h-4 w-4" />
+                              عرض الملف
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openEditDialog(user)}
+                            >
+                              <Edit className="ml-2 h-4 w-4" />
+                              تعديل
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openResetPasswordDialog(user)}
+                            >
+                              <KeyRound className="ml-2 h-4 w-4" />
+                              إعادة تعيين كلمة المرور
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => openDeleteDialog(user)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="ml-2 h-4 w-4" />
+                              حذف
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Add User Dialog */}
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>إضافة مستخدم</DialogTitle>
+              </DialogHeader>
               <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Avatar className="w-16 h-16">
-                    <AvatarImage
-                      src={selectedUser.avatar || "/placeholder.svg"}
-                      alt={selectedUser.name}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">الاسم *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="أدخل الاسم"
                     />
-                    <AvatarFallback>
-                      {selectedUser.name.split(" ")[0][0]}
-                      {selectedUser.name.split(" ")[1]?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-lg font-semibold">
-                      {selectedUser.name}
-                    </h3>
-                    <p className="text-gray-600">{selectedUser.email}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">البريد الإلكتروني *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
+                      placeholder="أدخل البريد الإلكتروني"
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الدور
-                    </Label>
-                    <Badge className={getRoleColor(selectedUser.role)}>
-                      {selectedUser.role}
-                    </Badge>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">الدور *</Label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, role: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الدور" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="مدير">مدير</SelectItem>
+                        <SelectItem value="مدير قسم">مدير قسم</SelectItem>
+                        <SelectItem value="محاسب">محاسب</SelectItem>
+                        <SelectItem value="منسق">منسق</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الحالة
-                    </Label>
-                    <Badge className={getStatusColor(selectedUser.status)}>
-                      {selectedUser.status}
-                    </Badge>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">الحالة *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, status: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الحالة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="نشط">نشط</SelectItem>
+                        <SelectItem value="معلق">معلق</SelectItem>
+                        <SelectItem value="محظور">محظور</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      تاريخ الانضمام
-                    </Label>
-                    <p>{selectedUser.joinDate}</p>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <Mail className="w-4 h-4" />
+                    <span className="text-sm font-medium">ملاحظة</span>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      آخر دخول
-                    </Label>
-                    <p>{selectedUser.lastLogin}</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    سيتم إرسال رابط إعداد كلمة المرور إلى البريد الإلكتروني
+                    المحدد
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={closeAddDialog}>
+                  إلغاء
+                </Button>
+                <Button onClick={handleAddUser} disabled={isLoading}>
+                  {isLoading && (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  )}
+                  إضافة
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Reset Password Confirmation Dialog */}
+          <AlertDialog
+            open={isResetPasswordDialogOpen}
+            onOpenChange={(open) => {
+              if (!open && !isResettingPassword) {
+                closeResetPasswordDialog();
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>إعادة تعيين كلمة المرور</AlertDialogTitle>
+                <AlertDialogDescription>
+                  هل أنت متأكد من إعادة تعيين كلمة المرور لهذا المستخدم؟ سيتم
+                  إرسال رابط إعادة التعيين إلى بريده الإلكتروني.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={closeResetPasswordDialog}
+                  disabled={isResettingPassword}
+                >
+                  إلغاء
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleResetPassword}
+                  disabled={isResettingPassword}
+                  className="btn-primary"
+                >
+                  {isResettingPassword && (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  )}
+                  <KeyRound className="ml-2 h-4 w-4" />
+                  إرسال رابط إعادة التعيين
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Edit User Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>تعديل مستخدم</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">الاسم *</Label>
+                    <Input
+                      id="edit-name"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="أدخل الاسم"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">البريد الإلكتروني *</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
+                      placeholder="أدخل البريد الإلكتروني"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-role">الدور *</Label>
+                    <Select
+                      value={formData.role}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, role: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الدور" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="مدير">مدير</SelectItem>
+                        <SelectItem value="مدير قسم">مدير قسم</SelectItem>
+                        <SelectItem value="محاسب">محاسب</SelectItem>
+                        <SelectItem value="منسق">منسق</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-status">الحالة *</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, status: value }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر الحالة" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="نشط">نشط</SelectItem>
+                        <SelectItem value="معلق">معلق</SelectItem>
+                        <SelectItem value="محظور">محظور</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
-            )}
-            <div className="flex justify-end mt-6">
-              <Button onClick={closeViewDialog}>إغلاق</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button variant="outline" onClick={closeEditDialog}>
+                  إلغاء
+                </Button>
+                <Button onClick={handleUpdateUser} disabled={isLoading}>
+                  {isLoading && (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  )}
+                  تحديث
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog
-          open={isDeleteDialogOpen}
-          onOpenChange={(open) => {
-            if (!open && !isDeleting) {
-              closeDeleteDialog();
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-              <AlertDialogDescription>
-                هل أنت متأكد من حذف هذا المستخدم؟ سيتم نقله إلى الأرشيف ويمكن
-                استرجاعه لاحقاً.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel
-                onClick={closeDeleteDialog}
-                disabled={isDeleting}
-              >
-                إلغاء
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteUser}
-                disabled={isDeleting}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {isDeleting && (
-                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                )}
-                <Trash2 className="ml-2 h-4 w-4" />
-                حذف
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </DashboardLayout>
+          {/* View User Dialog */}
+          <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>تفاصيل المستخدم</DialogTitle>
+              </DialogHeader>
+              {selectedUser && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="w-16 h-16">
+                      <AvatarImage
+                        src={selectedUser.avatar || "/placeholder.svg"}
+                        alt={selectedUser.name}
+                      />
+                      <AvatarFallback>
+                        {selectedUser.name.split(" ")[0][0]}
+                        {selectedUser.name.split(" ")[1]?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {selectedUser.name}
+                      </h3>
+                      <p className="text-gray-600">{selectedUser.email}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-500">
+                        الدور
+                      </Label>
+                      <Badge className={getRoleColor(selectedUser.role)}>
+                        {selectedUser.role}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-500">
+                        الحالة
+                      </Label>
+                      <Badge className={getStatusColor(selectedUser.status)}>
+                        {selectedUser.status}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-500">
+                        تاريخ الانضمام
+                      </Label>
+                      <p>{selectedUser.joinDate}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-500">
+                        آخر دخول
+                      </Label>
+                      <p>{selectedUser.lastLogin}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end mt-6">
+                <Button onClick={closeViewDialog}>إغلاق</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={(open) => {
+              if (!open && !isDeleting) {
+                closeDeleteDialog();
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+                <AlertDialogDescription>
+                  هل أنت متأكد من حذف هذا المستخدم؟ سيتم نقله إلى الأرشيف ويمكن
+                  استرجاعه لاحقاً.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel
+                  onClick={closeDeleteDialog}
+                  disabled={isDeleting}
+                >
+                  إلغاء
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteUser}
+                  disabled={isDeleting}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {isDeleting && (
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  )}
+                  <Trash2 className="ml-2 h-4 w-4" />
+                  حذف
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }

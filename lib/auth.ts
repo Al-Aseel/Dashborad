@@ -32,14 +32,10 @@ export const AuthService = {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem("userData");
         window.localStorage.removeItem("isAuthenticated");
-        window.sessionStorage.removeItem("userData");
-        window.sessionStorage.removeItem("isAuthenticated");
 
-        const targetStorage = rememberMe
-          ? window.localStorage
-          : window.sessionStorage;
-        targetStorage.setItem("userData", JSON.stringify(data.data));
-        targetStorage.setItem("isAuthenticated", "true");
+        // Always use localStorage for userData and isAuthenticated
+        window.localStorage.setItem("userData", JSON.stringify(data.data));
+        window.localStorage.setItem("isAuthenticated", "true");
       }
     } catch {}
 
@@ -85,11 +81,6 @@ export const AuthService = {
     try {
       if (typeof window !== "undefined") {
         window.localStorage.clear();
-      }
-    } catch {}
-    try {
-      if (typeof window !== "undefined" && window.sessionStorage) {
-        window.sessionStorage.clear();
       }
     } catch {}
 

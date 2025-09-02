@@ -19,10 +19,8 @@ const attachAuthToken = (config: any) => {
   try {
     let token: string | null = null;
     if (typeof window !== "undefined") {
-      // Prefer persistent token, fallback to session token
-      token =
-        localStorage.getItem("auth_token") ||
-        sessionStorage.getItem("auth_token");
+      // Always use localStorage for auth_token
+      token = localStorage.getItem("auth_token");
     }
     if (token) {
       config.headers = config.headers || {};
@@ -56,9 +54,6 @@ const responseErrorHandler = (error: any) => {
       localStorage.removeItem("auth_token");
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("auth_token");
-      sessionStorage.removeItem("userData");
-      sessionStorage.removeItem("isAuthenticated");
       document.cookie =
         "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     } catch {}
@@ -84,22 +79,15 @@ export function setAuthToken(
 ) {
   if (token) {
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
-    const remember = options?.remember ?? true;
     try {
-      // Ensure token exists in only one storage
+      // Always use localStorage for auth_token
       localStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_token");
-      if (remember) {
-        localStorage.setItem("auth_token", token);
-      } else {
-        sessionStorage.setItem("auth_token", token);
-      }
+      localStorage.setItem("auth_token", token);
     } catch {}
   } else {
     delete api.defaults.headers.common.Authorization;
     try {
       localStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_token");
     } catch {}
   }
 }

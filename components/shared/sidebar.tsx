@@ -76,7 +76,7 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
   const pathname = usePathname();
   const isRTL = language === "ar";
   const { user, isAuthenticated, isLoading } = useAuthContext();
-  const { websiteName, websiteLogo } = useWebsiteInfo();
+  const { websiteName, websiteLogo, mainColor } = useWebsiteInfo();
 
   const { isCollapsed, setCollapsed, isHydrated, shouldAnimate } =
     usePersistentSidebarState();
@@ -154,7 +154,10 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
                 className="w-full h-full object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{ backgroundColor: mainColor }}
+              >
                 <Heart className="w-7 h-7 text-white" />
               </div>
             )}
@@ -190,11 +193,14 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
                 href={item.href}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 ${
                   isActive
-                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
+                    ? "text-white shadow-lg"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 } ${isRTL ? "flex-row" : ""} ${
                   isCollapsed ? "justify-center px-2" : ""
                 }`}
+                style={{
+                  backgroundColor: isActive ? mainColor : undefined,
+                }}
                 title={isCollapsed ? item.label : undefined}
               >
                 <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -227,7 +233,10 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
         <div className="border-t border-border pt-4">
           {!isCollapsed && user && (
             <div className="mb-3 text-center">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+              <div
+                className="w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center"
+                style={{ backgroundColor: mainColor }}
+              >
                 <span className="text-white text-sm font-medium">
                   {user.name?.[0] || user.email[0].toUpperCase()}
                 </span>
