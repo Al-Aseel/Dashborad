@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -55,9 +56,34 @@ import { LogoUpload } from "@/components/shared/logo-upload";
 
 export default function SettingsPage() {
   const { logoutAllDevices } = useAuthContext();
+  const { user, isAuthenticated } = useAuthContext();
+  const router = useRouter();
   const { toast } = useToast();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
   const [showLogoutAllConfirm, setShowLogoutAllConfirm] = useState(false);
+
+  // Redirect only for roles below subadmin (e.g., technical), allow subadmin read-only
+  useEffect(() => {
+    if (isAuthenticated && user && user.role) {
+      const role = String(user.role);
+      const isAllowed =
+        role === "subadmin" || role === "admin" || role === "superadmin";
+      if (!isAllowed) {
+        try {
+          if (typeof window !== "undefined" && document.referrer) {
+            const sameOrigin =
+              new URL(document.referrer).origin === window.location.origin;
+            if (sameOrigin) {
+              router.back();
+              return;
+            }
+          }
+        } catch {}
+        router.push("/");
+      }
+    }
+  }, [isAuthenticated, user]);
 
   // استخدام hook الإعدادات
   const {
@@ -190,7 +216,9 @@ export default function SettingsPage() {
   // معالج حفظ الإعدادات
   const handleSaveSettings = async () => {
     try {
-      await updateSettings(formData);
+      if (isAdmin) {
+        await updateSettings(formData);
+      }
     } catch (error) {
       // الخطأ يتم التعامل معه في hook
     }
@@ -301,6 +329,7 @@ export default function SettingsPage() {
                         handleInputChange("websiteName_ar", e.target.value)
                       }
                       placeholder="اسم الموقع بالعربية"
+                      disabled={!isAdmin}
                     />
                     <ValidationErrors
                       errors={validationErrors}
@@ -318,6 +347,7 @@ export default function SettingsPage() {
                         handleInputChange("websiteName_en", e.target.value)
                       }
                       placeholder="Website name in English"
+                      disabled={!isAdmin}
                     />
                     <ValidationErrors
                       errors={validationErrors}
@@ -480,6 +510,7 @@ export default function SettingsPage() {
                         handleInputChange("contactNumber", e.target.value)
                       }
                       placeholder="+970 8 123 4567"
+                      disabled={!isAdmin}
                     />
                     <ValidationErrors
                       errors={validationErrors}
@@ -497,6 +528,7 @@ export default function SettingsPage() {
                         handleInputChange("email", e.target.value)
                       }
                       placeholder="info@aseel.org"
+                      disabled={!isAdmin}
                     />
                     <ValidationErrors
                       errors={validationErrors}
@@ -517,6 +549,7 @@ export default function SettingsPage() {
                       handleInputChange("whatsappNumber", e.target.value)
                     }
                     placeholder="+970 59 123 4567"
+                    disabled={!isAdmin}
                   />
                   <ValidationErrors
                     errors={validationErrors}
@@ -534,6 +567,7 @@ export default function SettingsPage() {
                       handleInputChange("address", e.target.value)
                     }
                     placeholder="غزة، فلسطين"
+                    disabled={!isAdmin}
                   />
                   <ValidationErrors
                     errors={validationErrors}
@@ -553,6 +587,7 @@ export default function SettingsPage() {
                       handleInputChange("website", e.target.value)
                     }
                     placeholder="https://aseel.org"
+                    disabled={!isAdmin}
                   />
                   <ValidationErrors
                     errors={validationErrors}
@@ -575,7 +610,7 @@ export default function SettingsPage() {
                         variant: "destructive",
                       });
                     }}
-                    disabled={updating}
+                    disabled={updating || !isAdmin}
                   />
                   <ValidationErrors
                     errors={validationErrors}
@@ -593,6 +628,7 @@ export default function SettingsPage() {
                     onChange={(e) =>
                       handleInputChange("description", e.target.value)
                     }
+                    disabled={!isAdmin}
                   />
                   <ValidationErrors
                     errors={validationErrors}
@@ -674,7 +710,7 @@ export default function SettingsPage() {
 
                 <DynamicButton
                   onClick={handleSaveSettings}
-                  disabled={updating}
+                  disabled={updating || !isAdmin}
                   className="w-full md:w-auto"
                 >
                   {updating ? (
@@ -740,6 +776,7 @@ export default function SettingsPage() {
                     }
                     dir="ltr"
                     className="text-left md:order-1"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <ValidationErrors
@@ -761,6 +798,7 @@ export default function SettingsPage() {
                     }
                     dir="ltr"
                     className="text-left md:order-1"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <ValidationErrors
@@ -782,6 +820,7 @@ export default function SettingsPage() {
                     }
                     dir="ltr"
                     className="text-left md:order-1"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <ValidationErrors
@@ -800,6 +839,7 @@ export default function SettingsPage() {
                         onCheckedChange={(v) =>
                           handleSystemChange("enableFileCompression", !!v)
                         }
+                        disabled={!isAdmin}
                       />
                       <span className="text-sm">
                         ضغط الملفات/الصور تلقائياً عند الرفع
@@ -816,6 +856,7 @@ export default function SettingsPage() {
                           v as UpdateSystemSettingsRequest["timeToDeleteTempFile"]
                         )
                       }
+                      disabled={!isAdmin}
                     >
                       <SelectTrigger id="cleanup-schedule" className="w-full">
                         <SelectValue placeholder="اختر الجدولة" />
@@ -852,6 +893,7 @@ export default function SettingsPage() {
                       }
                       dir="ltr"
                       className="text-left md:order-1"
+                      disabled={!isAdmin}
                     />
                   </div>
                   <ValidationErrors
@@ -876,6 +918,7 @@ export default function SettingsPage() {
                       }
                       dir="ltr"
                       className="text-left md:order-1"
+                      disabled={!isAdmin}
                     />
                   </div>
                   <ValidationErrors
@@ -895,6 +938,7 @@ export default function SettingsPage() {
                         onCheckedChange={(v) =>
                           handleSystemChange("systemMaintenanceMode", !!v)
                         }
+                        disabled={!isAdmin}
                       />
                       <span className="text-sm">تفعيل وضع الصيانة</span>
                     </div>
@@ -909,6 +953,7 @@ export default function SettingsPage() {
                         handleSystemChange("maintenanceMessage", e.target.value)
                       }
                       placeholder="النظام تحت الصيانة، يرجى المحاولة لاحقاً"
+                      disabled={!isAdmin}
                     />
                     <ValidationErrors
                       errors={sysValidationErrors}
@@ -920,10 +965,12 @@ export default function SettingsPage() {
                 <DynamicButton
                   onClick={async () => {
                     try {
-                      await updateSystemSettings(systemForm);
+                      if (isAdmin) {
+                        await updateSystemSettings(systemForm);
+                      }
                     } catch {}
                   }}
-                  disabled={sysUpdating}
+                  disabled={sysUpdating || !isAdmin}
                   className="w-full md:w-auto"
                 >
                   {sysUpdating ? (

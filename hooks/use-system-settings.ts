@@ -7,6 +7,7 @@ import {
   ValidationError,
 } from "@/lib/system-settings";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthContext } from "@/components/auth-provider";
 
 export const useSystemSettings = () => {
   const [settings, setSettings] = useState<SystemSettings | null>(null);
@@ -18,22 +19,34 @@ export const useSystemSettings = () => {
   );
   const [initialized, setInitialized] = useState<boolean>(false);
   const { toast } = useToast();
+  const { user } = useAuthContext();
+  const isSubadmin = (user?.role || "").toString() === "subadmin";
 
   const fetchSettings = async () => {
     try {
       setLoading(true);
       setError(null);
+      // Avoid calling the endpoint for subadmin to prevent 401 from backend
+      if (isSubadmin) {
+        setInitialized(true);
+        return;
+      }
       const data = await getSystemSettings();
       setSettings(data);
       setInitialized(true);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "حدث خطأ في جلب إعدادات النظام");
-      toast({
-        title: "خطأ في جلب إعدادات النظام",
-        description:
-          err?.response?.data?.message || "حدث خطأ في جلب إعدادات النظام",
-        variant: "destructive",
-      });
+      const message =
+        err?.response?.data?.message || "حدث خطأ في جلب إعدادات النظام";
+      if (isSubadmin) {
+        setError(null);
+      } else {
+        setError(message);
+        toast({
+          title: "خطأ في جلب إعدادات النظام",
+          description: message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -77,7 +90,8 @@ export const useSystemSettings = () => {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSubadmin]);
 
   return {
     settings,

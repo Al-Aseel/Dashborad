@@ -52,9 +52,19 @@ export function ProtectedRoute({ children, allowRoles }: ProtectedRouteProps) {
   }
 
   if (allowRoles && user?.role && !allowRoles.includes(user.role as Role)) {
-    // Unauthorized, redirect to home
+    // Unauthorized: do NOT logout; redirect back if possible, else home
     if (!hasRedirected.current) {
       hasRedirected.current = true;
+      try {
+        if (typeof window !== "undefined" && document.referrer) {
+          const sameOrigin =
+            new URL(document.referrer).origin === window.location.origin;
+          if (sameOrigin) {
+            router.back();
+            return null;
+          }
+        }
+      } catch {}
       router.push("/");
     }
     return null;

@@ -143,6 +143,14 @@ export function useAuth() {
       setUser(null);
       setIsAuthenticated(false);
       isInitialized.current = false;
+      try {
+        // Ensure cached flags cleared
+        localStorage.removeItem("userData");
+        localStorage.removeItem("isAuthenticated");
+        document.cookie =
+          "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      } catch {}
+      router.push("/login");
     }
   }, []);
 

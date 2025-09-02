@@ -182,6 +182,16 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
                 !isLoading && isAuthenticated && user?.role === "superadmin"
               );
             }
+            if (item.key === "settings") {
+              // Show settings for subadmin+ (view-only for subadmin)
+              return (
+                !isLoading &&
+                isAuthenticated &&
+                (user?.role === "subadmin" ||
+                  user?.role === "admin" ||
+                  user?.role === "superadmin")
+              );
+            }
             return true;
           })
           .map((item, index) => {

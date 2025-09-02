@@ -48,19 +48,22 @@ const responseErrorHandler = (error: any) => {
   // Previously we dispatched a custom event for a ServerErrorProvider.
   // That provider has been removed, so we no longer emit any window events here.
 
-  // Handle 401 globally
+  // Handle 401: if token exists, don't force logout (could be authorization issue misreported as 401)
   if (error?.response?.status === 401 && typeof window !== "undefined") {
     try {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("userData");
-      localStorage.removeItem("isAuthenticated");
-      document.cookie =
-        "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        // No token -> treat as unauthenticated and redirect to login
+        localStorage.removeItem("userData");
+        localStorage.removeItem("isAuthenticated");
+        document.cookie =
+          "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }
+      // If token exists, propagate error to caller for page-level handling
     } catch {}
-    // Redirect to login
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
   }
 
   return Promise.reject(error);

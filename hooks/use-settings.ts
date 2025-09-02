@@ -7,6 +7,7 @@ import {
   ValidationError,
 } from "@/lib/settings";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthContext } from "@/components/auth-provider";
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -18,6 +19,8 @@ export const useSettings = () => {
   );
   const [initialized, setInitialized] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuthContext();
+  const isSubadmin = (user?.role || "").toString() === "subadmin";
 
   // جلب الإعدادات
   const fetchSettings = async () => {
@@ -28,12 +31,19 @@ export const useSettings = () => {
       setSettings(data);
       setInitialized(true);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "حدث خطأ في جلب الإعدادات");
-      toast({
-        title: "خطأ في جلب الإعدادات",
-        description: err?.response?.data?.message || "حدث خطأ في جلب الإعدادات",
-        variant: "destructive",
-      });
+      const message =
+        err?.response?.data?.message || "حدث خطأ في جلب الإعدادات";
+      if (isSubadmin) {
+        // لا نعرض رسالة الخطأ لمستخدم Subadmin (عرض فقط)
+        setError(null);
+      } else {
+        setError(message);
+        toast({
+          title: "خطأ في جلب الإعدادات",
+          description: message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -80,6 +90,7 @@ export const useSettings = () => {
   // جلب الإعدادات عند تحميل المكون
   useEffect(() => {
     fetchSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
