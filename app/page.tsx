@@ -39,6 +39,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ProgramsApi } from "@/lib/programs";
 import { useAuth } from "@/hooks/use-auth";
 import { toBackendUrl } from "@/lib/utils";
+import { ProjectForm } from "@/components/projects/project-form";
 import {
   Dialog,
   DialogContent,
@@ -314,7 +315,7 @@ export default function DashboardPage() {
       const res = await ProgramsApi.getProgramById(project.id);
       const p: any = (res as any).data;
       
-      // Map the data properly based on the actual API response structure
+      // Map the data properly based on the actual API response structure for ProjectForm
       const initial = {
         name: p.name || "",
         description: p.description || "",
@@ -346,8 +347,8 @@ export default function DashboardPage() {
               fileId: String(g?._id || ""), // Use _id directly from gallery items
             }))
           : [],
-        objectives: p.goals || [],
-        activities: p.activities || [],
+        objectives: p.goals || [], // ProjectForm expects objectives
+        activities: p.activities || [], // ProjectForm expects activities
         coverFileId: String(p?.coverImage?._id || ""), // Use coverImage._id directly
         _id: String(p._id || project.id),
       };
@@ -948,242 +949,18 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Project Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl">
-                {isEditLoading ? (
-                  <div className="flex items-center text-gray-600">
-                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                    جاري تحميل المشروع...
-                  </div>
-                ) : (
-                  "تعديل المشروع"
-                )}
-              </DialogTitle>
-            </DialogHeader>
-            
-            {!isEditLoading && editingProjectInitial && (
-              <div className="space-y-6">
-                {/* Cover Image Display */}
-                {editingProjectInitial.mainImage && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-2">صورة الغلاف الحالية</label>
-                    <div className="relative">
-                      <img
-                        src={editingProjectInitial.mainImage}
-                        alt="صورة الغلاف"
-                        className="w-32 h-32 object-cover rounded-lg border"
-                      />
-                      <div className="mt-2 text-sm text-gray-600">
-                        معرف الملف: {editingProjectInitial.coverFileId || "غير محدد"}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Gallery Display */}
-                {editingProjectInitial.gallery && editingProjectInitial.gallery.length > 0 && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium mb-2">معرض الصور الحالي</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {editingProjectInitial.gallery.map((image: any, index: number) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={image.url}
-                            alt={image.title || `صورة ${index + 1}`}
-                            className="w-full h-24 object-cover rounded-lg border"
-                          />
-                          <div className="mt-1 text-xs text-gray-600">
-                            معرف الملف: {image.fileId || "غير محدد"}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  const values = {
-                    name: formData.get('name') as string,
-                    description: formData.get('description') as string,
-                    location: formData.get('location') as string,
-                    category: formData.get('category') as string,
-                    budget: formData.get('budget') as string,
-                    beneficiaries: formData.get('beneficiaries') as string,
-                    manager: formData.get('manager') as string,
-                    startDate: formData.get('startDate') as string,
-                    endDate: formData.get('endDate') as string,
-                    status: formData.get('status') as string,
-                    details: formData.get('details') as string,
-                    objectives: editingProjectInitial.objectives || [],
-                    activities: editingProjectInitial.activities || [],
-                    coverFileId: editingProjectInitial.coverFileId,
-                    gallery: editingProjectInitial.gallery || [],
-                  };
-                  handleUpdateProject(values);
-                }}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">اسم المشروع</label>
-                      <input
-                        name="name"
-                        defaultValue={editingProjectInitial.name}
-                        className="w-full p-2 border rounded-md"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">الوصف</label>
-                      <textarea
-                        name="description"
-                        defaultValue={editingProjectInitial.description}
-                        className="w-full p-2 border rounded-md"
-                        rows={3}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">الموقع</label>
-                      <input
-                        name="location"
-                        defaultValue={editingProjectInitial.location}
-                        className="w-full p-2 border rounded-md"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">الفئة (معرف الفئة)</label>
-                      <input
-                        name="category"
-                        defaultValue={editingProjectInitial.category}
-                        className="w-full p-2 border rounded-md"
-                        placeholder="أدخل معرف الفئة (ID)"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">الميزانية</label>
-                      <input
-                        name="budget"
-                        defaultValue={editingProjectInitial.budget}
-                        className="w-full p-2 border rounded-md"
-                        type="number"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">عدد المستفيدين</label>
-                      <input
-                        name="beneficiaries"
-                        defaultValue={editingProjectInitial.beneficiaries}
-                        className="w-full p-2 border rounded-md"
-                        type="number"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">المدير</label>
-                      <input
-                        name="manager"
-                        defaultValue={editingProjectInitial.manager}
-                        className="w-full p-2 border rounded-md"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">الحالة</label>
-                      <select
-                        name="status"
-                        defaultValue={editingProjectInitial.status === "active" ? "نشط" : 
-                                      editingProjectInitial.status === "completed" ? "مكتمل" : 
-                                      editingProjectInitial.status === "in_progress" ? "قيد التنفيذ" : 
-                                      editingProjectInitial.status === "stopped" ? "متوقف" : "مخطط"}
-                        className="w-full p-2 border rounded-md"
-                        required
-                      >
-                        <option value="مخطط">مخطط</option>
-                        <option value="قيد التنفيذ">قيد التنفيذ</option>
-                        <option value="نشط">نشط</option>
-                        <option value="مكتمل">مكتمل</option>
-                        <option value="متوقف">متوقف</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">تاريخ البداية</label>
-                      <input
-                        name="startDate"
-                        defaultValue={editingProjectInitial.startDate}
-                        className="w-full p-2 border rounded-md"
-                        type="date"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">تاريخ الانتهاء</label>
-                      <input
-                        name="endDate"
-                        defaultValue={editingProjectInitial.endDate}
-                        className="w-full p-2 border rounded-md"
-                        type="date"
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                                      <div className="mt-6">
-                      <label className="block text-sm font-medium mb-2">التفاصيل</label>
-                      <textarea
-                        name="details"
-                        defaultValue={editingProjectInitial.details}
-                        className="w-full p-2 border rounded-md"
-                        rows={5}
-                      />
-                    </div>
-                  
-                  <div className="flex justify-end gap-3 mt-6">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsEditDialogOpen(false);
-                        setEditingProjectInitial(null);
-                      }}
-                    >
-                      إلغاء
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={isEditLoading}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {isEditLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                          جاري التحديث...
-                        </>
-                      ) : (
-                        "تحديث المشروع"
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                {/* Project Edit Dialog */}
+        <ProjectForm
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingProjectInitial(null);
+          }}
+          onSubmit={handleUpdateProject}
+          initialData={editingProjectInitial || undefined}
+          title="تعديل مشروع"
+          isLoading={isEditLoading}
+        />
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
