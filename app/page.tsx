@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Eye,
@@ -14,6 +14,7 @@ import {
   Briefcase,
   UserPlus,
   MoreHorizontal,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,21 +34,50 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DashboardLayout } from "@/components/shared/dashboard-layout";
 import { ProtectedRoute } from "@/components/protected-route";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+import { ProgramsApi } from "@/lib/programs";
+import { useAuth } from "@/hooks/use-auth";
+import { toBackendUrl } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 // Mock data interfaces
 interface Project {
   id: string;
-  name: string;
+  title: string;
   description: string;
   progress: number;
-  beneficiaries: number;
-  status: "active" | "completed" | "pending" | "cancelled";
+  beneficiaries: string;
+  status: string;
   budget: string;
   startDate: string;
   endDate: string;
   category: string;
   manager: string;
   location: string;
+  details?: string;
+  mainImage?: string;
+  gallery?: Array<{ url: string; title: string; fileId?: string }>;
+  objectives?: string[];
+  activities?: string[];
+  coverFileId?: string;
 }
 
 interface Report {
@@ -76,52 +106,76 @@ interface Partner {
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Mock data
-  const [projects] = useState<Project[]>([
-    {
-      id: "1",
-      name: "المساعدات الغذائية الطارئة",
-      description: "توزيع طرود غذائية للأسر المتضررة في قطاع غزة",
-      progress: 85,
-      beneficiaries: 2500,
-      status: "active",
-      budget: "50,000$",
-      startDate: "2024-01-15",
-      endDate: "2024-12-31",
-      category: "إغاثة وطوارئ",
-      manager: "أحمد محمد",
-      location: "غزة",
-    },
-    {
-      id: "2",
-      name: "الدعم الصحي للأطفال",
-      description: "تقديم الرعاية الصحية والأدوية للأطفال",
-      progress: 60,
-      beneficiaries: 1200,
-      status: "active",
-      budget: "35,000$",
-      startDate: "2024-03-01",
-      endDate: "2024-11-30",
-      category: "صحة ورعاية طبية",
-      manager: "فاطمة أحمد",
-      location: "رفح",
-    },
-    {
-      id: "3",
-      name: "التعليم والتدريب المهني",
-      description: "برامج تدريبية للشباب في مختلف المهارات",
-      progress: 100,
-      beneficiaries: 800,
-      status: "completed",
-      budget: "25,000$",
-      startDate: "2024-01-01",
-      endDate: "2024-06-30",
-      category: "تعليم وتدريب",
-      manager: "محمد علي",
-      location: "خان يونس",
-    },
-  ]);
+  // State for projects
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isViewLoading, setIsViewLoading] = useState(false);
+  const [editingProjectInitial, setEditingProjectInitial] = useState<any>(null);
+  const [isEditLoading, setIsEditLoading] = useState(false);
+
+  // Load projects from API
+  const loadProjects = useCallback(async () => {
+    try {
+      setIsLoadingProjects(true);
+      const res = await ProgramsApi.getPrograms({
+        page: 1,
+        limit: 10,
+      });
+      const items = (res.data?.programs || []) as any[];
+      const mapped: Project[] = items.map((p: any) => ({
+        id: p._id || p.id,
+        title: p.name || "",
+        description: p.description || "",
+        progress: p.progress || 0,
+        beneficiaries: String(p.numberOfBeneficiary || 0),
+        status: p.status === "active" ? "نشط" : 
+                p.status === "completed" ? "مكتمل" : 
+                p.status === "in_progress" ? "قيد التنفيذ" : 
+                p.status === "stopped" ? "متوقف" : "مخطط",
+        budget: String(p.budget || 0),
+        startDate: p.startDate || "",
+        endDate: p.endDate || "",
+        category: p.category?.name || p.category || "",
+        manager: p.manager || "",
+        location: p.location || "",
+        details: p.content || "",
+        mainImage: p.coverImage ? toBackendUrl(p.coverImage.url || p.coverImage) : undefined,
+        gallery: Array.isArray(p.gallery) ? p.gallery.map((g: any) => ({
+          url: toBackendUrl(g.url || ""),
+          title: g.title || "",
+          fileId: String(g?.id || g?._id || ""),
+        })) : [],
+        objectives: p.goals || [],
+        activities: p.activities || [],
+        coverFileId: String(p?.coverImage?.id || p?.coverImage?._id || ""),
+      }));
+      setProjects(mapped);
+    } catch (error) {
+      console.error("Error loading projects:", error);
+      toast({
+        title: "خطأ في تحميل المشاريع",
+        description: "حدث خطأ أثناء تحميل المشاريع",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, [toast]);
+
+  // Load projects on component mount
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+
 
   const [reports] = useState<Report[]>([
     {
@@ -222,16 +276,211 @@ export default function DashboardPage() {
     );
   };
 
-  const handleViewDetails = (item: any, type: string) => {
-    console.log("View details:", item, type);
+  const handleViewDetails = async (project: Project) => {
+    setIsViewDialogOpen(true);
+    setIsViewLoading(true);
+    try {
+      const res = await ProgramsApi.getProgramById(project.id);
+      const detailed = {
+        ...project,
+        details: (res as any).data?.content || project.details,
+        mainImage: (res as any).data?.coverImage ? toBackendUrl((res as any).data.coverImage.url || (res as any).data.coverImage) : project.mainImage,
+        gallery: Array.isArray((res as any).data?.gallery) ? (res as any).data.gallery.map((g: any) => ({
+          url: toBackendUrl(g.url || ""),
+          title: g.title || "",
+          fileId: String(g?.id || g?._id || ""),
+        })) : project.gallery || [],
+        objectives: (res as any).data?.goals || project.objectives || [],
+        activities: (res as any).data?.activities || project.activities || [],
+      };
+      setSelectedProject(detailed);
+    } catch (error) {
+      console.error("Error loading project details:", error);
+      setSelectedProject(project);
+      toast({
+        title: "خطأ في تحميل التفاصيل",
+        description: "حدث خطأ أثناء تحميل تفاصيل المشروع",
+        variant: "destructive",
+      });
+    } finally {
+      setIsViewLoading(false);
+    }
   };
 
-  const handleEdit = (item: any) => {
-    console.log("Edit item:", item);
+  const handleEdit = async (project: Project) => {
+    setIsEditDialogOpen(true);
+    setIsEditLoading(true);
+    try {
+      const res = await ProgramsApi.getProgramById(project.id);
+      const p: any = (res as any).data;
+      
+      // Map the data properly based on the actual API response structure
+      const initial = {
+        name: p.name || "",
+        description: p.description || "",
+        location: p.location || "",
+        category: String(p?.category?._id || ""), // Use category._id directly
+        budget: String(p.budget ?? ""),
+        beneficiaries: String(p.numberOfBeneficiary ?? ""),
+        manager: p.manager || "",
+        startDate: p.startDate ? p.startDate.split('T')[0] : "", // Convert ISO date to YYYY-MM-DD
+        endDate: p.endDate ? p.endDate.split('T')[0] : "", // Convert ISO date to YYYY-MM-DD
+        status:
+          p.status === "active"
+            ? "نشط"
+            : p.status === "completed"
+            ? "مكتمل"
+            : p.status === "in_progress" || p.status === "scheduled"
+            ? "قيد التنفيذ"
+            : p.status === "paused" || p.status === "stopped"
+            ? "متوقف"
+            : "مخطط",
+        details: p.content || "",
+        mainImage: p.coverImage
+          ? toBackendUrl(p.coverImage.url || p.coverImage)
+          : null,
+        gallery: Array.isArray(p.gallery)
+          ? p.gallery.map((g: any) => ({
+              url: toBackendUrl(g.url || ""),
+              title: g.title || "",
+              fileId: String(g?._id || ""), // Use _id directly from gallery items
+            }))
+          : [],
+        objectives: p.goals || [],
+        activities: p.activities || [],
+        coverFileId: String(p?.coverImage?._id || ""), // Use coverImage._id directly
+        _id: String(p._id || project.id),
+      };
+      
+      setEditingProjectInitial(initial);
+    } catch (error) {
+      console.error("Error loading project for editing:", error);
+      toast({
+        title: "خطأ في تحميل المشروع للتعديل",
+        description: "حدث خطأ أثناء تحميل بيانات المشروع",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditLoading(false);
+    }
   };
 
-  const handleDelete = (item: any) => {
-    console.log("Delete item:", item);
+  const handleDelete = async (project: Project) => {
+    setIsDeleteDialogOpen(true);
+    setSelectedProject(project);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedProject) return;
+    
+    setDeletingId(selectedProject.id);
+    try {
+      await ProgramsApi.deleteProgram(selectedProject.id);
+      
+      // Remove from local state
+      setProjects(projects.filter(p => p.id !== selectedProject.id));
+      
+      toast({
+        title: "تم حذف المشروع بنجاح",
+        description: `تم حذف مشروع "${selectedProject.title}" بنجاح`,
+        variant: "default",
+      });
+      
+      setIsDeleteDialogOpen(false);
+      setSelectedProject(null);
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast({
+        title: "خطأ في حذف المشروع",
+        description: "حدث خطأ أثناء حذف المشروع",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleUpdateProject = async (values: any) => {
+    if (!editingProjectInitial?._id) return;
+    
+    setIsEditLoading(true);
+    try {
+      // Map status back to API format
+      const statusMap: Record<string, string> = {
+        نشط: "active",
+        مكتمل: "completed",
+        "قيد التنفيذ": "active",
+        متوقف: "stopped",
+        مخطط: "scheduled",
+      };
+
+      const payload = {
+        name: values.name,
+        description: values.description,
+        category: values.category,
+        status: statusMap[values.status] || "active",
+        location: values.location,
+        budget: Number(String(values.budget).replace(/[^\d.]/g, "")) || 0,
+        startDate: values.startDate,
+        endDate: values.endDate,
+        manager: values.manager,
+        numberOfBeneficiary:
+          Number(String(values.beneficiaries).replace(/[^\d]/g, "")) || 0,
+        content: values.details || "",
+        goals: values.objectives || [],
+        activities: values.activities || [],
+        coverImage: undefined as string | undefined,
+        gallery: undefined as
+          | Array<{ fileId: string; title?: string }>
+          | undefined,
+      };
+
+      // coverImage is required by API: ensure we pass the uploaded cover fileId
+      if (values.coverFileId) {
+        (payload as any).coverImage = values.coverFileId;
+      } else {
+        // If no coverFileId, try to get it from the existing project data
+        (payload as any).coverImage = editingProjectInitial.coverFileId;
+      }
+
+      // gallery: map items with fileId
+      if (Array.isArray(values.gallery)) {
+        const galleryItems = values.gallery
+          .map((g: any) => {
+            const fileId = g?.fileId;
+            if (!fileId) return null;
+            return {
+              fileId: String(fileId),
+              title: g?.title || undefined,
+            };
+          })
+          .filter(Boolean) as Array<{ fileId: string; title?: string }>;
+        if (galleryItems.length) (payload as any).gallery = galleryItems;
+      }
+
+      await ProgramsApi.updateProgram(editingProjectInitial._id, payload as any);
+      
+      // Refresh projects list
+      await loadProjects();
+      
+      setIsEditDialogOpen(false);
+      setEditingProjectInitial(null);
+      
+      toast({
+        title: "تم تحديث المشروع بنجاح",
+        description: `تم تحديث مشروع "${values.name}" بنجاح`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Error updating project:", error);
+      toast({
+        title: "خطأ في تحديث المشروع",
+        description: "حدث خطأ أثناء تحديث المشروع",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditLoading(false);
+    }
   };
 
   const handleQuickAction = (action: string) => {
@@ -266,7 +515,7 @@ export default function DashboardPage() {
     {
       title: "إجمالي المستفيدين",
       value: projects
-        .reduce((sum, p) => sum + p.beneficiaries, 0)
+        .reduce((sum, p) => sum + parseInt(p.beneficiaries || "0", 10), 0)
         .toLocaleString(),
       change: "+15%",
       icon: Users,
@@ -406,7 +655,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">
-                        {project.name}
+                        {project.title}
                       </h4>
                       <p className="text-sm text-gray-500 mt-1">
                         {project.description}
@@ -439,9 +688,7 @@ export default function DashboardPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem
-                            onClick={() =>
-                              handleViewDetails(project, "project")
-                            }
+                            onClick={() => handleViewDetails(project)}
                           >
                             <Eye className="w-4 h-4 mr-2" />
                             عرض التفاصيل
@@ -553,6 +800,422 @@ export default function DashboardPage() {
             </Card>
           </div>
         </div>
+
+        {/* Project View Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                {isViewLoading ? (
+                  <div className="flex items-center text-gray-600">
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    جاري تحميل التفاصيل...
+                  </div>
+                ) : (
+                  selectedProject?.title
+                )}
+              </DialogTitle>
+              <div className="flex items-center gap-2 mt-2">
+                {!isViewLoading && selectedProject && (
+                  <>
+                    <Badge className={getStatusBadge(selectedProject.status).props.className}>
+                      {selectedProject.status}
+                    </Badge>
+                    <Badge variant="outline">{selectedProject.category}</Badge>
+                  </>
+                )}
+              </div>
+            </DialogHeader>
+            
+            {!isViewLoading && selectedProject && (
+              <div className="space-y-6">
+                {/* Project Image */}
+                {selectedProject.mainImage && (
+                  <div className="flex justify-center">
+                    <img
+                      src={selectedProject.mainImage}
+                      alt={selectedProject.title}
+                      className="max-w-full h-64 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+
+                {/* Project Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">تفاصيل المشروع</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="font-medium">الوصف:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.description}</p>
+                      </div>
+                      {selectedProject.details && (
+                        <div>
+                          <span className="font-medium">المحتوى التفصيلي:</span>
+                          <div className="text-gray-600 mt-1" dangerouslySetInnerHTML={{ __html: selectedProject.details }} />
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium">المدير:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.manager}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">الموقع:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.location}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">معلومات المشروع</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="font-medium">الميزانية:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.budget}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">عدد المستفيدين:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.beneficiaries}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">تاريخ البداية:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.startDate}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">تاريخ الانتهاء:</span>
+                        <p className="text-gray-600 mt-1">{selectedProject.endDate}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium">التقدم:</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Progress value={selectedProject.progress} className="flex-1" />
+                          <span className="text-sm font-medium">{selectedProject.progress}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Objectives and Activities */}
+                {((selectedProject.objectives && selectedProject.objectives.length > 0) || (selectedProject.activities && selectedProject.activities.length > 0)) && (
+                  <div className="space-y-4">
+                    {selectedProject.objectives && selectedProject.objectives.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">أهداف المشروع</h3>
+                        <ul className="list-disc list-inside space-y-1 text-gray-600">
+                          {selectedProject.objectives!.map((objective, index) => (
+                            <li key={index}>{objective}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {selectedProject.activities && selectedProject.activities.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3">أنشطة المشروع</h3>
+                        <ul className="list-disc list-inside space-y-1 text-gray-600">
+                          {selectedProject.activities!.map((activity, index) => (
+                            <li key={index}>{activity}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Gallery */}
+                {selectedProject.gallery && selectedProject.gallery.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">معرض الصور</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {selectedProject.gallery.map((image, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={image.url}
+                            alt={image.title || `صورة ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                          {image.title && (
+                            <p className="text-sm text-gray-600 mt-1 text-center">{image.title}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Project Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                {isEditLoading ? (
+                  <div className="flex items-center text-gray-600">
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    جاري تحميل المشروع...
+                  </div>
+                ) : (
+                  "تعديل المشروع"
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            
+            {!isEditLoading && editingProjectInitial && (
+              <div className="space-y-6">
+                {/* Cover Image Display */}
+                {editingProjectInitial.mainImage && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">صورة الغلاف الحالية</label>
+                    <div className="relative">
+                      <img
+                        src={editingProjectInitial.mainImage}
+                        alt="صورة الغلاف"
+                        className="w-32 h-32 object-cover rounded-lg border"
+                      />
+                      <div className="mt-2 text-sm text-gray-600">
+                        معرف الملف: {editingProjectInitial.coverFileId || "غير محدد"}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Gallery Display */}
+                {editingProjectInitial.gallery && editingProjectInitial.gallery.length > 0 && (
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium mb-2">معرض الصور الحالي</label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {editingProjectInitial.gallery.map((image: any, index: number) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={image.url}
+                            alt={image.title || `صورة ${index + 1}`}
+                            className="w-full h-24 object-cover rounded-lg border"
+                          />
+                          <div className="mt-1 text-xs text-gray-600">
+                            معرف الملف: {image.fileId || "غير محدد"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const values = {
+                    name: formData.get('name') as string,
+                    description: formData.get('description') as string,
+                    location: formData.get('location') as string,
+                    category: formData.get('category') as string,
+                    budget: formData.get('budget') as string,
+                    beneficiaries: formData.get('beneficiaries') as string,
+                    manager: formData.get('manager') as string,
+                    startDate: formData.get('startDate') as string,
+                    endDate: formData.get('endDate') as string,
+                    status: formData.get('status') as string,
+                    details: formData.get('details') as string,
+                    objectives: editingProjectInitial.objectives || [],
+                    activities: editingProjectInitial.activities || [],
+                    coverFileId: editingProjectInitial.coverFileId,
+                    gallery: editingProjectInitial.gallery || [],
+                  };
+                  handleUpdateProject(values);
+                }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium mb-2">اسم المشروع</label>
+                      <input
+                        name="name"
+                        defaultValue={editingProjectInitial.name}
+                        className="w-full p-2 border rounded-md"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">الوصف</label>
+                      <textarea
+                        name="description"
+                        defaultValue={editingProjectInitial.description}
+                        className="w-full p-2 border rounded-md"
+                        rows={3}
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">الموقع</label>
+                      <input
+                        name="location"
+                        defaultValue={editingProjectInitial.location}
+                        className="w-full p-2 border rounded-md"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">الفئة (معرف الفئة)</label>
+                      <input
+                        name="category"
+                        defaultValue={editingProjectInitial.category}
+                        className="w-full p-2 border rounded-md"
+                        placeholder="أدخل معرف الفئة (ID)"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">الميزانية</label>
+                      <input
+                        name="budget"
+                        defaultValue={editingProjectInitial.budget}
+                        className="w-full p-2 border rounded-md"
+                        type="number"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">عدد المستفيدين</label>
+                      <input
+                        name="beneficiaries"
+                        defaultValue={editingProjectInitial.beneficiaries}
+                        className="w-full p-2 border rounded-md"
+                        type="number"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">المدير</label>
+                      <input
+                        name="manager"
+                        defaultValue={editingProjectInitial.manager}
+                        className="w-full p-2 border rounded-md"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">الحالة</label>
+                      <select
+                        name="status"
+                        defaultValue={editingProjectInitial.status === "active" ? "نشط" : 
+                                      editingProjectInitial.status === "completed" ? "مكتمل" : 
+                                      editingProjectInitial.status === "in_progress" ? "قيد التنفيذ" : 
+                                      editingProjectInitial.status === "stopped" ? "متوقف" : "مخطط"}
+                        className="w-full p-2 border rounded-md"
+                        required
+                      >
+                        <option value="مخطط">مخطط</option>
+                        <option value="قيد التنفيذ">قيد التنفيذ</option>
+                        <option value="نشط">نشط</option>
+                        <option value="مكتمل">مكتمل</option>
+                        <option value="متوقف">متوقف</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">تاريخ البداية</label>
+                      <input
+                        name="startDate"
+                        defaultValue={editingProjectInitial.startDate}
+                        className="w-full p-2 border rounded-md"
+                        type="date"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-2">تاريخ الانتهاء</label>
+                      <input
+                        name="endDate"
+                        defaultValue={editingProjectInitial.endDate}
+                        className="w-full p-2 border rounded-md"
+                        type="date"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                                      <div className="mt-6">
+                      <label className="block text-sm font-medium mb-2">التفاصيل</label>
+                      <textarea
+                        name="details"
+                        defaultValue={editingProjectInitial.details}
+                        className="w-full p-2 border rounded-md"
+                        rows={5}
+                      />
+                    </div>
+                  
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditDialogOpen(false);
+                        setEditingProjectInitial(null);
+                      }}
+                    >
+                      إلغاء
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isEditLoading}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isEditLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                          جاري التحديث...
+                        </>
+                      ) : (
+                        "تحديث المشروع"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription>
+                هل أنت متأكد من حذف مشروع "{selectedProject?.title}"؟
+                لا يمكن التراجع عن هذا الإجراء.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700"
+                disabled={deletingId === selectedProject?.id}
+              >
+                {deletingId === selectedProject?.id ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    جاري الحذف...
+                  </>
+                ) : (
+                  "حذف"
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Toaster />
       </DashboardLayout>
     </ProtectedRoute>
   );
