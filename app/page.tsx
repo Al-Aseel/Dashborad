@@ -37,9 +37,11 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProgramsApi } from "@/lib/programs";
+import { getDashboardOverview } from "@/lib/overview";
 import { useAuth } from "@/hooks/use-auth";
 import { toBackendUrl } from "@/lib/utils";
 import { ProjectForm } from "@/components/projects/project-form";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -106,12 +108,24 @@ interface Partner {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // State for projects
+  // Overview API state
+  const [isLoadingOverview, setIsLoadingOverview] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [generalStats, setGeneralStats] = useState({
+    totalProjects: 0,
+    totalActiveProjects: 0,
+    totalInactiveProjects: 0,
+    totalBeneficiaries: 0,
+    totalReports: 0,
+    totalActivePartners: 0,
+  });
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -122,121 +136,90 @@ export default function DashboardPage() {
   const [editingProjectInitial, setEditingProjectInitial] = useState<any>(null);
   const [isEditLoading, setIsEditLoading] = useState(false);
 
-  // Load projects from API
-  const loadProjects = useCallback(async () => {
+  // Load overview from API
+  const loadOverview = useCallback(async () => {
     try {
-      setIsLoadingProjects(true);
-      const res = await ProgramsApi.getPrograms({
-        page: 1,
-        limit: 10,
-      });
-      const items = (res.data?.programs || []) as any[];
-      const mapped: Project[] = items.map((p: any) => ({
-        id: p._id || p.id,
+      setIsLoadingOverview(true);
+      const res = await getDashboardOverview();
+      const { general, recent } = res.data || ({} as any);
+      if (general) setGeneralStats(general);
+
+      // Map recent projects
+      const mappedProjects: Project[] = Array.isArray(recent?.projects)
+        ? recent.projects.map((p: any) => ({
+            id: p.id,
         title: p.name || "",
-        description: p.description || "",
-        progress: p.progress || 0,
+            description: "",
+            progress: 0,
         beneficiaries: String(p.numberOfBeneficiary || 0),
-        status: p.status === "active" ? "نشط" : 
-                p.status === "completed" ? "مكتمل" : 
-                p.status === "in_progress" ? "قيد التنفيذ" : 
-                p.status === "stopped" ? "متوقف" : "مخطط",
+            status: p.status || "active",
         budget: String(p.budget || 0),
         startDate: p.startDate || "",
         endDate: p.endDate || "",
-        category: p.category?.name || p.category || "",
-        manager: p.manager || "",
-        location: p.location || "",
-        details: p.content || "",
-        mainImage: p.coverImage ? toBackendUrl(p.coverImage.url || p.coverImage) : undefined,
-        gallery: Array.isArray(p.gallery) ? p.gallery.map((g: any) => ({
-          url: toBackendUrl(g.url || ""),
-          title: g.title || "",
-          fileId: String(g?.id || g?._id || ""),
-        })) : [],
-        objectives: p.goals || [],
-        activities: p.activities || [],
-        coverFileId: String(p?.coverImage?.id || p?.coverImage?._id || ""),
-      }));
-      setProjects(mapped);
+            category: "",
+            manager: "",
+            location: "",
+            details: "",
+            mainImage: p.coverImage?.url ? toBackendUrl(p.coverImage.url) : undefined,
+            gallery: [],
+            objectives: [],
+            activities: [],
+            coverFileId: "",
+          }))
+        : [];
+      setProjects(mappedProjects);
+
+      // Map recent reports
+      const mappedReports: Report[] = Array.isArray(recent?.reports)
+        ? recent.reports.map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            type: (r.type === "financial" ? "financial" : r.type === "media" ? "media" : "administrative") as any,
+            date: r.createdAt,
+            status: (r.status === "published" ? "published" : r.status === "draft" ? "draft" : "review") as any,
+            author: r.author,
+            downloads: 0,
+            size: r.file?.fileName || "",
+          }))
+        : [];
+      setReports(mappedReports);
+
+      // Map recent partners
+      const mappedPartners: Partner[] = Array.isArray(recent?.partners)
+        ? recent.partners.map((p: any) => ({
+            id: p.id,
+            name: p.name_ar,
+            nameEn: p.name_en,
+            type: (p.type === "org" ? "organization" : p.type === "firm" ? "company" : "individual") as any,
+            status: (p.status === "active" ? "active" : "inactive") as any,
+            joinDate: p.join_date,
+            contribution: "",
+            contact: "",
+            website: undefined,
+            projects: 0,
+          }))
+        : [];
+      setPartners(mappedPartners);
     } catch (error) {
-      console.error("Error loading projects:", error);
+      console.error("Error loading overview:", error);
       toast({
-        title: "خطأ في تحميل المشاريع",
-        description: "حدث خطأ أثناء تحميل المشاريع",
+        title: "خطأ في تحميل بيانات النظرة العامة",
+        description: "حدث خطأ أثناء تحميل البيانات",
         variant: "destructive",
       });
     } finally {
-      setIsLoadingProjects(false);
+      setIsLoadingOverview(false);
     }
   }, [toast]);
 
-  // Load projects on component mount
+  // Load overview on component mount
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    loadOverview();
+  }, [loadOverview]);
 
 
 
-  const [reports] = useState<Report[]>([
-    {
-      id: "1",
-      title: "التقرير السنوي 2024",
-      type: "administrative",
-      date: "2024-12-31",
-      status: "published",
-      author: "إدارة الجمعية",
-      downloads: 245,
-      size: "2.5 MB",
-    },
-    {
-      id: "2",
-      title: "التقرير المالي - الربع الأول",
-      type: "financial",
-      date: "2024-03-31",
-      status: "published",
-      author: "المحاسب المالي",
-      downloads: 156,
-      size: "1.8 MB",
-    },
-    {
-      id: "3",
-      title: "تقرير إعلامي - أنشطة ديسمبر",
-      type: "media",
-      date: "2024-12-15",
-      status: "draft",
-      author: "قسم الإعلام",
-      downloads: 0,
-      size: "3.2 MB",
-    },
-  ]);
-
-  const [partners] = useState<Partner[]>([
-    {
-      id: "1",
-      name: "مؤسسة الخير الإنسانية",
-      nameEn: "Khair Humanitarian Foundation",
-      type: "organization",
-      status: "active",
-      joinDate: "2023-01-15",
-      contribution: "100,000$",
-      contact: "info@khair.org",
-      website: "https://khair.org",
-      projects: 5,
-    },
-    {
-      id: "2",
-      name: "شركة التكنولوجيا المتقدمة",
-      nameEn: "Advanced Technology Company",
-      type: "company",
-      status: "active",
-      joinDate: "2023-06-20",
-      contribution: "75,000$",
-      contact: "support@tech.com",
-      website: "https://advanced-tech.com",
-      projects: 3,
-    },
-  ]);
+  // reports and partners now come from API
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -461,8 +444,8 @@ export default function DashboardPage() {
 
       await ProgramsApi.updateProgram(editingProjectInitial._id, payload as any);
       
-      // Refresh projects list
-      await loadProjects();
+      // Refresh overview data to reflect updates
+      await loadOverview();
       
       setIsEditDialogOpen(false);
       setEditingProjectInitial(null);
@@ -485,13 +468,28 @@ export default function DashboardPage() {
   };
 
   const handleQuickAction = (action: string) => {
-    console.log("Quick action:", action);
+    switch (action) {
+      case "add-project":
+        router.push("/projects");
+        break;
+      case "add-report":
+        router.push("/reports");
+        break;
+      case "add-partner":
+        router.push("/partners");
+        break;
+      case "add-user":
+        router.push("/users");
+        break;
+      default:
+        break;
+    }
   };
 
   const stats = [
     {
       title: "إجمالي المشاريع",
-      value: projects.length.toString(),
+      value: generalStats.totalProjects.toString(),
       change: "+12%",
       icon: Heart,
       color: "text-blue-600",
@@ -499,7 +497,7 @@ export default function DashboardPage() {
     },
     {
       title: "المشاريع النشطة",
-      value: projects.filter((p) => p.status === "active").length.toString(),
+      value: generalStats.totalActiveProjects.toString(),
       change: "+8%",
       icon: Target,
       color: "text-green-600",
@@ -507,7 +505,7 @@ export default function DashboardPage() {
     },
     {
       title: "المشاريع المكتملة",
-      value: projects.filter((p) => p.status === "completed").length.toString(),
+      value: generalStats.totalInactiveProjects.toString(),
       change: "+4%",
       icon: Award,
       color: "text-purple-600",
@@ -515,9 +513,7 @@ export default function DashboardPage() {
     },
     {
       title: "إجمالي المستفيدين",
-      value: projects
-        .reduce((sum, p) => sum + parseInt(p.beneficiaries || "0", 10), 0)
-        .toLocaleString(),
+      value: generalStats.totalBeneficiaries.toLocaleString(),
       change: "+15%",
       icon: Users,
       color: "text-orange-600",
@@ -525,7 +521,7 @@ export default function DashboardPage() {
     },
     {
       title: "التقارير الشهرية",
-      value: reports.length.toString(),
+      value: generalStats.totalReports.toString(),
       change: "+6%",
       icon: FileText,
       color: "text-indigo-600",
@@ -533,7 +529,7 @@ export default function DashboardPage() {
     },
     {
       title: "الشركاء النشطون",
-      value: partners.filter((p) => p.status === "active").length.toString(),
+      value: generalStats.totalActivePartners.toString(),
       change: "+3%",
       icon: Briefcase,
       color: "text-pink-600",
@@ -642,8 +638,7 @@ export default function DashboardPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => setActiveTab("projects")}
-              >
+                onClick={() => router.push("/projects")}>
                 عرض الكل
               </Button>
             </CardHeader>
@@ -950,6 +945,7 @@ export default function DashboardPage() {
         </Dialog>
 
                 {/* Project Edit Dialog */}
+        {isEditDialogOpen && (
         <ProjectForm
           isOpen={isEditDialogOpen}
           onClose={() => {
@@ -961,6 +957,7 @@ export default function DashboardPage() {
           title="تعديل مشروع"
           isLoading={isEditLoading}
         />
+        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
