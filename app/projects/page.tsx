@@ -405,6 +405,16 @@ export default function ProjectsPage() {
       const mapped: Project[] = items.map((p: any) => mapProgramToProject(p));
       setProjects(mapped);
       setTotal(refreshRes.data?.pagination?.total || 0);
+
+      // Update statistics after adding project
+      setApiStats({
+        totalNumberOfPrograms: (refreshRes as any).totalNumberOfPrograms || 0,
+        numberOfActivePrograms: (refreshRes as any).numberOfActivePrograms || 0,
+        totalBudget: (refreshRes as any).totalBudget || 0,
+        totalNumberOfBeneficiaries:
+          (refreshRes as any).totalNumberOfBeneficiaries || 0,
+      });
+
       setIsAddDialogOpen(false);
 
       toast({ title: res.message || "تم إضافة المشروع بنجاح" });
@@ -426,6 +436,28 @@ export default function ProjectsPage() {
 
       const projectToDelete = projects.find((p) => p.id === id);
       setProjects(projects.filter((project) => project.id !== id));
+
+      // Update statistics after deleting project
+      const updatedProjects = projects.filter((project) => project.id !== id);
+      const activeProjects = updatedProjects.filter(
+        (p) => p.status === "نشط"
+      ).length;
+      const calculatedBudget = updatedProjects.reduce((sum, p) => {
+        const budget = Number.parseFloat(p.budget.replace(/[^\d.]/g, "")) || 0;
+        return sum + budget;
+      }, 0);
+      const calculatedBeneficiaries = updatedProjects.reduce((sum, p) => {
+        const beneficiaries =
+          Number.parseInt(p.beneficiaries.replace(/[^\d]/g, "")) || 0;
+        return sum + beneficiaries;
+      }, 0);
+
+      setApiStats({
+        totalNumberOfPrograms: updatedProjects.length,
+        numberOfActivePrograms: activeProjects,
+        totalBudget: calculatedBudget,
+        totalNumberOfBeneficiaries: calculatedBeneficiaries,
+      });
 
       toast({
         title: res?.message || "تم حذف البرنامج بنجاح",
@@ -601,6 +633,15 @@ export default function ProjectsPage() {
       setProjects(mapped);
       setTotal(refreshRes.data?.pagination?.total || 0);
 
+      // Update statistics after updating project
+      setApiStats({
+        totalNumberOfPrograms: (refreshRes as any).totalNumberOfPrograms || 0,
+        numberOfActivePrograms: (refreshRes as any).numberOfActivePrograms || 0,
+        totalBudget: (refreshRes as any).totalBudget || 0,
+        totalNumberOfBeneficiaries:
+          (refreshRes as any).totalNumberOfBeneficiaries || 0,
+      });
+
       setIsEditDialogOpen(false);
       setEditingProjectInitial(null);
       toast({ title: res?.message || "تم تحديث المشروع بنجاح" });
@@ -621,16 +662,16 @@ export default function ProjectsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
+          <div className="animate-in fade-in-0 slide-in-from-right-4 duration-700 delay-100">
             <h1 className="text-3xl font-bold text-gray-900">إدارة المشاريع</h1>
             <p className="text-gray-600 mt-2">
               إدارة ومتابعة جميع مشاريع الجمعية
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 animate-in fade-in-0 slide-in-from-left-4 duration-700 delay-200">
             <Button
               className="btn-primary"
               onClick={() => setIsAddDialogOpen(true)}
@@ -659,16 +700,18 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        <ProjectStats
-          projects={projects as any}
-          totalNumberOfPrograms={apiStats.totalNumberOfPrograms}
-          numberOfActivePrograms={apiStats.numberOfActivePrograms}
-          totalBudget={apiStats.totalBudget}
-          totalNumberOfBeneficiaries={apiStats.totalNumberOfBeneficiaries}
-        />
+        <div className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-300">
+          <ProjectStats
+            projects={projects as any}
+            totalNumberOfPrograms={apiStats.totalNumberOfPrograms}
+            numberOfActivePrograms={apiStats.numberOfActivePrograms}
+            totalBudget={apiStats.totalBudget}
+            totalNumberOfBeneficiaries={apiStats.totalNumberOfBeneficiaries}
+          />
+        </div>
 
         {/* Filters and Search */}
-        <Card>
+        <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-400">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
@@ -736,7 +779,7 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-500">
           <CardHeader>
             <CardTitle>قائمة المشاريع</CardTitle>
             <CardDescription>
@@ -882,7 +925,7 @@ export default function ProjectsPage() {
 
         {/* Pagination */}
         {!isFetching && filteredProjects.length > 0 && (
-          <Card>
+          <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-600">
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -976,7 +1019,10 @@ export default function ProjectsPage() {
         />
 
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            className="max-w-4xl max-h-[90vh] overflow-y-auto"
+            dir="rtl"
+          >
             <DialogHeader>
               <DialogTitle className="text-2xl">
                 {isViewLoading ? (
@@ -1031,7 +1077,7 @@ export default function ProjectsPage() {
                         <div className="flex justify-between">
                           <span className="text-gray-600">الميزانية:</span>
                           <span className="font-medium">
-                            {selectedProject.budget} ريال
+                            {formatCurrencyUSD(selectedProject.budget)}
                           </span>
                         </div>
                         <div className="flex justify-between">

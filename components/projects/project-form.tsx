@@ -299,9 +299,14 @@ export function ProjectForm({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-right">{title}</DialogTitle>
+        <DialogContent
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          dir="rtl"
+        >
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-center text-xl font-semibold">
+              {title}
+            </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -395,7 +400,7 @@ export function ProjectForm({
                     setFormData((prev) => ({ ...prev, budget: e.target.value }))
                   }
                   className="text-right"
-                  placeholder="مثال: 100,000 ر.س"
+                  placeholder="مثال: 100,000 دولار"
                 />
               </div>
 
