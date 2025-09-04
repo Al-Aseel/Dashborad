@@ -14,6 +14,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DynamicButton } from "@/components/ui/dynamic-button";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 import {
   Card,
   CardContent,
@@ -66,6 +68,7 @@ export default function HomeImagesPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isPageLoaded, setIsPageLoaded] = useState(false);
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -126,6 +129,14 @@ export default function HomeImagesPage() {
   useEffect(() => {
     fetchSliderImages(currentPage, pageSize);
   }, [currentPage, pageSize, fetchSliderImages]);
+
+  // Set page loaded state after initial load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPageLoaded(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredImages = (sliderImages || []).filter((image) => {
     if (!image || !image.title || !image.description) return false;
@@ -411,46 +422,56 @@ export default function HomeImagesPage() {
       title="إدارة صور الصفحة الرئيسية"
       description="إدارة الصور الرئيسية وصور السلايدر للموقع"
     >
-      {loading && (
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-gray-600">جاري تحميل الصور...</p>
-          </div>
-        </div>
-      )}
-      <div className="space-y-6">
+      <div
+        className={`space-y-6 transition-all duration-700 ease-out ${
+          isPageLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+        }`}
+      >
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div
+          className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-500 delay-100 ${
+            isPageLoaded
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-2"
+          }`}
+        >
           <div className="flex gap-3">
-            <Button
+            <DynamicButton
               onClick={handleAdd}
-              className="bg-gradient-to-r from-blue-500 to-purple-600"
+              className="btn-primary transform transition-all duration-300 hover:scale-105 hover:shadow-lg"
             >
               <Plus className="w-4 h-4 mr-2" />
               إضافة صورة جديدة
-            </Button>
+            </DynamicButton>
             <Button
               onClick={handleRefresh}
               variant="outline"
               disabled={loading}
-              className="border-gray-300 hover:bg-gray-50"
+              className={`border-gray-300 hover:bg-gray-50 transform transition-all duration-300 hover:scale-105 ${
+                loading ? "opacity-75 cursor-not-allowed" : ""
+              }`}
             >
               <RefreshCw
                 className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
               />
-              تحديث
+              {loading ? "جاري التحديث..." : "تحديث"}
             </Button>
           </div>
         </div>
 
         {/* Preview Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div
+          className={`grid grid-cols-1 lg:grid-cols-2 gap-6 transition-all duration-600 delay-200 ${
+            isPageLoaded
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-3"
+          }`}
+        >
           {/* Main Image Preview */}
-          <Card>
+          <Card className="transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Camera className="w-5 h-5" />
+                <DynamicIcon icon={Camera} className="w-5 h-5" />
                 الصورة الرئيسية
               </CardTitle>
               <CardDescription>
@@ -458,7 +479,16 @@ export default function HomeImagesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {mainImage ? (
+              {loading ? (
+                <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-gray-600">
+                      جاري تحميل الصورة الرئيسية...
+                    </p>
+                  </div>
+                </div>
+              ) : mainImage ? (
                 <div className="space-y-4">
                   <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
                     <img
@@ -480,6 +510,7 @@ export default function HomeImagesPage() {
                       size="sm"
                       variant="outline"
                       onClick={() => handleEdit(mainImage)}
+                      className="transform transition-all duration-200 hover:scale-105 hover:shadow-md"
                     >
                       <Edit className="w-4 h-4 mr-2" />
                       تعديل
@@ -489,6 +520,7 @@ export default function HomeImagesPage() {
                       variant="outline"
                       onClick={() => handleView(mainImage)}
                       disabled={viewLoading}
+                      className="transform transition-all duration-200 hover:scale-105 hover:shadow-md"
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       {viewLoading ? "جاري التحميل..." : "عرض"}
@@ -500,9 +532,13 @@ export default function HomeImagesPage() {
                   <div className="text-center">
                     <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-500">لا توجد صورة رئيسية</p>
-                    <Button size="sm" className="mt-2" onClick={handleAdd}>
+                    <DynamicButton
+                      size="sm"
+                      className="mt-2 btn-primary"
+                      onClick={handleAdd}
+                    >
                       إضافة صورة رئيسية
-                    </Button>
+                    </DynamicButton>
                   </div>
                 </div>
               )}
@@ -510,16 +546,23 @@ export default function HomeImagesPage() {
           </Card>
 
           {/* Slider Images Preview */}
-          <Card>
+          <Card className="transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5" />
+                <DynamicIcon icon={ImageIcon} className="w-5 h-5" />
                 صور السلايدر ({otherSliderImages.length})
               </CardTitle>
               <CardDescription>الصور التي تظهر في السلايدر</CardDescription>
             </CardHeader>
             <CardContent>
-              {otherSliderImages.length > 0 ? (
+              {loading ? (
+                <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-gray-600">جاري تحميل صور السلايدر...</p>
+                  </div>
+                </div>
+              ) : otherSliderImages.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2">
                   {otherSliderImages.slice(0, 4).map((image) => (
                     <div
@@ -557,7 +600,13 @@ export default function HomeImagesPage() {
         </div>
 
         {/* Filters */}
-        <Card>
+        <Card
+          className={`transform transition-all duration-500 delay-300 ${
+            isPageLoaded
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-2"
+          }`}
+        >
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
@@ -565,7 +614,7 @@ export default function HomeImagesPage() {
                   placeholder="البحث في الصور..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
+                  className="w-full transition-all duration-200 focus:scale-[1.02] focus:shadow-md"
                 />
               </div>
             </div>
@@ -573,7 +622,13 @@ export default function HomeImagesPage() {
         </Card>
 
         {/* Images Table */}
-        <Card>
+        <Card
+          className={`transform transition-all duration-600 delay-400 ${
+            isPageLoaded
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-3"
+          }`}
+        >
           <CardHeader>
             <CardTitle>قائمة الصور ({pagination.total})</CardTitle>
           </CardHeader>
@@ -592,9 +647,28 @@ export default function HomeImagesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredImages.length > 0 ? (
+                  {loading && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12">
+                        <div className="flex flex-col items-center justify-center space-y-4">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                          <p className="text-gray-600">جاري تحميل الصور...</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!loading && filteredImages.length > 0 ? (
                     filteredImages.map((image, index) => (
-                      <TableRow key={image._id}>
+                      <TableRow
+                        key={image._id}
+                        className="transform transition-all duration-200 hover:scale-[1.01] hover:shadow-sm"
+                        style={{
+                          animationDelay: `${index * 50}ms`,
+                          animation: isPageLoaded
+                            ? "fadeInUp 0.5s ease-out forwards"
+                            : "none",
+                        }}
+                      >
                         <TableCell className="text-right">
                           <span className="font-medium text-gray-600">
                             {(pagination.page - 1) * pagination.limit +
@@ -642,27 +716,36 @@ export default function HomeImagesPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="transform transition-all duration-200 hover:scale-110 hover:bg-gray-100"
+                              >
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
+                            <DropdownMenuContent
+                              align="end"
+                              className="transform transition-all duration-200"
+                            >
                               <DropdownMenuItem
                                 onClick={() => handleView(image)}
                                 disabled={viewLoading}
+                                className="transform transition-all duration-150 hover:scale-105 hover:bg-blue-50"
                               >
                                 <Eye className="w-4 h-4 ml-2" />
                                 {viewLoading ? "جاري التحميل..." : "عرض"}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleEdit(image)}
+                                className="transform transition-all duration-150 hover:scale-105 hover:bg-green-50"
                               >
                                 <Edit className="w-4 h-4 ml-2" />
                                 تعديل
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDelete(image)}
-                                className="text-red-600"
+                                className="text-red-600 transform transition-all duration-150 hover:scale-105 hover:bg-red-50"
                               >
                                 <Trash2 className="w-4 h-4 ml-2" />
                                 حذف
@@ -672,7 +755,7 @@ export default function HomeImagesPage() {
                         </TableCell>
                       </TableRow>
                     ))
-                  ) : (
+                  ) : !loading ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-12">
                         <div className="flex flex-col items-center justify-center space-y-4">
@@ -689,19 +772,19 @@ export default function HomeImagesPage() {
                                 : "لم يتم إضافة أي صور بعد"}
                             </p>
                             {!searchTerm && (
-                              <Button
+                              <DynamicButton
                                 onClick={handleAdd}
-                                className="bg-gradient-to-r from-blue-500 to-purple-600"
+                                className="btn-primary"
                               >
                                 <Plus className="w-4 h-4 ml-2" />
                                 إضافة صورة جديدة
-                              </Button>
+                              </DynamicButton>
                             )}
                           </div>
                         </div>
                       </TableCell>
                     </TableRow>
-                  )}
+                  ) : null}
                 </TableBody>
               </Table>
             </div>
@@ -726,6 +809,7 @@ export default function HomeImagesPage() {
                     size="sm"
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page <= 1}
+                    className="transform transition-all duration-200 hover:scale-105 hover:shadow-md"
                   >
                     السابق
                   </Button>
@@ -745,7 +829,7 @@ export default function HomeImagesPage() {
                             }
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
-                            className="w-8 h-8 p-0"
+                            className="w-8 h-8 p-0 transform transition-all duration-200 hover:scale-110 hover:shadow-md"
                           >
                             {pageNum}
                           </Button>
@@ -759,6 +843,7 @@ export default function HomeImagesPage() {
                     size="sm"
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page >= pagination.pages}
+                    className="transform transition-all duration-200 hover:scale-105 hover:shadow-md"
                   >
                     التالي
                   </Button>
@@ -804,25 +889,28 @@ export default function HomeImagesPage() {
           }
         }}
       >
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          dir="rtl"
+        >
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-center">
               {showEditDialog ? "تعديل الصورة" : "إضافة صورة جديدة"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-center">
               {showEditDialog
                 ? "قم بتعديل بيانات الصورة"
                 : "أضف صورة جديدة للصفحة الرئيسية"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className="space-y-6" dir="rtl">
             {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              <div className="space-y-2 ">
                 <Label
                   htmlFor="title"
-                  className="text-sm font-medium text-gray-700"
+                  className="text-sm font-medium text-gray-700 text-right block"
                 >
                   عنوان الصورة
                 </Label>
@@ -833,7 +921,7 @@ export default function HomeImagesPage() {
                     setFormData({ ...formData, title: e.target.value })
                   }
                   placeholder="أدخل عنوان الصورة (3 أحرف على الأقل)"
-                  className={`w-full ${
+                  className={`w-full text-right ${
                     formData.title.length > 0 && formData.title.length < 3
                       ? "border-red-500 focus:border-red-500"
                       : ""
@@ -859,7 +947,7 @@ export default function HomeImagesPage() {
             <div className="space-y-2">
               <Label
                 htmlFor="description"
-                className="text-sm font-medium text-gray-700"
+                className="text-sm font-medium text-gray-700 text-right block"
               >
                 وصف الصورة
               </Label>
@@ -871,7 +959,7 @@ export default function HomeImagesPage() {
                 }
                 placeholder="أدخل وصف الصورة (6 أحرف على الأقل)"
                 rows={3}
-                className={`w-full ${
+                className={`w-full text-right ${
                   formData.description.length > 0 &&
                   formData.description.length < 6
                     ? "border-red-500 focus:border-red-500"
@@ -898,7 +986,7 @@ export default function HomeImagesPage() {
             {/* Settings */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="space-y-1">
+                <div className="space-y-1 text-right">
                   <Label
                     htmlFor="isActive"
                     className="text-sm font-medium text-gray-700"
@@ -909,17 +997,19 @@ export default function HomeImagesPage() {
                     هل الصورة نشطة ومتاحة للعرض؟
                   </p>
                 </div>
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isActive: checked })
-                  }
-                />
+                <div dir="ltr">
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, isActive: checked })
+                    }
+                  />
+                </div>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="space-y-1">
+                <div className="space-y-1 text-right">
                   <Label
                     htmlFor="isMainImage"
                     className="text-sm font-medium text-gray-700"
@@ -930,19 +1020,21 @@ export default function HomeImagesPage() {
                     هل هذه الصورة الرئيسية للموقع؟
                   </p>
                 </div>
-                <Switch
-                  id="isMainImage"
-                  checked={formData.isMainImage}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isMainImage: checked })
-                  }
-                />
+                <div dir="ltr">
+                  <Switch
+                    id="isMainImage"
+                    checked={formData.isMainImage}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, isMainImage: checked })
+                    }
+                  />
+                </div>
               </div>
             </div>
 
             {/* Image Upload */}
             <div className="space-y-3">
-              <Label className="text-sm font-medium text-gray-700">
+              <Label className="text-sm font-medium text-gray-700 text-right block">
                 الصورة
               </Label>
               <div className="space-y-4">
@@ -1019,12 +1111,12 @@ export default function HomeImagesPage() {
 
                     {/* Status Badge */}
                     {uploadedImage && !uploading && (
-                      <div className="absolute top-3 right-3">
+                      <div className="absolute top-3 left-3">
                         <Badge
                           variant="default"
                           className="bg-green-500 text-white shadow-lg"
                         >
-                          <div className="w-2 h-2 bg-white rounded-full mr-1"></div>
+                          <div className="w-2 h-2 bg-white rounded-full ml-1"></div>
                           تم الرفع بنجاح
                         </Badge>
                       </div>
@@ -1032,7 +1124,7 @@ export default function HomeImagesPage() {
 
                     {/* Remove Button */}
                     {!uploading && (
-                      <div className="absolute top-3 left-3 flex gap-2">
+                      <div className="absolute top-3 right-3 flex gap-2">
                         <button
                           type="button"
                           onClick={async () => {
@@ -1140,7 +1232,7 @@ export default function HomeImagesPage() {
 
                     {/* Image Info */}
                     {selectedFile && (
-                      <div className="absolute bottom-3 left-3 right-3 bg-black bg-opacity-70 text-white p-2 rounded text-xs">
+                      <div className="absolute bottom-3 right-3 left-3 bg-black bg-opacity-70 text-white p-2 rounded text-xs">
                         <p className="font-medium">{selectedFile.name}</p>
                         <p className="opacity-80">
                           {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
@@ -1153,17 +1245,8 @@ export default function HomeImagesPage() {
             </div>
           </div>
 
-          <DialogFooter className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowAddDialog(false);
-                setShowEditDialog(false);
-              }}
-            >
-              إلغاء
-            </Button>
-            <Button
+          <DialogFooter className="flex justify-start gap-3" dir="rtl">
+            <DynamicButton
               onClick={handleSave}
               disabled={
                 loading ||
@@ -1173,9 +1256,18 @@ export default function HomeImagesPage() {
                 !formData.description.trim() ||
                 formData.description.trim().length < 6
               }
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "جاري الحفظ..." : "حفظ"}
+            </DynamicButton>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddDialog(false);
+                setShowEditDialog(false);
+              }}
+            >
+              إلغاء
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1214,7 +1306,7 @@ export default function HomeImagesPage() {
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="text-center">
             <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
-              <ImageIcon className="w-6 h-6 text-blue-600" />
+              <DynamicIcon icon={ImageIcon} className="w-6 h-6" />
               تفاصيل الصورة
             </DialogTitle>
             <DialogDescription className="text-gray-600">
@@ -1289,7 +1381,7 @@ export default function HomeImagesPage() {
                   <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-indigo-50">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div className="w-2 h-2 dynamic-primary rounded-full"></div>
                         وصف الصورة
                       </CardTitle>
                     </CardHeader>
@@ -1355,21 +1447,21 @@ export default function HomeImagesPage() {
                   <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-50 to-pink-50">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                        <div className="w-2 h-2 dynamic-primary rounded-full"></div>
                         إجراءات سريعة
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <Button
+                      <DynamicButton
                         onClick={() => {
                           setShowDetailsDialog(false);
                           handleEdit(selectedItem);
                         }}
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                        className="w-full btn-primary"
                       >
                         <Edit className="w-4 h-4 ml-2" />
                         تعديل الصورة
-                      </Button>
+                      </DynamicButton>
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -1416,16 +1508,16 @@ export default function HomeImagesPage() {
               إغلاق
             </Button>
             {selectedItem && (
-              <Button
+              <DynamicButton
                 onClick={() => {
                   setShowDetailsDialog(false);
                   handleEdit(selectedItem);
                 }}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                className="btn-primary"
               >
                 <Edit className="w-4 h-4 ml-2" />
                 تعديل
-              </Button>
+              </DynamicButton>
             )}
           </DialogFooter>
         </DialogContent>
