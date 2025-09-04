@@ -37,9 +37,22 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { ProgramsApi } from "@/lib/programs";
+import { getDashboardOverview } from "@/lib/overview";
 import { useAuth } from "@/hooks/use-auth";
 import { toBackendUrl } from "@/lib/utils";
 import { ProjectForm } from "@/components/projects/project-form";
+import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getReportById, updateReport, deleteReport } from "@/lib/reports";
+import { getPartner, updatePartner, deletePartner } from "@/lib/partners";
 import {
   Dialog,
   DialogContent,
@@ -106,12 +119,24 @@ interface Partner {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // State for projects
+  // Overview API state
+  const [isLoadingOverview, setIsLoadingOverview] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [generalStats, setGeneralStats] = useState({
+    totalProjects: 0,
+    totalActiveProjects: 0,
+    totalInactiveProjects: 0,
+    totalBeneficiaries: 0,
+    totalReports: 0,
+    totalActivePartners: 0,
+  });
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -122,121 +147,122 @@ export default function DashboardPage() {
   const [editingProjectInitial, setEditingProjectInitial] = useState<any>(null);
   const [isEditLoading, setIsEditLoading] = useState(false);
 
-  // Load projects from API
-  const loadProjects = useCallback(async () => {
+  // Reports dialogs state
+  const [isReportViewOpen, setIsReportViewOpen] = useState(false);
+  const [isReportEditOpen, setIsReportEditOpen] = useState(false);
+  const [isReportDeleteOpen, setIsReportDeleteOpen] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [selectedReportOverview, setSelectedReportOverview] = useState<any>(null);
+  const [reportForm, setReportForm] = useState({
+    title: "",
+    type: "media" as "media" | "financial" | "management" | "project" | "statistic",
+    author: "",
+    date: "",
+    status: "draft" as "published" | "draft",
+    fileId: "",
+  });
+
+  // Partners dialogs state
+  const [isPartnerViewOpen, setIsPartnerViewOpen] = useState(false);
+  const [isPartnerEditOpen, setIsPartnerEditOpen] = useState(false);
+  const [isPartnerDeleteOpen, setIsPartnerDeleteOpen] = useState(false);
+  const [partnerLoading, setPartnerLoading] = useState(false);
+  const [selectedPartnerOverview, setSelectedPartnerOverview] = useState<any>(null);
+  const [partnerForm, setPartnerForm] = useState({
+    _id: "",
+    name_ar: "",
+    name_en: "",
+    email: "",
+    type: "org" as "org" | "member" | "firm",
+    website: "",
+    status: "active" as "active" | "inactive",
+    join_date: "",
+  });
+
+  // Load overview from API
+  const loadOverview = useCallback(async () => {
     try {
-      setIsLoadingProjects(true);
-      const res = await ProgramsApi.getPrograms({
-        page: 1,
-        limit: 10,
-      });
-      const items = (res.data?.programs || []) as any[];
-      const mapped: Project[] = items.map((p: any) => ({
-        id: p._id || p.id,
+      setIsLoadingOverview(true);
+      const res = await getDashboardOverview();
+      const { general, recent } = res.data || ({} as any);
+      if (general) setGeneralStats(general);
+
+      // Map recent projects
+      const mappedProjects: Project[] = Array.isArray(recent?.projects)
+        ? recent.projects.map((p: any) => ({
+            id: p.id,
         title: p.name || "",
-        description: p.description || "",
-        progress: p.progress || 0,
+            description: "",
+            progress: 0,
         beneficiaries: String(p.numberOfBeneficiary || 0),
-        status: p.status === "active" ? "نشط" : 
-                p.status === "completed" ? "مكتمل" : 
-                p.status === "in_progress" ? "قيد التنفيذ" : 
-                p.status === "stopped" ? "متوقف" : "مخطط",
+            status: p.status || "active",
         budget: String(p.budget || 0),
         startDate: p.startDate || "",
         endDate: p.endDate || "",
-        category: p.category?.name || p.category || "",
-        manager: p.manager || "",
-        location: p.location || "",
-        details: p.content || "",
-        mainImage: p.coverImage ? toBackendUrl(p.coverImage.url || p.coverImage) : undefined,
-        gallery: Array.isArray(p.gallery) ? p.gallery.map((g: any) => ({
-          url: toBackendUrl(g.url || ""),
-          title: g.title || "",
-          fileId: String(g?.id || g?._id || ""),
-        })) : [],
-        objectives: p.goals || [],
-        activities: p.activities || [],
-        coverFileId: String(p?.coverImage?.id || p?.coverImage?._id || ""),
-      }));
-      setProjects(mapped);
+            category: "",
+            manager: "",
+            location: "",
+            details: "",
+            mainImage: p.coverImage?.url ? toBackendUrl(p.coverImage.url) : undefined,
+            gallery: [],
+            objectives: [],
+            activities: [],
+            coverFileId: "",
+          }))
+        : [];
+      setProjects(mappedProjects);
+
+      // Map recent reports
+      const mappedReports: Report[] = Array.isArray(recent?.reports)
+        ? recent.reports.map((r: any) => ({
+            id: r.id,
+            title: r.title,
+            type: (r.type === "financial" ? "financial" : r.type === "media" ? "media" : "administrative") as any,
+            date: r.createdAt,
+            status: (r.status === "published" ? "published" : r.status === "draft" ? "draft" : "review") as any,
+            author: r.author,
+            downloads: 0,
+            size: r.file?.fileName || "",
+          }))
+        : [];
+      setReports(mappedReports);
+
+      // Map recent partners
+      const mappedPartners: Partner[] = Array.isArray(recent?.partners)
+        ? recent.partners.map((p: any) => ({
+            id: p.id,
+            name: p.name_ar,
+            nameEn: p.name_en,
+            type: (p.type === "org" ? "organization" : p.type === "firm" ? "company" : "individual") as any,
+            status: (p.status === "active" ? "active" : "inactive") as any,
+            joinDate: p.join_date,
+            contribution: "",
+            contact: "",
+            website: undefined,
+            projects: 0,
+          }))
+        : [];
+      setPartners(mappedPartners);
     } catch (error) {
-      console.error("Error loading projects:", error);
+      console.error("Error loading overview:", error);
       toast({
-        title: "خطأ في تحميل المشاريع",
-        description: "حدث خطأ أثناء تحميل المشاريع",
+        title: "خطأ في تحميل بيانات النظرة العامة",
+        description: "حدث خطأ أثناء تحميل البيانات",
         variant: "destructive",
       });
     } finally {
-      setIsLoadingProjects(false);
+      setIsLoadingOverview(false);
     }
   }, [toast]);
 
-  // Load projects on component mount
+  // Load overview on component mount
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    loadOverview();
+  }, [loadOverview]);
 
 
 
-  const [reports] = useState<Report[]>([
-    {
-      id: "1",
-      title: "التقرير السنوي 2024",
-      type: "administrative",
-      date: "2024-12-31",
-      status: "published",
-      author: "إدارة الجمعية",
-      downloads: 245,
-      size: "2.5 MB",
-    },
-    {
-      id: "2",
-      title: "التقرير المالي - الربع الأول",
-      type: "financial",
-      date: "2024-03-31",
-      status: "published",
-      author: "المحاسب المالي",
-      downloads: 156,
-      size: "1.8 MB",
-    },
-    {
-      id: "3",
-      title: "تقرير إعلامي - أنشطة ديسمبر",
-      type: "media",
-      date: "2024-12-15",
-      status: "draft",
-      author: "قسم الإعلام",
-      downloads: 0,
-      size: "3.2 MB",
-    },
-  ]);
-
-  const [partners] = useState<Partner[]>([
-    {
-      id: "1",
-      name: "مؤسسة الخير الإنسانية",
-      nameEn: "Khair Humanitarian Foundation",
-      type: "organization",
-      status: "active",
-      joinDate: "2023-01-15",
-      contribution: "100,000$",
-      contact: "info@khair.org",
-      website: "https://khair.org",
-      projects: 5,
-    },
-    {
-      id: "2",
-      name: "شركة التكنولوجيا المتقدمة",
-      nameEn: "Advanced Technology Company",
-      type: "company",
-      status: "active",
-      joinDate: "2023-06-20",
-      contribution: "75,000$",
-      contact: "support@tech.com",
-      website: "https://advanced-tech.com",
-      projects: 3,
-    },
-  ]);
+  // reports and partners now come from API
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -461,8 +487,8 @@ export default function DashboardPage() {
 
       await ProgramsApi.updateProgram(editingProjectInitial._id, payload as any);
       
-      // Refresh projects list
-      await loadProjects();
+      // Refresh overview data to reflect updates
+      await loadOverview();
       
       setIsEditDialogOpen(false);
       setEditingProjectInitial(null);
@@ -485,13 +511,28 @@ export default function DashboardPage() {
   };
 
   const handleQuickAction = (action: string) => {
-    console.log("Quick action:", action);
+    switch (action) {
+      case "add-project":
+        router.push("/projects");
+        break;
+      case "add-report":
+        router.push("/reports");
+        break;
+      case "add-partner":
+        router.push("/partners");
+        break;
+      case "add-user":
+        router.push("/users");
+        break;
+      default:
+        break;
+    }
   };
 
   const stats = [
     {
       title: "إجمالي المشاريع",
-      value: projects.length.toString(),
+      value: generalStats.totalProjects.toString(),
       change: "+12%",
       icon: Heart,
       color: "text-blue-600",
@@ -499,7 +540,7 @@ export default function DashboardPage() {
     },
     {
       title: "المشاريع النشطة",
-      value: projects.filter((p) => p.status === "active").length.toString(),
+      value: generalStats.totalActiveProjects.toString(),
       change: "+8%",
       icon: Target,
       color: "text-green-600",
@@ -507,7 +548,7 @@ export default function DashboardPage() {
     },
     {
       title: "المشاريع المكتملة",
-      value: projects.filter((p) => p.status === "completed").length.toString(),
+      value: generalStats.totalInactiveProjects.toString(),
       change: "+4%",
       icon: Award,
       color: "text-purple-600",
@@ -515,9 +556,7 @@ export default function DashboardPage() {
     },
     {
       title: "إجمالي المستفيدين",
-      value: projects
-        .reduce((sum, p) => sum + parseInt(p.beneficiaries || "0", 10), 0)
-        .toLocaleString(),
+      value: generalStats.totalBeneficiaries.toLocaleString(),
       change: "+15%",
       icon: Users,
       color: "text-orange-600",
@@ -525,7 +564,7 @@ export default function DashboardPage() {
     },
     {
       title: "التقارير الشهرية",
-      value: reports.length.toString(),
+      value: generalStats.totalReports.toString(),
       change: "+6%",
       icon: FileText,
       color: "text-indigo-600",
@@ -533,7 +572,7 @@ export default function DashboardPage() {
     },
     {
       title: "الشركاء النشطون",
-      value: partners.filter((p) => p.status === "active").length.toString(),
+      value: generalStats.totalActivePartners.toString(),
       change: "+3%",
       icon: Briefcase,
       color: "text-pink-600",
@@ -642,8 +681,7 @@ export default function DashboardPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => setActiveTab("projects")}
-              >
+                onClick={() => router.push("/projects")}>
                 عرض الكل
               </Button>
             </CardHeader>
@@ -717,20 +755,25 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Reports */}
             <Card>
-              <CardHeader>
-                <CardTitle>التقارير الحديثة</CardTitle>
-                <CardDescription>آخر التقارير المنشورة</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>التقارير الحديثة</CardTitle>
+                  <CardDescription>آخر التقارير المنشورة</CardDescription>
+                </div>
+                <Button variant="outline" onClick={() => router.push("/reports")}>
+                  عرض الكل
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {reports.slice(0, 3).map((report) => (
                     <div
                       key={report.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
                     >
                       <div className="flex-1">
-                        <h5 className="font-medium text-sm">{report.title}</h5>
-                        <p className="text-xs text-gray-500">
+                        <h5 className="font-medium text-gray-900">{report.title}</h5>
+                        <p className="text-sm text-gray-500 mt-1">
                           {report.author} • {report.date}
                         </p>
                       </div>
@@ -749,9 +792,70 @@ export default function DashboardPage() {
                             ? "مسودة"
                             : "مراجعة"}
                         </Badge>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-3 h-3" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={async () => {
+                              setReportLoading(true);
+                              try {
+                                const res = await getReportById(String(report.id));
+                                const d: any = res.data;
+                                setSelectedReportOverview({
+                                  id: d._id,
+                                  title: d.title,
+                                  type: d.type,
+                                  author: d.author,
+                                  date: d.createdAt,
+                                  status: d.status,
+                                  file: d.file,
+                                });
+                                setIsReportViewOpen(true);
+                              } catch (e) {
+                                toast({ title: "تعذر تحميل التقرير", variant: "destructive" });
+                              } finally {
+                                setReportLoading(false);
+                              }
+                            }}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              عرض
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async () => {
+                              setReportLoading(true);
+                              try {
+                                const res = await getReportById(String(report.id));
+                                const d: any = res.data;
+                                setReportForm({
+                                  title: d.title || "",
+                                  type: (d.type as any) || "media",
+                                  author: d.author || "",
+                                  date: (d.createdAt || "").split("T")[0],
+                                  status: (d.status as any) || "draft",
+                                  fileId: (d?.file as any)?.id || "",
+                                });
+                                setSelectedReportOverview({ id: d._id });
+                                setIsReportEditOpen(true);
+                              } catch (e) {
+                                toast({ title: "تعذر تحميل التقرير للتحرير", variant: "destructive" });
+                              } finally {
+                                setReportLoading(false);
+                              }
+                            }}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              تعديل
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedReportOverview({ id: report.id });
+                              setIsReportDeleteOpen(true);
+                            }} className="text-red-600 focus:text-red-700">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              حذف
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   ))}
@@ -761,25 +865,30 @@ export default function DashboardPage() {
 
             {/* Active Partners */}
             <Card>
-              <CardHeader>
-                <CardTitle>الشركاء النشطون</CardTitle>
-                <CardDescription>الشركاء المساهمون في المشاريع</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>الشركاء النشطون</CardTitle>
+                  <CardDescription>الشركاء المساهمون في المشاريع</CardDescription>
+                </div>
+                <Button variant="outline" onClick={() => router.push("/partners")}>
+                  عرض الكل
+                </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {partners
                     .filter((p) => p.status === "active")
                     .slice(0, 3)
                     .map((partner) => (
                       <div
                         key={partner.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
                       >
                         <div className="flex-1">
-                          <h5 className="font-medium text-sm">
+                          <h5 className="font-medium text-gray-900">
                             {partner.name}
                           </h5>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm text-gray-500 mt-1">
                             {partner.contribution} • {partner.projects} مشاريع
                           </p>
                         </div>
@@ -790,9 +899,63 @@ export default function DashboardPage() {
                           >
                             نشط
                           </Badge>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="w-3 h-3" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem onClick={async () => {
+                                setPartnerLoading(true);
+                                try {
+                                  const res = await getPartner(String((partner as any).id || partner.id));
+                                  const d: any = res.data;
+                                  setSelectedPartnerOverview(d);
+                                  setIsPartnerViewOpen(true);
+                                } catch (e) {
+                                  toast({ title: "تعذر تحميل بيانات الشريك", variant: "destructive" });
+                                } finally {
+                                  setPartnerLoading(false);
+                                }
+                              }}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                عرض
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={async () => {
+                                setPartnerLoading(true);
+                                try {
+                                  const res = await getPartner(String((partner as any).id || partner.id));
+                                  const d: any = res.data;
+                                  setPartnerForm({
+                                    _id: d._id,
+                                    name_ar: d.name_ar || "",
+                                    name_en: d.name_en || "",
+                                    email: d.email || "",
+                                    type: d.type || "org",
+                                    website: d.website || "",
+                                    status: d.status || "active",
+                                    join_date: (d.join_date || "").split("T")[0],
+                                  });
+                                  setIsPartnerEditOpen(true);
+                                } catch (e) {
+                                  toast({ title: "تعذر تحميل الشريك للتحرير", variant: "destructive" });
+                                } finally {
+                                  setPartnerLoading(false);
+                                }
+                              }}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                تعديل
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedPartnerOverview({ _id: (partner as any)._id || (partner as any).id });
+                                setIsPartnerDeleteOpen(true);
+                              }} className="text-red-600 focus:text-red-700">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                حذف
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     ))}
@@ -949,7 +1112,226 @@ export default function DashboardPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Report View Dialog */}
+        <Dialog open={isReportViewOpen} onOpenChange={setIsReportViewOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl">{selectedReportOverview?.title || "تفاصيل التقرير"}</DialogTitle>
+            </DialogHeader>
+            {reportLoading ? (
+              <div className="text-gray-600 flex items-center"><Loader2 className="w-4 h-4 ml-2 animate-spin"/>جاري التحميل...</div>
+            ) : selectedReportOverview ? (
+              <div className="space-y-2 text-right">
+                <p>النوع: {selectedReportOverview.type}</p>
+                <p>الكاتب: {selectedReportOverview.author}</p>
+                <p>التاريخ: {selectedReportOverview.date}</p>
+                <div>{getStatusBadge(selectedReportOverview.status)}</div>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        {/* Report Edit Dialog */}
+        <Dialog open={isReportEditOpen} onOpenChange={setIsReportEditOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>تعديل التقرير</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>العنوان</Label>
+                <Input value={reportForm.title} onChange={(e)=>setReportForm((p)=>({...p,title:e.target.value}))} className="text-right"/>
+              </div>
+              <div className="space-y-2">
+                <Label>النوع</Label>
+                <Select value={reportForm.type} onValueChange={(v)=>setReportForm((p)=>({...p,type:v as any}))}>
+                  <SelectTrigger className="text-right"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="media">تقرير إعلامي</SelectItem>
+                    <SelectItem value="financial">تقرير مالي</SelectItem>
+                    <SelectItem value="management">تقرير إداري</SelectItem>
+                    <SelectItem value="project">تقرير مشاريع</SelectItem>
+                    <SelectItem value="statistic">تقرير إحصائي</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>الحالة</Label>
+                <Select value={reportForm.status} onValueChange={(v)=>setReportForm((p)=>({...p,status:v as any}))}>
+                  <SelectTrigger className="text-right"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="published">منشور</SelectItem>
+                    <SelectItem value="draft">مسودة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>التاريخ</Label>
+                <Input type="date" value={reportForm.date} onChange={(e)=>setReportForm((p)=>({...p,date:e.target.value}))}/>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={()=>setIsReportEditOpen(false)}>إلغاء</Button>
+                <Button onClick={async ()=>{
+                  if(!selectedReportOverview?.id) return;
+                  setReportLoading(true);
+                  try {
+                    const payload:any = {
+                      title: reportForm.title,
+                      type: reportForm.type,
+                      author: reportForm.author,
+                      createdAt: reportForm.date,
+                      status: reportForm.status,
+                      file: reportForm.fileId || "",
+                    };
+                    await updateReport(String(selectedReportOverview.id), payload);
+                    await loadOverview();
+                    setIsReportEditOpen(false);
+                    toast({title:"تم التحديث"});
+                  } catch(e){
+                    toast({title:"فشل تحديث التقرير",variant:"destructive"});
+                  } finally { setReportLoading(false);} 
+                }}>حفظ</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Report Delete Dialog */}
+        <AlertDialog open={isReportDeleteOpen} onOpenChange={setIsReportDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد حذف التقرير</AlertDialogTitle>
+              <AlertDialogDescription>لا يمكن التراجع عن هذا الإجراء</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={async()=>{
+                if(!selectedReportOverview?.id) return;
+                setReportLoading(true);
+                try{
+                  await deleteReport(String(selectedReportOverview.id));
+                  await loadOverview();
+                  toast({title:"تم حذف التقرير"});
+                }catch(e){
+                  toast({title:"فشل حذف التقرير",variant:"destructive"});
+                }finally{
+                  setReportLoading(false);
+                  setIsReportDeleteOpen(false);
+                }
+              }} className="bg-red-600 hover:bg-red-700">حذف</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Partner View Dialog */}
+        <Dialog open={isPartnerViewOpen} onOpenChange={setIsPartnerViewOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>تفاصيل الشريك</DialogTitle>
+            </DialogHeader>
+            {partnerLoading ? (
+              <div className="text-gray-600 flex items-center"><Loader2 className="w-4 h-4 ml-2 animate-spin"/>جاري التحميل...</div>
+            ) : selectedPartnerOverview ? (
+              <div className="space-y-2 text-right">
+                <p>الاسم: {selectedPartnerOverview.name_ar}</p>
+                <p>النوع: {selectedPartnerOverview.type}</p>
+                <p>الحالة: {selectedPartnerOverview.status}</p>
+                <p>التاريخ: {selectedPartnerOverview.join_date}</p>
+              </div>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        {/* Partner Edit Dialog */}
+        <Dialog open={isPartnerEditOpen} onOpenChange={setIsPartnerEditOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>تعديل الشريك</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>الاسم (عربي)</Label>
+                <Input className="text-right" value={partnerForm.name_ar} onChange={(e)=>setPartnerForm((p)=>({...p,name_ar:e.target.value}))}/>
+              </div>
+              <div className="space-y-1">
+                <Label>الاسم (إنجليزي)</Label>
+                <Input className="text-right" value={partnerForm.name_en} onChange={(e)=>setPartnerForm((p)=>({...p,name_en:e.target.value}))}/>
+              </div>
+              <div className="space-y-1">
+                <Label>البريد</Label>
+                <Input className="text-right" value={partnerForm.email} onChange={(e)=>setPartnerForm((p)=>({...p,email:e.target.value}))}/>
+              </div>
+              <div className="space-y-1">
+                <Label>النوع</Label>
+                <Select value={partnerForm.type} onValueChange={(v)=>setPartnerForm((p)=>({...p,type:v as any}))}>
+                  <SelectTrigger className="text-right"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="org">منظمة</SelectItem>
+                    <SelectItem value="member">فرد</SelectItem>
+                    <SelectItem value="firm">شركة</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>الحالة</Label>
+                <Select value={partnerForm.status} onValueChange={(v)=>setPartnerForm((p)=>({...p,status:v as any}))}>
+                  <SelectTrigger className="text-right"><SelectValue/></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">نشط</SelectItem>
+                    <SelectItem value="inactive">غير نشط</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>تاريخ الانضمام</Label>
+                <Input type="date" value={partnerForm.join_date} onChange={(e)=>setPartnerForm((p)=>({...p,join_date:e.target.value}))}/>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={()=>setIsPartnerEditOpen(false)}>إلغاء</Button>
+                <Button onClick={async()=>{
+                  if(!partnerForm._id) return;
+                  setPartnerLoading(true);
+                  try{
+                    await updatePartner({ _id: partnerForm._id, ...partnerForm } as any);
+                    await loadOverview();
+                    setIsPartnerEditOpen(false);
+                    toast({title:"تم التحديث"});
+                  }catch(e){
+                    toast({title:"فشل تحديث الشريك",variant:"destructive"});
+                  }finally{ setPartnerLoading(false);} 
+                }}>حفظ</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Partner Delete Dialog */}
+        <AlertDialog open={isPartnerDeleteOpen} onOpenChange={setIsPartnerDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد حذف الشريك</AlertDialogTitle>
+              <AlertDialogDescription>هذا الإجراء لا يمكن التراجع عنه</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+              <AlertDialogAction onClick={async()=>{
+                const id = String(selectedPartnerOverview?._id || selectedPartnerOverview?.id || "");
+                if(!id) return;
+                setPartnerLoading(true);
+                try{
+                  await deletePartner(id);
+                  await loadOverview();
+                  toast({title:"تم حذف الشريك"});
+                }catch(e){
+                  toast({title:"فشل حذف الشريك",variant:"destructive"});
+                }finally{ setPartnerLoading(false); setIsPartnerDeleteOpen(false);} 
+              }} className="bg-red-600 hover:bg-red-700">حذف</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
                 {/* Project Edit Dialog */}
+        {isEditDialogOpen && (
         <ProjectForm
           isOpen={isEditDialogOpen}
           onClose={() => {
@@ -961,6 +1343,7 @@ export default function DashboardPage() {
           title="تعديل مشروع"
           isLoading={isEditLoading}
         />
+        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
