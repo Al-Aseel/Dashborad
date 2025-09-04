@@ -58,7 +58,7 @@ import { DashboardLayout } from "@/components/shared/dashboard-layout";
 import { useCategories } from "@/hooks/use-categories";
 import { toBackendUrl } from "@/lib/utils";
 import { CategoryManager } from "@/components/shared/category-manager";
-import { useActivities, Activity } from "@/hooks/use-activities";
+import { useActivities } from "@/hooks/use-activities";
 import { activitiesApi } from "@/lib/activities";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
@@ -118,14 +118,16 @@ const StatsCard = React.memo(
     iconBgColor: string;
     iconColor: string;
   }) => (
-    <Card>
+    <Card className="hover:shadow-lg hover:scale-105 transition-all duration-300 ease-out">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-600">{title}</p>
             <p className="text-2xl font-bold text-gray-900">{value}</p>
           </div>
-          <div className={`p-3 rounded-full ${iconBgColor} ${iconColor}`}>
+          <div
+            className={`p-3 rounded-full ${iconBgColor} ${iconColor} transition-transform duration-300 ease-out hover:scale-110`}
+          >
             <Icon className="w-6 h-6" />
           </div>
         </div>
@@ -151,7 +153,7 @@ const NewsActivityItem = React.memo(
     onDelete: (item: NewsActivity) => void;
     StatusBadge: React.ComponentType<{ status: string }>;
   }) => (
-    <div className="flex gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
+    <div className="flex gap-4 p-4 border rounded-lg hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ease-out">
       <div className="w-24 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
         <img
           src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
@@ -247,7 +249,7 @@ const FeaturedNewsCard = React.memo(
     onEdit: (item: NewsActivity) => void;
     onDelete: (item: NewsActivity) => void;
   }) => (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+    <Card className="overflow-hidden hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out">
       <div className="relative aspect-video">
         <img
           src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
@@ -367,7 +369,7 @@ export default function NewsActivitiesPage() {
   const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
   const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
   const [uploadingGalleryImages, setUploadingGalleryImages] = useState(false);
-  const [featuredItems, setFeaturedItems] = useState<Activity[]>([]);
+  const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [featuredOnly, setFeaturedOnly] = useState(false);
 
   // Dialog states
@@ -402,7 +404,7 @@ export default function NewsActivitiesPage() {
   // Convert API activities to local format
   const newsActivities = useMemo(
     () =>
-      activities.map((activity: Activity) => ({
+      activities.map((activity: any) => ({
         id: activity._id,
         title: activity.name,
         content: activity.content,
@@ -447,7 +449,7 @@ export default function NewsActivitiesPage() {
             title: img.title ?? img._id ?? img.fileName,
           })) || [],
         tags: activity.keywords || [],
-        views: 0, // API doesn't provide views yet
+        views: activity.numberOfViews || 0,
         featured: activity.isSpecial,
         createdAt: new Date(activity.createdAt).toISOString().split("T")[0],
       })),
@@ -471,7 +473,7 @@ export default function NewsActivitiesPage() {
   // Map featuredItems from API into local shape and always show all
   const featuredNews = useMemo(
     () =>
-      featuredItems.map((activity: Activity) => ({
+      featuredItems.map((activity: any) => ({
         id: activity._id,
         title: activity.name,
         content: activity.content,
@@ -1075,7 +1077,9 @@ export default function NewsActivitiesPage() {
           variant={pagination.page === i ? "default" : "outline"}
           size="sm"
           onClick={() => handlePageChange(i)}
-          className={pagination.page === i ? "btn-primary" : ""}
+          className={`${
+            pagination.page === i ? "btn-primary" : ""
+          } hover:scale-105 transition-transform duration-200 ease-out`}
         >
           {i}
         </Button>
@@ -1095,7 +1099,10 @@ export default function NewsActivitiesPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex gap-2">
-              <Button onClick={handleAdd} className="btn-primary">
+              <Button
+                onClick={handleAdd}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 إضافة خبر/نشاط جديد
               </Button>
@@ -1103,6 +1110,7 @@ export default function NewsActivitiesPage() {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={activitiesLoading}
+                className="hover:scale-105 transition-transform duration-200 ease-out"
               >
                 <RefreshCw
                   className={`w-4 h-4 mr-2 ${
@@ -1112,68 +1120,96 @@ export default function NewsActivitiesPage() {
                 تحديث
               </Button>
             </div>
-            <Button variant="outline" onClick={handleCategoriesDialog}>
+            <Button
+              variant="outline"
+              onClick={handleCategoriesDialog}
+              className="hover:scale-105 transition-transform duration-200 ease-out"
+            >
               إدارة الفئات
             </Button>
           </div>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <StatsCard
-              title="إجمالي الأخبار"
-              value={useMemo(
-                () =>
-                  newsActivities.filter((item) => item.type === "news").length,
-                [newsActivities]
-              )}
-              icon={FileText}
-              iconBgColor="bg-blue-50"
-              iconColor="text-blue-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.1s" }}
+            >
+              <StatsCard
+                title="إجمالي الأخبار"
+                value={useMemo(
+                  () =>
+                    newsActivities.filter((item) => item.type === "news")
+                      .length,
+                  [newsActivities]
+                )}
+                icon={FileText}
+                iconBgColor="bg-blue-50"
+                iconColor="text-blue-600"
+              />
+            </div>
 
-            <StatsCard
-              title="إجمالي الأنشطة"
-              value={useMemo(
-                () =>
-                  newsActivities.filter((item) => item.type === "activity")
-                    .length,
-                [newsActivities]
-              )}
-              icon={Heart}
-              iconBgColor="bg-green-50"
-              iconColor="text-green-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <StatsCard
+                title="إجمالي الأنشطة"
+                value={useMemo(
+                  () =>
+                    newsActivities.filter((item) => item.type === "activity")
+                      .length,
+                  [newsActivities]
+                )}
+                icon={Heart}
+                iconBgColor="bg-green-50"
+                iconColor="text-green-600"
+              />
+            </div>
 
-            <StatsCard
-              title="المحتوى المنشور"
-              value={useMemo(
-                () =>
-                  newsActivities.filter((item) => item.status === "published")
-                    .length,
-                [newsActivities]
-              )}
-              icon={Eye}
-              iconBgColor="bg-purple-50"
-              iconColor="text-purple-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <StatsCard
+                title="المحتوى المنشور"
+                value={useMemo(
+                  () =>
+                    newsActivities.filter((item) => item.status === "published")
+                      .length,
+                  [newsActivities]
+                )}
+                icon={Eye}
+                iconBgColor="bg-purple-50"
+                iconColor="text-purple-600"
+              />
+            </div>
 
-            <StatsCard
-              title="إجمالي المشاهدات"
-              value={useMemo(
-                () =>
-                  newsActivities
-                    .reduce((sum, item) => sum + item.views, 0)
-                    .toLocaleString(),
-                [newsActivities]
-              )}
-              icon={BarChart3}
-              iconBgColor="bg-orange-50"
-              iconColor="text-orange-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.4s" }}
+            >
+              <StatsCard
+                title="إجمالي المشاهدات"
+                value={useMemo(
+                  () =>
+                    newsActivities
+                      .reduce((sum, item) => sum + item.views, 0)
+                      .toLocaleString(),
+                  [newsActivities]
+                )}
+                icon={BarChart3}
+                iconBgColor="bg-orange-50"
+                iconColor="text-orange-600"
+              />
+            </div>
           </div>
 
           {/* Featured News */}
-          <Card>
+          <Card
+            className="animate-fade-in-up"
+            style={{ animationDelay: "0.5s" }}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Award className="w-5 h-5" />
@@ -1183,21 +1219,29 @@ export default function NewsActivitiesPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {featuredNews.map((item) => (
-                  <FeaturedNewsCard
+                {featuredNews.map((item, index) => (
+                  <div
                     key={item.id}
-                    item={item}
-                    onView={handleView}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${0.6 + index * 0.1}s` }}
+                  >
+                    <FeaturedNewsCard
+                      item={item}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
           {/* Filters */}
-          <Card>
+          <Card
+            className="animate-fade-in-up"
+            style={{ animationDelay: "0.7s" }}
+          >
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
@@ -1253,6 +1297,7 @@ export default function NewsActivitiesPage() {
                 <Button
                   variant={featuredOnly ? "default" : "outline"}
                   onClick={handleFeaturedFilter}
+                  className="hover:scale-105 transition-transform duration-200 ease-out"
                 >
                   <Star className="w-4 h-4 mr-2" />
                   المميزة فقط
@@ -1263,7 +1308,7 @@ export default function NewsActivitiesPage() {
 
           {/* Error Message */}
           {activitiesError && (
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-200 bg-red-50 animate-fade-in-up">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-red-700">
                   <span className="text-sm font-medium">
@@ -1274,7 +1319,7 @@ export default function NewsActivitiesPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleRefresh}
-                    className="mr-auto"
+                    className="mr-auto hover:scale-105 transition-transform duration-200 ease-out"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     إعادة المحاولة
@@ -1286,7 +1331,7 @@ export default function NewsActivitiesPage() {
 
           {/* Loading State */}
           {activitiesLoading && (
-            <Card>
+            <Card className="animate-fade-in-up">
               <CardContent className="p-8">
                 <div className="flex items-center justify-center gap-2">
                   <RefreshCw className="w-5 h-5 animate-spin" />
@@ -1297,14 +1342,17 @@ export default function NewsActivitiesPage() {
           )}
 
           {/* News & Activities List */}
-          <Card>
+          <Card
+            className="animate-fade-in-up"
+            style={{ animationDelay: "0.8s" }}
+          >
             <CardHeader>
               <CardTitle>جميع الأخبار والأنشطة ({pagination.total})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {filteredNewsActivities.length === 0 && !activitiesLoading ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-8 animate-fade-in-up">
                     <div className="text-gray-500 mb-4">
                       <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">
@@ -1321,21 +1369,30 @@ export default function NewsActivitiesPage() {
                     {(searchTerm ||
                       filterType !== "all" ||
                       filterStatus !== "all") && (
-                      <Button variant="outline" onClick={handleResetFilters}>
+                      <Button
+                        variant="outline"
+                        onClick={handleResetFilters}
+                        className="hover:scale-105 transition-transform duration-200 ease-out"
+                      >
                         إعادة تعيين الفلاتر
                       </Button>
                     )}
                   </div>
                 ) : (
-                  filteredNewsActivities.map((item) => (
-                    <NewsActivityItem
+                  filteredNewsActivities.map((item, index) => (
+                    <div
                       key={item.id}
-                      item={item}
-                      onView={handleView}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      StatusBadge={StatusBadge}
-                    />
+                      className="animate-fade-in-up"
+                      style={{ animationDelay: `${0.8 + index * 0.05}s` }}
+                    >
+                      <NewsActivityItem
+                        item={item}
+                        onView={handleView}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        StatusBadge={StatusBadge}
+                      />
+                    </div>
                   ))
                 )}
               </div>
@@ -1356,12 +1413,16 @@ export default function NewsActivitiesPage() {
 
                   {/* Pagination Buttons */}
                   {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-4">
+                    <div
+                      className="flex items-center justify-center gap-2 mt-4 animate-fade-in-up"
+                      style={{ animationDelay: "0.2s" }}
+                    >
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(pagination.page - 1)}
                         disabled={pagination.page <= 1}
+                        className="hover:scale-105 transition-transform duration-200 ease-out"
                       >
                         السابق
                       </Button>
@@ -1373,6 +1434,7 @@ export default function NewsActivitiesPage() {
                         size="sm"
                         onClick={() => handlePageChange(pagination.page + 1)}
                         disabled={pagination.page >= pagination.totalPages}
+                        className="hover:scale-105 transition-transform duration-200 ease-out"
                       >
                         التالي
                       </Button>
@@ -1394,7 +1456,10 @@ export default function NewsActivitiesPage() {
             }
           }}
         >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto close-left">
+          <DialogContent
+            dir="rtl"
+            className="max-w-4xl max-h-[90vh] overflow-y-auto close-left text-right rounded-xl shadow-xl border border-gray-100 transition-all duration-300 ease-out"
+          >
             <DialogHeader dir="rtl" className="text-right items-end">
               <DialogTitle className="w-full text-right">
                 {showEditDialog ? "تعديل" : "إضافة"}{" "}
@@ -1407,6 +1472,9 @@ export default function NewsActivitiesPage() {
             </DialogHeader>
 
             <div dir="rtl" className="space-y-6 text-right">
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                المعلومات الأساسية
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="العنوان" required>
                   <Input
@@ -1519,6 +1587,9 @@ export default function NewsActivitiesPage() {
                 </div>
               )}
 
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                الملخص والمحتوى
+              </h4>
               <FormField label="الملخص" required>
                 <Textarea
                   id="summary"
@@ -1526,6 +1597,7 @@ export default function NewsActivitiesPage() {
                   onChange={(e) => updateFormField("summary", e.target.value)}
                   placeholder="أدخل ملخص مختصر للخبر/النشاط"
                   rows={3}
+                  className="text-right"
                 />
               </FormField>
 
@@ -1548,6 +1620,9 @@ export default function NewsActivitiesPage() {
                 />
               </FormField>
 
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                الوسائط
+              </h4>
               <FormField label="الصورة الرئيسية" required>
                 <GalleryUpload
                   currentImages={formImages}
@@ -1575,7 +1650,11 @@ export default function NewsActivitiesPage() {
                 />
               </FormField>
 
-              <div className="flex items-center space-x-2 space-x-reverse">
+              <div className="h-px bg-gray-200" />
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                خيارات
+              </h4>
+              <div dir="ltr" className="flex items-center space-x-2">
                 <Switch
                   id="featured"
                   checked={formData.featured || false}
@@ -1587,7 +1666,10 @@ export default function NewsActivitiesPage() {
               </div>
             </div>
 
-            <DialogFooter className="justify-start">
+            <DialogFooter
+              dir="rtl"
+              className="flex-row-reverse justify-start sticky bottom-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t mt-6 py-3"
+            >
               <Button variant="outline" onClick={handleCloseDialog}>
                 إلغاء
               </Button>
@@ -1600,15 +1682,15 @@ export default function NewsActivitiesPage() {
 
         {/* Delete Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent dir="rtl" className="text-right">
+            <DialogHeader className="text-right items-end">
               <DialogTitle>تأكيد الحذف</DialogTitle>
               <DialogDescription>
                 هل أنت متأكد من حذف "{selectedItem?.title}"؟ لا يمكن التراجع عن
                 هذا الإجراء.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
+            <DialogFooter dir="rtl" className="flex-row-reverse justify-start">
               <Button
                 variant="outline"
                 onClick={() => setShowDeleteDialog(false)}
@@ -1628,16 +1710,20 @@ export default function NewsActivitiesPage() {
 
         {/* Details Dialog */}
         <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto close-left">
-            <DialogHeader className="text-right">
+          <DialogContent
+            dir="rtl"
+            className="max-w-4xl max-h-[90vh] overflow-y-auto close-left text-right rounded-xl shadow-xl border border-gray-100 transition-all duration-300 ease-out"
+          >
+            <DialogHeader dir="rtl" className="text-left items-start">
               <DialogTitle>
                 تفاصيل {selectedItem?.type === "news" ? "الخبر" : "النشاط"}
               </DialogTitle>
+              <DialogDescription>{selectedItem?.title}</DialogDescription>
             </DialogHeader>
 
             {selectedItem && (
-              <div className="space-y-6">
-                <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+              <div dir="rtl" className="space-y-6 text-right">
+                <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 transition-transform duration-300 ease-out hover:scale-[1.01]">
                   <img
                     src={
                       toBackendUrl(selectedItem.imageUrl) || "/placeholder.svg"
@@ -1647,7 +1733,7 @@ export default function NewsActivitiesPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4 justify-start">
                   <Badge
                     className={
                       selectedItem.type === "news"
@@ -1667,11 +1753,9 @@ export default function NewsActivitiesPage() {
                   )}
                 </div>
 
-                <h3 className="font-bold text-2xl mb-4">
-                  {selectedItem.title}
-                </h3>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-gray-600">
+                <div className="h-px bg-gray-200" />
+                <h4 className="text-sm font-semibold text-gray-700">معلومات</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-gray-600 text-right">
                   <div>
                     <span className="font-medium">الكاتب:</span>{" "}
                     {selectedItem.author}
@@ -1692,16 +1776,17 @@ export default function NewsActivitiesPage() {
 
                 {selectedItem.summary && (
                   <div className="mb-6">
+                    <div className="h-px bg-gray-200 mb-3" />
                     <h4 className="font-bold mb-2">الملخص:</h4>
-                    <p className="text-gray-700 leading-relaxed">
+                    <p className="text-gray-700 leading-relaxed text-right">
                       {selectedItem.summary}
                     </p>
                   </div>
                 )}
 
-                <div className="max-w-none">
+                <div className="max-w-none p-4 bg-gray-50 rounded-lg border">
                   <h4 className="font-bold mb-2">المحتوى:</h4>
-                  <div className="ql-snow">
+                  <div className="ql-snow text-right">
                     <div
                       className="ql-editor"
                       dir={
@@ -1716,8 +1801,9 @@ export default function NewsActivitiesPage() {
 
                 {selectedItem.tags && selectedItem.tags.length > 0 && (
                   <div className="mt-6">
+                    <div className="h-px bg-gray-200 mb-3" />
                     <h4 className="font-bold mb-2">الكلمات المفتاحية:</h4>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 justify-start">
                       {selectedItem.tags.map((tag: string, index: number) => (
                         <Badge key={index} variant="outline">
                           {tag}
@@ -1729,6 +1815,7 @@ export default function NewsActivitiesPage() {
 
                 {selectedItem.gallery && selectedItem.gallery.length > 0 && (
                   <div className="mt-6">
+                    <div className="h-px bg-gray-200 mb-3" />
                     <h4 className="font-bold mb-3">معرض الصور:</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {selectedItem.gallery.map((image: any, index: number) => (
@@ -1755,7 +1842,10 @@ export default function NewsActivitiesPage() {
               </div>
             )}
 
-            <DialogFooter className="justify-start">
+            <DialogFooter
+              dir="rtl"
+              className="flex-row-reverse justify-start sticky bottom-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t mt-6 py-3"
+            >
               <Button onClick={() => setShowDetailsDialog(false)}>إغلاق</Button>
             </DialogFooter>
           </DialogContent>
