@@ -161,10 +161,6 @@ export default function UsersPage() {
         return "admin";
       case "مدير قسم":
         return "subadmin";
-      case "محاسب":
-        return "technical";
-      case "منسق":
-        return "technical";
       default:
         return "technical";
     }
@@ -434,10 +430,6 @@ export default function UsersPage() {
         return "bg-red-100 text-red-800";
       case "مدير قسم":
         return "bg-blue-100 text-blue-800";
-      case "محاسب":
-        return "bg-green-100 text-green-800";
-      case "منسق":
-        return "bg-purple-100 text-purple-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -718,8 +710,6 @@ export default function UsersPage() {
                       <SelectContent>
                         <SelectItem value="مدير">مدير</SelectItem>
                         <SelectItem value="مدير قسم">مدير قسم</SelectItem>
-                        <SelectItem value="محاسب">محاسب</SelectItem>
-                        <SelectItem value="منسق">منسق</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -863,8 +853,6 @@ export default function UsersPage() {
                       <SelectContent>
                         <SelectItem value="مدير">مدير</SelectItem>
                         <SelectItem value="مدير قسم">مدير قسم</SelectItem>
-                        <SelectItem value="محاسب">محاسب</SelectItem>
-                        <SelectItem value="منسق">منسق</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
