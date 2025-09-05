@@ -463,17 +463,14 @@ export default function UsersPage() {
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">
+              <h1 className="text-3xl font-bold dynamic-text">
                 إدارة المستخدمين
               </h1>
               <p className="text-gray-600 mt-2">
                 إدارة مستخدمي النظام والصلاحيات
               </p>
             </div>
-            <Button
-              onClick={openAddDialog}
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            >
+            <Button onClick={openAddDialog} className="btn-primary">
               <Plus className="w-4 h-4 ml-2" />
               إضافة مستخدم جديد
             </Button>
@@ -544,7 +541,7 @@ export default function UsersPage() {
             <CardContent className="pt-6">
               <div className="flex gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 dynamic-text w-4 h-4" />
                   <Input
                     placeholder="البحث في المستخدمين..."
                     className="pr-10"
@@ -670,9 +667,9 @@ export default function UsersPage() {
 
           {/* Add User Dialog */}
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent dir="rtl" className="max-w-md text-right">
               <DialogHeader>
-                <DialogTitle>إضافة مستخدم</DialogTitle>
+                <DialogTitle className="dynamic-text">إضافة مستخدم</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -760,9 +757,13 @@ export default function UsersPage() {
                 <Button variant="outline" onClick={closeAddDialog}>
                   إلغاء
                 </Button>
-                <Button onClick={handleAddUser} disabled={isLoading}>
+                <Button
+                  onClick={handleAddUser}
+                  disabled={isLoading}
+                  className="btn-primary"
+                >
                   {isLoading && (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   إضافة
                 </Button>
@@ -811,9 +812,9 @@ export default function UsersPage() {
 
           {/* Edit User Dialog */}
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent dir="rtl" className="max-w-md text-right">
               <DialogHeader>
-                <DialogTitle>تعديل مستخدم</DialogTitle>
+                <DialogTitle className="dynamic-text">تعديل مستخدم</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -891,9 +892,13 @@ export default function UsersPage() {
                 <Button variant="outline" onClick={closeEditDialog}>
                   إلغاء
                 </Button>
-                <Button onClick={handleUpdateUser} disabled={isLoading}>
+                <Button
+                  onClick={handleUpdateUser}
+                  disabled={isLoading}
+                  className="btn-primary"
+                >
                   {isLoading && (
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   تحديث
                 </Button>
@@ -903,13 +908,15 @@ export default function UsersPage() {
 
           {/* View User Dialog */}
           <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-            <DialogContent className="max-w-md">
+            <DialogContent dir="rtl" className="max-w-md text-right">
               <DialogHeader>
-                <DialogTitle>تفاصيل المستخدم</DialogTitle>
+                <DialogTitle className="dynamic-text">
+                  تفاصيل المستخدم
+                </DialogTitle>
               </DialogHeader>
               {selectedUser && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-row-reverse">
                     <Avatar className="w-16 h-16">
                       <AvatarImage
                         src={selectedUser.avatar || "/placeholder.svg"}
@@ -920,7 +927,7 @@ export default function UsersPage() {
                         {selectedUser.name.split(" ")[1]?.[0]}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
+                    <div className="text-right">
                       <h3 className="text-lg font-semibold">
                         {selectedUser.name}
                       </h3>
