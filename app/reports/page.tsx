@@ -550,31 +550,56 @@ export default function ReportsPage() {
 
   const handleDownload = async (report: Report) => {
     try {
-      // بدلاً من التحميل المباشر، اعرض ملف الـ PDF مثل صفحة/فورم التعديل
-      // إذا كان التقرير من السيرفر، اجلب تفاصيله للحصول على رابط الملف
+      // إذا كان التقرير من السيرفر، اجلب تفاصيله للحصول على رابط الملف واسم الملف
+      let fileUrl: string | undefined
+      let originalName: string | undefined
+
       if (typeof report.id === "string") {
         const full = await getReportById(report.id)
         const fileObj = (full?.data?.data?.file || full?.data?.file) as any
-        const fileUrl = typeof fileObj === "object" ? fileObj?.url : undefined
-        if (fileUrl) {
-          const viewUrl = toBackendUrl(fileUrl)
-          window.open(viewUrl, "_blank", "noopener,noreferrer")
-        } else {
-          throw new Error("لا يوجد رابط ملف لهذا التقرير")
+        if (fileObj && typeof fileObj === "object") {
+          fileUrl = fileObj.url
+          originalName = fileObj.originalName || fileObj.fileName
         }
       } else if (report.file) {
-        // تقرير مضاف محليًا ولم يُحفظ بعد: افتح الملف المحلي مباشرة
+        // تقرير محلي قبل الحفظ
         const url = URL.createObjectURL(report.file)
         window.open(url, "_blank", "noopener,noreferrer")
-      } else {
-        throw new Error("لا يوجد ملف مرفق لهذا التقرير")
+        return
+      }
+
+      if (!fileUrl) throw new Error("لا يوجد رابط ملف لهذا التقرير")
+
+      const absoluteUrl = toBackendUrl(fileUrl)
+
+      // حاول فتحه مباشرة أولاً
+      const win = window.open(absoluteUrl, "_blank", "noopener,noreferrer")
+      if (win) return
+
+      // إذا حُظر التبويب أو احتاج توثيقًا، استخدم fetch مع Authorization
+      const headers: Record<string, string> = {}
+      try {
+        const token = localStorage.getItem("auth_token")
+        if (token) headers.Authorization = `Bearer ${token}`
+      } catch {}
+
+      const res = await fetch(absoluteUrl, { headers })
+      if (!res.ok) throw new Error("فشل جلب الملف")
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const win2 = window.open(blobUrl, "_blank", "noopener,noreferrer")
+      if (!win2) {
+        const a = document.createElement("a")
+        a.href = blobUrl
+        a.target = "_blank"
+        a.rel = "noopener noreferrer"
+        a.download = originalName ? encodeURIComponent(String(originalName)) : "report.pdf"
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
       }
     } catch (error) {
-      toast({
-        title: "خطأ",
-        description: "تعذر عرض ملف التقرير",
-        variant: "destructive",
-      })
+      toast({ title: "خطأ", description: "تعذر عرض ملف التقرير", variant: "destructive" })
     }
   }
 
