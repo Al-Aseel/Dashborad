@@ -11,6 +11,7 @@ import {
   Award,
   Users,
   FileText,
+  Download,
   Briefcase,
   UserPlus,
   MoreHorizontal,
@@ -40,6 +41,7 @@ import { ProgramsApi } from "@/lib/programs";
 import { getDashboardOverview } from "@/lib/overview";
 import { useAuth } from "@/hooks/use-auth";
 import { toBackendUrl } from "@/lib/utils";
+import { api } from "@/lib/api";
 import { ProjectForm } from "@/components/projects/project-form";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -161,6 +163,74 @@ export default function DashboardPage() {
     status: "draft" as "published" | "draft",
     fileId: "",
   });
+
+  // Helpers for report labels
+  const mapReportTypeToArabic = (value: string) => {
+    switch (value) {
+      case "media":
+        return "تقرير إعلامي";
+      case "financial":
+        return "تقرير مالي";
+      case "management":
+        return "تقرير إداري";
+      case "project":
+        return "تقرير مشاريع";
+      case "statistic":
+        return "تقرير إحصائي";
+      default:
+        return value;
+    }
+  };
+
+  const mapReportStatusToArabic = (value: string) => {
+    switch (value) {
+      case "published":
+        return "منشور";
+      case "draft":
+        return "مسودة";
+      default:
+        return value;
+    }
+  };
+
+  const handleReportDownload = async () => {
+    try {
+      const f = (selectedReportOverview?.file || {}) as any;
+      const fileUrl = typeof f === "object" ? f?.url : undefined;
+      if (!fileUrl) throw new Error("no url");
+
+      const viewUrl = toBackendUrl(fileUrl);
+
+      // Try opening directly (works for public/static endpoints)
+      const win = window.open(viewUrl, "_blank", "noopener,noreferrer");
+      if (win) return;
+
+      // If popup blocked or needs auth, fetch the absolute URL directly (no baseURL prefix)
+      const headers: Record<string, string> = {};
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (token) headers.Authorization = `Bearer ${token}`;
+      } catch {}
+
+      const res = await fetch(viewUrl, { headers });
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const win2 = window.open(blobUrl, "_blank", "noopener,noreferrer");
+      if (!win2) {
+        const anchor = document.createElement("a");
+        anchor.href = blobUrl;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.download = (typeof f === "object" && f.originalName) ? encodeURIComponent(String(f.originalName)) : "report.pdf";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      }
+    } catch {
+      toast({ title: "خطأ", description: "تعذر عرض ملف التقرير", variant: "destructive" });
+    }
+  };
 
   // Partners dialogs state
   const [isPartnerViewOpen, setIsPartnerViewOpen] = useState(false);
@@ -1114,18 +1184,59 @@ export default function DashboardPage() {
 
         {/* Report View Dialog */}
         <Dialog open={isReportViewOpen} onOpenChange={setIsReportViewOpen}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle className="text-xl">{selectedReportOverview?.title || "تفاصيل التقرير"}</DialogTitle>
+              <DialogTitle>تفاصيل التقرير</DialogTitle>
             </DialogHeader>
+
             {reportLoading ? (
               <div className="text-gray-600 flex items-center"><Loader2 className="w-4 h-4 ml-2 animate-spin"/>جاري التحميل...</div>
             ) : selectedReportOverview ? (
-              <div className="space-y-2 text-right">
-                <p>النوع: {selectedReportOverview.type}</p>
-                <p>الكاتب: {selectedReportOverview.author}</p>
-                <p>التاريخ: {selectedReportOverview.date}</p>
-                <div>{getStatusBadge(selectedReportOverview.status)}</div>
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600">عنوان التقرير</Label>
+                    <p className="text-lg font-semibold">{selectedReportOverview.title}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600">نوع التقرير</Label>
+                    <p className="text-lg">{mapReportTypeToArabic(selectedReportOverview.type)}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600">المؤلف</Label>
+                    <p className="text-lg">{selectedReportOverview.author}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600">التاريخ</Label>
+                    <p className="text-lg">{String(selectedReportOverview.date).slice(0,10)}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600">الحالة</Label>
+                    <Badge className="bg-green-100 text-green-800">{mapReportStatusToArabic(selectedReportOverview.status)}</Badge>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-600">حجم الملف</Label>
+                    <p className="text-lg">{
+                      (()=>{
+                        const f:any = selectedReportOverview.file || {};
+                        const size = typeof f === "object" ? f?.size : undefined;
+                        if (!size && size !== 0) return "";
+                        const mb = (Number(size) / (1024 * 1024)).toFixed(1);
+                        return `${mb} MB`;
+                      })()
+                    }</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsReportViewOpen(false)}>
+                    إغلاق
+                  </Button>
+                  <Button onClick={handleReportDownload}>
+                    <Download className="w-4 h-4 ml-1" />
+                    تحميل التقرير
+                  </Button>
+                </div>
               </div>
             ) : null}
           </DialogContent>

@@ -677,8 +677,10 @@ export default function ReportsPage() {
 
   const handleDownload = async (report: Report) => {
     try {
-      // بدلاً من التحميل المباشر، اعرض ملف الـ PDF مثل صفحة/فورم التعديل
-      // إذا كان التقرير من السيرفر، اجلب تفاصيله للحصول على رابط الملف
+      // إذا كان التقرير من السيرفر، اجلب تفاصيله للحصول على رابط الملف واسم الملف
+      let fileUrl: string | undefined
+      let originalName: string | undefined
+
       if (typeof report.id === "string") {
         const full: any = await getReportById(report.id);
         const fileObj = (full?.data?.data?.file ??
