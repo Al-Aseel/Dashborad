@@ -1,4 +1,4 @@
-import { api, setAuthToken } from "./api";
+import { api, setAuthToken, clearAuthData } from "./api";
 
 export type Role = "superadmin" | "admin" | "subadmin" | "technical";
 
@@ -77,22 +77,19 @@ export const AuthService = {
       setAuthToken(null);
     } catch {}
 
-    // Clear all client-side storage
+    // Clear all authentication data using utility function
+    clearAuthData();
+
+    // Clear any other localStorage data (not just auth)
     try {
       if (typeof window !== "undefined") {
-        window.localStorage.clear();
-      }
-    } catch {}
-
-    // Expire all cookies (not just auth)
-    try {
-      if (typeof document !== "undefined") {
-        const cookies = document.cookie.split(";");
-        for (const cookie of cookies) {
-          const eqPos = cookie.indexOf("=");
-          const name = (eqPos > -1 ? cookie.substr(0, eqPos) : cookie).trim();
-          document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-        }
+        const keysToKeep = ["theme", "language", "settings"]; // Keep non-auth data
+        const allKeys = Object.keys(window.localStorage);
+        allKeys.forEach((key) => {
+          if (!keysToKeep.includes(key)) {
+            window.localStorage.removeItem(key);
+          }
+        });
       }
     } catch {}
   },

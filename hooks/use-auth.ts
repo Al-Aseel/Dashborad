@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthService, type AuthUser } from "@/lib/auth";
 import { UsersService, type BackendUser } from "@/lib/users";
+import { clearAuthData } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 interface User extends AuthUser {}
@@ -150,9 +151,13 @@ export function useAuth() {
         document.cookie =
           "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
       } catch {}
+
+      // Dispatch logout event for refetch
+      window.dispatchEvent(new CustomEvent("logout"));
+
       router.push("/login");
     }
-  }, []);
+  }, [router]);
 
   // Handle authentication error response
   const handleAuthError = useCallback(() => {
@@ -164,18 +169,15 @@ export function useAuth() {
       },
     };
 
-    // Clear authentication data
-    try {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("userData");
-      localStorage.removeItem("isAuthenticated");
-      document.cookie =
-        "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    } catch {}
+    // Clear authentication data using the utility function
+    clearAuthData();
 
     setUser(null);
     setIsAuthenticated(false);
     isInitialized.current = false;
+
+    // Dispatch logout event for refetch
+    window.dispatchEvent(new CustomEvent("logout"));
 
     return errorResponse;
   }, []);
@@ -197,6 +199,9 @@ export function useAuth() {
       document.cookie =
         "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     } catch {}
+
+    // Dispatch logout event for refetch
+    window.dispatchEvent(new CustomEvent("logout"));
 
     router.push("/login");
   }, [router]);

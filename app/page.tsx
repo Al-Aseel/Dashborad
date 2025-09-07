@@ -48,6 +48,7 @@ import { getDashboardOverview } from "@/lib/overview";
 import { useAuth } from "@/hooks/use-auth";
 import { toBackendUrl } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { useDynamicColor } from "@/hooks/use-dynamic-color";
 import { ProjectForm } from "@/components/projects/project-form";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -61,7 +62,13 @@ import {
 } from "@/components/ui/select";
 import { getReportById, updateReport, deleteReport } from "@/lib/reports";
 import { uploadPdf, deleteFileById } from "@/lib/files";
-import { getPartner, updatePartner, deletePartner, validatePartnerData, transformFormDataToAPI } from "@/lib/partners";
+import {
+  getPartner,
+  updatePartner,
+  deletePartner,
+  validatePartnerData,
+  transformFormDataToAPI,
+} from "@/lib/partners";
 import { buildImageUrl } from "@/lib/config";
 import {
   Dialog,
@@ -133,6 +140,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const { user } = useAuth();
+  const { mainColor, gradientColors, isColorLoading } = useDynamicColor();
 
   // Overview API state
   const [isLoadingOverview, setIsLoadingOverview] = useState(false);
@@ -162,16 +170,27 @@ export default function DashboardPage() {
   const [isReportEditOpen, setIsReportEditOpen] = useState(false);
   const [isReportDeleteOpen, setIsReportDeleteOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
-  const [selectedReportOverview, setSelectedReportOverview] = useState<any>(null);
+  const [selectedReportOverview, setSelectedReportOverview] =
+    useState<any>(null);
   const [reportForm, setReportForm] = useState({
     title: "",
-    type: "media" as "media" | "financial" | "management" | "project" | "statistic",
+    type: "media" as
+      | "media"
+      | "financial"
+      | "management"
+      | "project"
+      | "statistic",
     author: "",
     date: "",
     status: "draft" as "published" | "draft",
     fileId: "",
     file: null as File | null,
-    currentFileMeta: null as null | { url?: string; name?: string; size?: number; id?: string },
+    currentFileMeta: null as null | {
+      url?: string;
+      name?: string;
+      size?: number;
+      id?: string;
+    },
   });
 
   // Helpers for report labels
@@ -210,11 +229,11 @@ export default function DashboardPage() {
         setReportLoading(true);
         const response = await uploadPdf(file);
         const fileId = response.data?.id || response.data?._id;
-        setReportForm(prev => ({
+        setReportForm((prev) => ({
           ...prev,
           file,
           fileId: fileId || "",
-          currentFileMeta: null
+          currentFileMeta: null,
         }));
         toast({ title: "تم رفع الملف بنجاح" });
       } catch (error) {
@@ -223,11 +242,11 @@ export default function DashboardPage() {
         setReportLoading(false);
       }
     } else {
-      setReportForm(prev => ({
+      setReportForm((prev) => ({
         ...prev,
         file: null,
         fileId: "",
-        currentFileMeta: null
+        currentFileMeta: null,
       }));
     }
   };
@@ -237,11 +256,11 @@ export default function DashboardPage() {
       if (reportForm.currentFileMeta?.id) {
         await deleteFileById(reportForm.currentFileMeta.id);
       }
-      setReportForm(prev => ({
+      setReportForm((prev) => ({
         ...prev,
         file: null,
         fileId: "",
-        currentFileMeta: null
+        currentFileMeta: null,
       }));
       toast({ title: "تم حذف الملف" });
     } catch (error) {
@@ -278,13 +297,20 @@ export default function DashboardPage() {
         anchor.href = blobUrl;
         anchor.target = "_blank";
         anchor.rel = "noopener noreferrer";
-        anchor.download = (typeof f === "object" && f.originalName) ? encodeURIComponent(String(f.originalName)) : "report.pdf";
+        anchor.download =
+          typeof f === "object" && f.originalName
+            ? encodeURIComponent(String(f.originalName))
+            : "report.pdf";
         document.body.appendChild(anchor);
         anchor.click();
         document.body.removeChild(anchor);
       }
     } catch {
-      toast({ title: "خطأ", description: "تعذر عرض ملف التقرير", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: "تعذر عرض ملف التقرير",
+        variant: "destructive",
+      });
     }
   };
 
@@ -293,7 +319,8 @@ export default function DashboardPage() {
   const [isPartnerEditOpen, setIsPartnerEditOpen] = useState(false);
   const [isPartnerDeleteOpen, setIsPartnerDeleteOpen] = useState(false);
   const [partnerLoading, setPartnerLoading] = useState(false);
-  const [selectedPartnerOverview, setSelectedPartnerOverview] = useState<any>(null);
+  const [selectedPartnerOverview, setSelectedPartnerOverview] =
+    useState<any>(null);
   const [partnerForm, setPartnerForm] = useState({
     _id: "",
     name_ar: "",
@@ -349,7 +376,6 @@ export default function DashboardPage() {
       return String(value);
     }
   };
-
 
   // دالة لحساب حجم الصورة
   const getImageSize = (imageUrl: string): string => {
@@ -432,7 +458,10 @@ export default function DashboardPage() {
       let errorMessage = "حدث خطأ أثناء تحديث بيانات الشريك";
       if (error.response?.data?.details) {
         // التحقق من نوع details
-        if (typeof error.response.data.details === 'object' && error.response.data.details.msg) {
+        if (
+          typeof error.response.data.details === "object" &&
+          error.response.data.details.msg
+        ) {
           // إذا كان details كائن يحتوي على msg
           errorMessage = error.response.data.details.msg;
         } else if (Array.isArray(error.response.data.details)) {
@@ -473,12 +502,18 @@ export default function DashboardPage() {
       // Convert status from English to Arabic
       const getStatusInArabic = (status: string) => {
         switch (status) {
-          case "active": return "نشط";
-          case "completed": return "مكتمل";
-          case "in_progress": return "قيد التنفيذ";
-          case "paused": return "متوقف";
-          case "scheduled": return "مخطط";
-          default: return status;
+          case "active":
+            return "نشط";
+          case "completed":
+            return "مكتمل";
+          case "in_progress":
+            return "قيد التنفيذ";
+          case "paused":
+            return "متوقف";
+          case "scheduled":
+            return "مخطط";
+          default:
+            return status;
         }
       };
 
@@ -498,12 +533,16 @@ export default function DashboardPage() {
             manager: p.manager || "",
             location: p.location || "",
             details: p.content || "",
-            mainImage: p.coverImage?.url ? toBackendUrl(p.coverImage.url) : undefined,
-            gallery: Array.isArray(p.gallery) ? p.gallery.map((g: any) => ({
-              url: toBackendUrl(g.url || ""),
-              title: g.title || "",
-              fileId: String(g?.id || g?._id || ""),
-            })) : [],
+            mainImage: p.coverImage?.url
+              ? toBackendUrl(p.coverImage.url)
+              : undefined,
+            gallery: Array.isArray(p.gallery)
+              ? p.gallery.map((g: any) => ({
+                  url: toBackendUrl(g.url || ""),
+                  title: g.title || "",
+                  fileId: String(g?.id || g?._id || ""),
+                }))
+              : [],
             objectives: p.goals || [],
             activities: p.activities || [],
             coverFileId: "",
@@ -516,9 +555,17 @@ export default function DashboardPage() {
         ? recent.reports.map((r: any) => ({
             id: r.id,
             title: r.title,
-            type: (r.type === "financial" ? "financial" : r.type === "media" ? "media" : "administrative") as any,
+            type: (r.type === "financial"
+              ? "financial"
+              : r.type === "media"
+              ? "media"
+              : "administrative") as any,
             date: r.createdAt,
-            status: (r.status === "published" ? "published" : r.status === "draft" ? "draft" : "review") as any,
+            status: (r.status === "published"
+              ? "published"
+              : r.status === "draft"
+              ? "draft"
+              : "review") as any,
             author: r.author,
             downloads: 0,
             size: r.file?.fileName || "",
@@ -532,7 +579,11 @@ export default function DashboardPage() {
             id: p.id,
             name: p.name_ar,
             nameEn: p.name_en,
-            type: (p.type === "org" ? "organization" : p.type === "firm" ? "company" : "individual") as any,
+            type: (p.type === "org"
+              ? "organization"
+              : p.type === "firm"
+              ? "company"
+              : "individual") as any,
             status: (p.status === "active" ? "active" : "inactive") as any,
             joinDate: p.join_date,
             contribution: "",
@@ -559,35 +610,38 @@ export default function DashboardPage() {
     loadOverview();
   }, [loadOverview]);
 
-
-
   // reports and partners now come from API
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       active: {
         variant: "default" as const,
-        color: "bg-green-100 text-green-800",
+        color: mainColor,
+        bgColor: `${mainColor}15`,
         label: "نشط",
       },
       inactive: {
         variant: "secondary" as const,
-        color: "bg-gray-100 text-gray-800",
+        color: "#6B7280",
+        bgColor: "#F3F4F6",
         label: "غير نشط",
       },
       completed: {
         variant: "secondary" as const,
-        color: "bg-blue-100 text-blue-800",
+        color: "#3B82F6",
+        bgColor: "#DBEAFE",
         label: "مكتمل",
       },
       pending: {
         variant: "outline" as const,
-        color: "bg-yellow-100 text-yellow-800",
+        color: "#F59E0B",
+        bgColor: "#FEF3C7",
         label: "قيد الانتظار",
       },
       cancelled: {
         variant: "destructive" as const,
-        color: "bg-red-100 text-red-800",
+        color: "#EF4444",
+        bgColor: "#FEE2E2",
         label: "ملغي",
       },
     };
@@ -596,7 +650,14 @@ export default function DashboardPage() {
       statusConfig[status as keyof typeof statusConfig] || statusConfig.active;
 
     return (
-      <Badge variant={config.variant} className={config.color}>
+      <Badge
+        variant={config.variant}
+        style={{
+          backgroundColor: config.bgColor,
+          color: config.color,
+          borderColor: config.color,
+        }}
+      >
         {config.label}
       </Badge>
     );
@@ -608,19 +669,25 @@ export default function DashboardPage() {
     try {
       const res = await ProgramsApi.getProgramById(project.id);
       const apiData = (res as any).data;
-      
+
       // Convert status from English to Arabic
       const getStatusInArabic = (status: string) => {
         switch (status) {
-          case "active": return "نشط";
-          case "completed": return "مكتمل";
-          case "in_progress": return "قيد التنفيذ";
-          case "paused": return "متوقف";
-          case "scheduled": return "مخطط";
-          default: return status;
+          case "active":
+            return "نشط";
+          case "completed":
+            return "مكتمل";
+          case "in_progress":
+            return "قيد التنفيذ";
+          case "paused":
+            return "متوقف";
+          case "scheduled":
+            return "مخطط";
+          default:
+            return status;
         }
       };
-      
+
       const detailed = {
         ...project,
         title: apiData?.name || project.title,
@@ -628,18 +695,24 @@ export default function DashboardPage() {
         manager: apiData?.manager || project.manager,
         location: apiData?.location || project.location,
         budget: String(apiData?.budget || project.budget),
-        beneficiaries: String(apiData?.numberOfBeneficiary || project.beneficiaries),
+        beneficiaries: String(
+          apiData?.numberOfBeneficiary || project.beneficiaries
+        ),
         status: getStatusInArabic(apiData?.status || project.status),
         category: apiData?.category?.name || project.category,
         startDate: apiData?.startDate || project.startDate,
         endDate: apiData?.endDate || project.endDate,
         details: apiData?.content || project.details,
-        mainImage: apiData?.coverImage ? toBackendUrl(apiData.coverImage.url || apiData.coverImage) : project.mainImage,
-        gallery: Array.isArray(apiData?.gallery) ? apiData.gallery.map((g: any) => ({
-          url: toBackendUrl(g.url || ""),
-          title: g.title || "",
-          fileId: String(g?.id || g?._id || ""),
-        })) : project.gallery || [],
+        mainImage: apiData?.coverImage
+          ? toBackendUrl(apiData.coverImage.url || apiData.coverImage)
+          : project.mainImage,
+        gallery: Array.isArray(apiData?.gallery)
+          ? apiData.gallery.map((g: any) => ({
+              url: toBackendUrl(g.url || ""),
+              title: g.title || "",
+              fileId: String(g?.id || g?._id || ""),
+            }))
+          : project.gallery || [],
         objectives: apiData?.goals || project.objectives || [],
         activities: apiData?.activities || project.activities || [],
       };
@@ -663,7 +736,7 @@ export default function DashboardPage() {
     try {
       const res = await ProgramsApi.getProgramById(project.id);
       const p: any = (res as any).data;
-      
+
       // Map the data properly based on the actual API response structure for ProjectForm
       const initial = {
         name: p.name || "",
@@ -673,8 +746,8 @@ export default function DashboardPage() {
         budget: String(p.budget ?? ""),
         beneficiaries: String(p.numberOfBeneficiary ?? ""),
         manager: p.manager || "",
-        startDate: p.startDate ? p.startDate.split('T')[0] : "", // Convert ISO date to YYYY-MM-DD
-        endDate: p.endDate ? p.endDate.split('T')[0] : "", // Convert ISO date to YYYY-MM-DD
+        startDate: p.startDate ? p.startDate.split("T")[0] : "", // Convert ISO date to YYYY-MM-DD
+        endDate: p.endDate ? p.endDate.split("T")[0] : "", // Convert ISO date to YYYY-MM-DD
         status:
           p.status === "active"
             ? "نشط"
@@ -701,7 +774,7 @@ export default function DashboardPage() {
         coverFileId: String(p?.coverImage?._id || ""), // Use coverImage._id directly
         _id: String(p._id || project.id),
       };
-      
+
       setEditingProjectInitial(initial);
     } catch (error) {
       console.error("Error loading project for editing:", error);
@@ -722,20 +795,20 @@ export default function DashboardPage() {
 
   const confirmDelete = async () => {
     if (!selectedProject) return;
-    
+
     setDeletingId(selectedProject.id);
     try {
       await ProgramsApi.deleteProgram(selectedProject.id);
-      
+
       // Remove from local state
-      setProjects(projects.filter(p => p.id !== selectedProject.id));
-      
+      setProjects(projects.filter((p) => p.id !== selectedProject.id));
+
       toast({
         title: "تم حذف المشروع بنجاح",
         description: `تم حذف مشروع "${selectedProject.title}" بنجاح`,
         variant: "default",
       });
-      
+
       setIsDeleteDialogOpen(false);
       setSelectedProject(null);
     } catch (error) {
@@ -752,7 +825,7 @@ export default function DashboardPage() {
 
   const handleUpdateProject = async (values: any) => {
     if (!editingProjectInitial?._id) return;
-    
+
     setIsEditLoading(true);
     try {
       // Map status back to API format
@@ -808,14 +881,17 @@ export default function DashboardPage() {
         if (galleryItems.length) (payload as any).gallery = galleryItems;
       }
 
-      await ProgramsApi.updateProgram(editingProjectInitial._id, payload as any);
-      
+      await ProgramsApi.updateProgram(
+        editingProjectInitial._id,
+        payload as any
+      );
+
       // Refresh overview data to reflect updates
       await loadOverview();
-      
+
       setIsEditDialogOpen(false);
       setEditingProjectInitial(null);
-      
+
       toast({
         title: "تم تحديث المشروع بنجاح",
         description: `تم تحديث مشروع "${values.name}" بنجاح`,
@@ -857,52 +933,49 @@ export default function DashboardPage() {
       title: "إجمالي المشاريع",
       value: generalStats.totalProjects.toString(),
       icon: Heart,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: mainColor,
+      bgColor: `${mainColor}15`,
     },
     {
       title: "المشاريع النشطة",
       value: generalStats.totalActiveProjects.toString(),
       icon: Target,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: mainColor,
+      bgColor: `${mainColor}15`,
     },
     {
       title: "المشاريع المكتملة",
       value: generalStats.totalInactiveProjects.toString(),
       icon: Award,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: mainColor,
+      bgColor: `${mainColor}15`,
     },
     {
       title: "إجمالي المستفيدين",
       value: generalStats.totalBeneficiaries.toLocaleString(),
       icon: Users,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: mainColor,
+      bgColor: `${mainColor}15`,
     },
     {
       title: "التقارير الشهرية",
       value: generalStats.totalReports.toString(),
       icon: FileText,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: mainColor,
+      bgColor: `${mainColor}15`,
     },
     {
       title: "الشركاء النشطون",
       value: generalStats.totalActivePartners.toString(),
       icon: Briefcase,
-      color: "text-primary",
-      bgColor: "bg-primary/10",
+      color: mainColor,
+      bgColor: `${mainColor}15`,
     },
   ];
 
   return (
     <ProtectedRoute>
-      <DashboardLayout
-        title="لوحة التحكم الرئيسية"
-        description="نظرة عامة على أنشطة ومشاريع الجمعية"
-      >
+      <DashboardLayout title="" description="">
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -923,17 +996,28 @@ export default function DashboardPage() {
               <Card
                 key={index}
                 className="hover:shadow-lg transition-all duration-200 cursor-pointer border-0 shadow-sm"
+                style={{
+                  background: `linear-gradient(135deg, ${gradientColors.from}08 0%, ${gradientColors.to}08 100%)`,
+                  border: `1px solid ${mainColor}20`,
+                }}
               >
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-muted-foreground mb-2">{stat.title}</p>
+                      <p className="text-sm font-medium text-muted-foreground mb-2">
+                        {stat.title}
+                      </p>
                       <p className="text-3xl font-bold text-foreground">
                         {stat.value}
                       </p>
                     </div>
                     <div
-                      className={`p-3 rounded-full ${stat.bgColor} ${stat.color} flex-shrink-0`}
+                      className="p-3 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: stat.bgColor,
+                        color: stat.color,
+                        boxShadow: `0 4px 12px ${stat.color}30`,
+                      }}
                     >
                       <stat.icon className="w-6 h-6" />
                     </div>
@@ -944,16 +1028,28 @@ export default function DashboardPage() {
           </div>
 
           {/* Quick Actions */}
-          <Card className="border-0 shadow-sm">
+          <Card
+            className="border-0 shadow-sm"
+            style={{
+              background: `linear-gradient(135deg, ${gradientColors.from}05 0%, ${gradientColors.to}05 100%)`,
+              border: `1px solid ${mainColor}15`,
+            }}
+          >
             <CardHeader className="pb-4">
               <CardTitle className="text-xl font-bold">إجراءات سريعة</CardTitle>
-              <CardDescription className="text-muted-foreground">الإجراءات الأكثر استخداماً</CardDescription>
+              <CardDescription className="text-muted-foreground">
+                الإجراءات الأكثر استخداماً
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Button
                   onClick={() => handleQuickAction("add-project")}
-                  className="h-20 flex-col gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
+                  className="h-20 flex-col gap-2 text-white shadow-lg transition-all duration-200 hover:shadow-xl"
+                  style={{
+                    background: `linear-gradient(135deg, ${gradientColors.from} 0%, ${gradientColors.to} 100%)`,
+                    boxShadow: `0 4px 15px ${mainColor}40`,
+                  }}
                 >
                   <Plus className="w-6 h-6" />
                   <span>إضافة مشروع</span>
@@ -961,26 +1057,56 @@ export default function DashboardPage() {
                 <Button
                   onClick={() => handleQuickAction("add-report")}
                   variant="outline"
-                  className="h-20 flex-col gap-2 border-2 hover:border-primary hover:bg-primary/5 transition-all duration-200"
+                  className="h-20 flex-col gap-2 border-2 transition-all duration-200 hover:shadow-lg"
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
-                  <FileText className="w-6 h-6 text-primary" />
-                  <span className="text-primary font-medium">إضافة تقرير</span>
+                  <FileText className="w-6 h-6" />
+                  <span className="font-medium">إضافة تقرير</span>
                 </Button>
                 <Button
                   onClick={() => handleQuickAction("add-partner")}
                   variant="outline"
-                  className="h-20 flex-col gap-2 border-2 hover:border-primary hover:bg-primary/5 transition-all duration-200"
+                  className="h-20 flex-col gap-2 border-2 transition-all duration-200 hover:shadow-lg"
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
-                  <UserPlus className="w-6 h-6 text-primary" />
-                  <span className="text-primary font-medium">إضافة شريك</span>
+                  <UserPlus className="w-6 h-6" />
+                  <span className="font-medium">إضافة شريك</span>
                 </Button>
                 <Button
                   onClick={() => handleQuickAction("add-user")}
                   variant="outline"
-                  className="h-20 flex-col gap-2 border-2 hover:border-primary hover:bg-primary/5 transition-all duration-200"
+                  className="h-20 flex-col gap-2 border-2 transition-all duration-200 hover:shadow-lg"
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                 >
-                  <Users className="w-6 h-6 text-primary" />
-                  <span className="text-primary font-medium">إضافة مستخدم</span>
+                  <Users className="w-6 h-6" />
+                  <span className="font-medium">إضافة مستخدم</span>
                 </Button>
               </div>
             </CardContent>
@@ -995,7 +1121,18 @@ export default function DashboardPage() {
               </div>
               <Button
                 variant="outline"
-                onClick={() => router.push("/projects")}>
+                onClick={() => router.push("/projects")}
+                style={{
+                  borderColor: mainColor,
+                  color: mainColor,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
                 عرض الكل
               </Button>
             </CardHeader>
@@ -1005,6 +1142,10 @@ export default function DashboardPage() {
                   <div
                     key={project.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                    style={{
+                      borderColor: `${mainColor}20`,
+                      background: `linear-gradient(135deg, ${gradientColors.from}03 0%, ${gradientColors.to}03 100%)`,
+                    }}
                   >
                     <div className="flex-1">
                       <h4 className="font-medium text-gray-900">
@@ -1018,7 +1159,7 @@ export default function DashboardPage() {
                           {project.beneficiaries} مستفيد
                         </span>
                         <span className="text-sm text-gray-600">
-                          {project.budget}   دولار 
+                          {project.budget} دولار
                         </span>
                         {getStatusBadge(project.status)}
                       </div>
@@ -1065,7 +1206,20 @@ export default function DashboardPage() {
                   <CardTitle>التقارير الحديثة</CardTitle>
                   <CardDescription>آخر التقارير المنشورة</CardDescription>
                 </div>
-                <Button variant="outline" onClick={() => router.push("/reports")}>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/reports")}
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
                   عرض الكل
                 </Button>
               </CardHeader>
@@ -1075,9 +1229,15 @@ export default function DashboardPage() {
                     <div
                       key={report.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                      style={{
+                        borderColor: `${mainColor}20`,
+                        background: `linear-gradient(135deg, ${gradientColors.from}03 0%, ${gradientColors.to}03 100%)`,
+                      }}
                     >
                       <div className="flex-1">
-                        <h5 className="font-medium text-gray-900">{report.title}</h5>
+                        <h5 className="font-medium text-gray-900">
+                          {report.title}
+                        </h5>
                         <p className="text-sm text-gray-500 mt-1">
                           {report.author} • {formatDate(report.date)}
                         </p>
@@ -1090,6 +1250,20 @@ export default function DashboardPage() {
                               : "outline"
                           }
                           className="text-xs"
+                          style={{
+                            backgroundColor:
+                              report.status === "published"
+                                ? `${mainColor}15`
+                                : "transparent",
+                            color:
+                              report.status === "published"
+                                ? mainColor
+                                : "#6B7280",
+                            borderColor:
+                              report.status === "published"
+                                ? mainColor
+                                : "#D1D5DB",
+                          }}
                         >
                           {report.status === "published"
                             ? "منشور"
@@ -1104,65 +1278,84 @@ export default function DashboardPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem onClick={async () => {
-                              setReportLoading(true);
-                              try {
-                                const res = await getReportById(String(report.id));
-                                const d: any = res.data;
-                                setSelectedReportOverview({
-                                  id: d._id,
-                                  title: d.title,
-                                  type: d.type,
-                                  author: d.author,
-                                  date: d.createdAt,
-                                  status: d.status,
-                                  file: d.file,
-                                });
-                                setIsReportViewOpen(true);
-                              } catch (e) {
-                                toast({ title: "تعذر تحميل التقرير", variant: "destructive" });
-                              } finally {
-                                setReportLoading(false);
-                              }
-                            }}>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                setReportLoading(true);
+                                try {
+                                  const res = await getReportById(
+                                    String(report.id)
+                                  );
+                                  const d: any = res.data;
+                                  setSelectedReportOverview({
+                                    id: d._id,
+                                    title: d.title,
+                                    type: d.type,
+                                    author: d.author,
+                                    date: d.createdAt,
+                                    status: d.status,
+                                    file: d.file,
+                                  });
+                                  setIsReportViewOpen(true);
+                                } catch (e) {
+                                  toast({
+                                    title: "تعذر تحميل التقرير",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setReportLoading(false);
+                                }
+                              }}
+                            >
                               <Eye className="w-4 h-4 mr-2" />
                               عرض
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={async () => {
-                              setReportLoading(true);
-                              try {
-                                const res = await getReportById(String(report.id));
-                                const d: any = res.data;
-                                setReportForm({
-                                  title: d.title || "",
-                                  type: (d.type as any) || "media",
-                                  author: d.author || "",
-                                  date: (d.createdAt || "").split("T")[0],
-                                  status: (d.status as any) || "draft",
-                                  fileId: (d?.file as any)?.id || "",
-                                  file: null,
-                                  currentFileMeta: d?.file ? {
-                                    url: d.file.url,
-                                    name: d.file.name || d.file.fileName,
-                                    size: d.file.size,
-                                    id: d.file.id || d.file._id
-                                  } : null,
-                                });
-                                setSelectedReportOverview({ id: d._id });
-                                setIsReportEditOpen(true);
-                              } catch (e) {
-                                toast({ title: "تعذر تحميل التقرير للتحرير", variant: "destructive" });
-                              } finally {
-                                setReportLoading(false);
-                              }
-                            }}>
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                setReportLoading(true);
+                                try {
+                                  const res = await getReportById(
+                                    String(report.id)
+                                  );
+                                  const d: any = res.data;
+                                  setReportForm({
+                                    title: d.title || "",
+                                    type: (d.type as any) || "media",
+                                    author: d.author || "",
+                                    date: (d.createdAt || "").split("T")[0],
+                                    status: (d.status as any) || "draft",
+                                    fileId: (d?.file as any)?.id || "",
+                                    file: null,
+                                    currentFileMeta: d?.file
+                                      ? {
+                                          url: d.file.url,
+                                          name: d.file.name || d.file.fileName,
+                                          size: d.file.size,
+                                          id: d.file.id || d.file._id,
+                                        }
+                                      : null,
+                                  });
+                                  setSelectedReportOverview({ id: d._id });
+                                  setIsReportEditOpen(true);
+                                } catch (e) {
+                                  toast({
+                                    title: "تعذر تحميل التقرير للتحرير",
+                                    variant: "destructive",
+                                  });
+                                } finally {
+                                  setReportLoading(false);
+                                }
+                              }}
+                            >
                               <Edit className="w-4 h-4 mr-2" />
                               تعديل
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedReportOverview({ id: report.id });
-                              setIsReportDeleteOpen(true);
-                            }} className="text-red-600 focus:text-red-700">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedReportOverview({ id: report.id });
+                                setIsReportDeleteOpen(true);
+                              }}
+                              className="text-red-600 focus:text-red-700"
+                            >
                               <Trash2 className="w-4 h-4 mr-2" />
                               حذف
                             </DropdownMenuItem>
@@ -1180,9 +1373,24 @@ export default function DashboardPage() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>الشركاء النشطون</CardTitle>
-                  <CardDescription>الشركاء المساهمون في المشاريع</CardDescription>
+                  <CardDescription>
+                    الشركاء المساهمون في المشاريع
+                  </CardDescription>
                 </div>
-                <Button variant="outline" onClick={() => router.push("/partners")}>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/partners")}
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
                   عرض الكل
                 </Button>
               </CardHeader>
@@ -1195,19 +1403,29 @@ export default function DashboardPage() {
                       <div
                         key={partner.id}
                         className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                        style={{
+                          borderColor: `${mainColor}20`,
+                          background: `linear-gradient(135deg, ${gradientColors.from}03 0%, ${gradientColors.to}03 100%)`,
+                        }}
                       >
                         <div className="flex-1">
                           <h5 className="font-medium text-gray-900">
                             {partner.name}
                           </h5>
                           <p className="text-sm text-gray-500 mt-1">
-                            {partner.nameEn || "غير محدد"} • {partner.projects} مشاريع
+                            {partner.nameEn || "غير محدد"} • {partner.projects}{" "}
+                            مشاريع
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="default"
-                            className="text-xs bg-green-100 text-green-800"
+                            className="text-xs"
+                            style={{
+                              backgroundColor: `${mainColor}15`,
+                              color: mainColor,
+                              borderColor: mainColor,
+                            }}
                           >
                             نشط
                           </Badge>
@@ -1218,53 +1436,77 @@ export default function DashboardPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuItem onClick={async () => {
-                                setPartnerLoading(true);
-                                try {
-                                  const res = await getPartner(String((partner as any).id || partner.id));
-                                  const d: any = res.data;
-                                  setSelectedPartnerOverview(d);
-                                  setIsPartnerViewOpen(true);
-                                } catch (e) {
-                                  toast({ title: "تعذر تحميل بيانات الشريك", variant: "destructive" });
-                                } finally {
-                                  setPartnerLoading(false);
-                                }
-                              }}>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  setPartnerLoading(true);
+                                  try {
+                                    const res = await getPartner(
+                                      String((partner as any).id || partner.id)
+                                    );
+                                    const d: any = res.data;
+                                    setSelectedPartnerOverview(d);
+                                    setIsPartnerViewOpen(true);
+                                  } catch (e) {
+                                    toast({
+                                      title: "تعذر تحميل بيانات الشريك",
+                                      variant: "destructive",
+                                    });
+                                  } finally {
+                                    setPartnerLoading(false);
+                                  }
+                                }}
+                              >
                                 <Eye className="w-4 h-4 mr-2" />
                                 عرض
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={async () => {
-                                setPartnerLoading(true);
-                                try {
-                                  const res = await getPartner(String((partner as any).id || partner.id));
-                                  const d: any = res.data;
-                                  setPartnerForm({
-                                    _id: d._id,
-                                    name_ar: d.name_ar || "",
-                                    name_en: d.name_en || "",
-                                    email: d.email || "",
-                                    type: d.type || "org",
-                                    website: d.website || "",
-                                    status: d.status || "active",
-                                    join_date: (d.join_date || "").split("T")[0],
-                                    logo: buildImageUrl(d.logo?.url || "") || "",
-                                    logoFileId: d.logo?._id || "",
-                                  });
-                                  setIsPartnerEditOpen(true);
-                                } catch (e) {
-                                  toast({ title: "تعذر تحميل الشريك للتحرير", variant: "destructive" });
-                                } finally {
-                                  setPartnerLoading(false);
-                                }
-                              }}>
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  setPartnerLoading(true);
+                                  try {
+                                    const res = await getPartner(
+                                      String((partner as any).id || partner.id)
+                                    );
+                                    const d: any = res.data;
+                                    setPartnerForm({
+                                      _id: d._id,
+                                      name_ar: d.name_ar || "",
+                                      name_en: d.name_en || "",
+                                      email: d.email || "",
+                                      type: d.type || "org",
+                                      website: d.website || "",
+                                      status: d.status || "active",
+                                      join_date: (d.join_date || "").split(
+                                        "T"
+                                      )[0],
+                                      logo:
+                                        buildImageUrl(d.logo?.url || "") || "",
+                                      logoFileId: d.logo?._id || "",
+                                    });
+                                    setIsPartnerEditOpen(true);
+                                  } catch (e) {
+                                    toast({
+                                      title: "تعذر تحميل الشريك للتحرير",
+                                      variant: "destructive",
+                                    });
+                                  } finally {
+                                    setPartnerLoading(false);
+                                  }
+                                }}
+                              >
                                 <Edit className="w-4 h-4 mr-2" />
                                 تعديل
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => {
-                                setSelectedPartnerOverview({ _id: (partner as any)._id || (partner as any).id });
-                                setIsPartnerDeleteOpen(true);
-                              }} className="text-red-600 focus:text-red-700">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedPartnerOverview({
+                                    _id:
+                                      (partner as any)._id ||
+                                      (partner as any).id,
+                                  });
+                                  setIsPartnerDeleteOpen(true);
+                                }}
+                                className="text-red-600 focus:text-red-700"
+                              >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 حذف
                               </DropdownMenuItem>
@@ -1385,37 +1627,39 @@ export default function DashboardPage() {
                   <p className="text-gray-700">{selectedProject.description}</p>
                 </div>
 
-                {selectedProject.objectives && selectedProject.objectives.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      الأهداف
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProject.objectives.map((objective, index) => (
-                        <Badge key={index} variant="secondary">
-                          {objective}
-                        </Badge>
-                      ))}
+                {selectedProject.objectives &&
+                  selectedProject.objectives.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <Target className="w-4 h-4" />
+                        الأهداف
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProject.objectives.map((objective, index) => (
+                          <Badge key={index} variant="secondary">
+                            {objective}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {selectedProject.activities && selectedProject.activities.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <Activity className="w-4 h-4" />
-                      الأنشطة الرئيسية
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProject.activities.map((activity, index) => (
-                        <Badge key={index} variant="outline">
-                          {activity}
-                        </Badge>
-                      ))}
+                {selectedProject.activities &&
+                  selectedProject.activities.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <Activity className="w-4 h-4" />
+                        الأنشطة الرئيسية
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedProject.activities.map((activity, index) => (
+                          <Badge key={index} variant="outline">
+                            {activity}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {selectedProject.details && (
                   <div>
@@ -1432,26 +1676,31 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                {selectedProject.gallery && selectedProject.gallery.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-4">
-                      معرض الصور الإضافي
-                    </h4>
-                    <ImageGallery
-                      images={selectedProject.gallery.map((img: any) => img.url)}
-                      title={selectedProject.title}
-                    />
-                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {selectedProject.gallery.map((img: any, index: number) => (
-                        <div key={index} className="text-center">
-                          <p className="text-sm text-gray-600 mt-2">
-                            {img.title}
-                          </p>
-                        </div>
-                      ))}
+                {selectedProject.gallery &&
+                  selectedProject.gallery.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-4">
+                        معرض الصور الإضافي
+                      </h4>
+                      <ImageGallery
+                        images={selectedProject.gallery.map(
+                          (img: any) => img.url
+                        )}
+                        title={selectedProject.title}
+                      />
+                      <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {selectedProject.gallery.map(
+                          (img: any, index: number) => (
+                            <div key={index} className="text-center">
+                              <p className="text-sm text-gray-600 mt-2">
+                                {img.title}
+                              </p>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             )}
             <DialogFooter>
@@ -1473,49 +1722,82 @@ export default function DashboardPage() {
             </DialogHeader>
 
             {reportLoading ? (
-              <div className="text-gray-600 flex items-center"><Loader2 className="w-4 h-4 ml-2 animate-spin"/>جاري التحميل...</div>
+              <div className="text-gray-600 flex items-center">
+                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                جاري التحميل...
+              </div>
             ) : selectedReportOverview ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600">عنوان التقرير</Label>
-                    <p className="text-lg font-semibold">{selectedReportOverview.title}</p>
+                    <Label className="text-sm font-medium text-gray-600">
+                      عنوان التقرير
+                    </Label>
+                    <p className="text-lg font-semibold">
+                      {selectedReportOverview.title}
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600">نوع التقرير</Label>
-                    <p className="text-lg">{mapReportTypeToArabic(selectedReportOverview.type)}</p>
+                    <Label className="text-sm font-medium text-gray-600">
+                      نوع التقرير
+                    </Label>
+                    <p className="text-lg">
+                      {mapReportTypeToArabic(selectedReportOverview.type)}
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600">المؤلف</Label>
+                    <Label className="text-sm font-medium text-gray-600">
+                      المؤلف
+                    </Label>
                     <p className="text-lg">{selectedReportOverview.author}</p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600">التاريخ</Label>
-                    <p className="text-lg">{String(selectedReportOverview.date).slice(0,10)}</p>
+                    <Label className="text-sm font-medium text-gray-600">
+                      التاريخ
+                    </Label>
+                    <p className="text-lg">
+                      {String(selectedReportOverview.date).slice(0, 10)}
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600">الحالة</Label>
-                    <Badge className="bg-green-100 text-green-800">{mapReportStatusToArabic(selectedReportOverview.status)}</Badge>
+                    <Label className="text-sm font-medium text-gray-600">
+                      الحالة
+                    </Label>
+                    <Badge className="bg-green-100 text-green-800">
+                      {mapReportStatusToArabic(selectedReportOverview.status)}
+                    </Badge>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-600">حجم الملف</Label>
-                    <p className="text-lg">{
-                      (()=>{
-                        const f:any = selectedReportOverview.file || {};
-                        const size = typeof f === "object" ? f?.size : undefined;
+                    <Label className="text-sm font-medium text-gray-600">
+                      حجم الملف
+                    </Label>
+                    <p className="text-lg">
+                      {(() => {
+                        const f: any = selectedReportOverview.file || {};
+                        const size =
+                          typeof f === "object" ? f?.size : undefined;
                         if (!size && size !== 0) return "";
                         const mb = (Number(size) / (1024 * 1024)).toFixed(1);
                         return `${mb} MB`;
-                      })()
-                    }</p>
+                      })()}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsReportViewOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsReportViewOpen(false)}
+                  >
                     إغلاق
                   </Button>
-                  <Button onClick={handleReportDownload}>
+                  <Button
+                    onClick={handleReportDownload}
+                    style={{
+                      background: `linear-gradient(135deg, ${gradientColors.from} 0%, ${gradientColors.to} 100%)`,
+                      boxShadow: `0 4px 15px ${mainColor}40`,
+                    }}
+                  >
                     <Download className="w-4 h-4 ml-1" />
                     تحميل التقرير
                   </Button>
@@ -1534,12 +1816,25 @@ export default function DashboardPage() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>العنوان</Label>
-                <Input value={reportForm.title} onChange={(e)=>setReportForm((p)=>({...p,title:e.target.value}))} className="text-right"/>
+                <Input
+                  value={reportForm.title}
+                  onChange={(e) =>
+                    setReportForm((p) => ({ ...p, title: e.target.value }))
+                  }
+                  className="text-right"
+                />
               </div>
               <div className="space-y-2">
                 <Label>النوع</Label>
-                <Select value={reportForm.type} onValueChange={(v)=>setReportForm((p)=>({...p,type:v as any}))}>
-                  <SelectTrigger className="text-right"><SelectValue/></SelectTrigger>
+                <Select
+                  value={reportForm.type}
+                  onValueChange={(v) =>
+                    setReportForm((p) => ({ ...p, type: v as any }))
+                  }
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="media">تقرير إعلامي</SelectItem>
                     <SelectItem value="financial">تقرير مالي</SelectItem>
@@ -1551,8 +1846,15 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 <Label>الحالة</Label>
-                <Select value={reportForm.status} onValueChange={(v)=>setReportForm((p)=>({...p,status:v as any}))}>
-                  <SelectTrigger className="text-right"><SelectValue/></SelectTrigger>
+                <Select
+                  value={reportForm.status}
+                  onValueChange={(v) =>
+                    setReportForm((p) => ({ ...p, status: v as any }))
+                  }
+                >
+                  <SelectTrigger className="text-right">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="published">منشور</SelectItem>
                     <SelectItem value="draft">مسودة</SelectItem>
@@ -1561,9 +1863,15 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 <Label>التاريخ</Label>
-                <Input type="date" value={reportForm.date} onChange={(e)=>setReportForm((p)=>({...p,date:e.target.value}))}/>
+                <Input
+                  type="date"
+                  value={reportForm.date}
+                  onChange={(e) =>
+                    setReportForm((p) => ({ ...p, date: e.target.value }))
+                  }
+                />
               </div>
-              
+
               <div className="border-t pt-6">
                 <PdfUpload
                   onFileChange={handleReportPdfChange}
@@ -1574,29 +1882,50 @@ export default function DashboardPage() {
                   label="ملف التقرير (PDF)"
                 />
               </div>
-              
+
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={()=>setIsReportEditOpen(false)} disabled={reportLoading}>إلغاء</Button>
-                <Button onClick={async ()=>{
-                  if(!selectedReportOverview?.id) return;
-                  setReportLoading(true);
-                  try {
-                    const payload:any = {
-                      title: reportForm.title,
-                      type: reportForm.type,
-                      author: reportForm.author,
-                      createdAt: reportForm.date,
-                      status: reportForm.status,
-                      file: reportForm.fileId || "",
-                    };
-                    await updateReport(String(selectedReportOverview.id), payload);
-                    await loadOverview();
-                    setIsReportEditOpen(false);
-                    toast({title:"تم التحديث"});
-                  } catch(e){
-                    toast({title:"فشل تحديث التقرير",variant:"destructive"});
-                  } finally { setReportLoading(false);} 
-                }} disabled={reportLoading}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsReportEditOpen(false)}
+                  disabled={reportLoading}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!selectedReportOverview?.id) return;
+                    setReportLoading(true);
+                    try {
+                      const payload: any = {
+                        title: reportForm.title,
+                        type: reportForm.type,
+                        author: reportForm.author,
+                        createdAt: reportForm.date,
+                        status: reportForm.status,
+                        file: reportForm.fileId || "",
+                      };
+                      await updateReport(
+                        String(selectedReportOverview.id),
+                        payload
+                      );
+                      await loadOverview();
+                      setIsReportEditOpen(false);
+                      toast({ title: "تم التحديث" });
+                    } catch (e) {
+                      toast({
+                        title: "فشل تحديث التقرير",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setReportLoading(false);
+                    }
+                  }}
+                  disabled={reportLoading}
+                  style={{
+                    background: `linear-gradient(135deg, ${gradientColors.from} 0%, ${gradientColors.to} 100%)`,
+                    boxShadow: `0 4px 15px ${mainColor}40`,
+                  }}
+                >
                   {reportLoading ? "جاري التحديث..." : "تحديث التقرير"}
                 </Button>
               </div>
@@ -1605,28 +1934,41 @@ export default function DashboardPage() {
         </Dialog>
 
         {/* Report Delete Dialog */}
-        <AlertDialog open={isReportDeleteOpen} onOpenChange={setIsReportDeleteOpen}>
+        <AlertDialog
+          open={isReportDeleteOpen}
+          onOpenChange={setIsReportDeleteOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>تأكيد حذف التقرير</AlertDialogTitle>
-              <AlertDialogDescription>لا يمكن التراجع عن هذا الإجراء</AlertDialogDescription>
+              <AlertDialogDescription>
+                لا يمكن التراجع عن هذا الإجراء
+              </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              <AlertDialogAction onClick={async()=>{
-                if(!selectedReportOverview?.id) return;
-                setReportLoading(true);
-                try{
-                  await deleteReport(String(selectedReportOverview.id));
-                  await loadOverview();
-                  toast({title:"تم حذف التقرير"});
-                }catch(e){
-                  toast({title:"فشل حذف التقرير",variant:"destructive"});
-                }finally{
-                  setReportLoading(false);
-                  setIsReportDeleteOpen(false);
-                }
-              }} className="bg-red-600 hover:bg-red-700">حذف</AlertDialogAction>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!selectedReportOverview?.id) return;
+                  setReportLoading(true);
+                  try {
+                    await deleteReport(String(selectedReportOverview.id));
+                    await loadOverview();
+                    toast({ title: "تم حذف التقرير" });
+                  } catch (e) {
+                    toast({ title: "فشل حذف التقرير", variant: "destructive" });
+                  } finally {
+                    setReportLoading(false);
+                    setIsReportDeleteOpen(false);
+                  }
+                }}
+                style={{
+                  background: `linear-gradient(135deg, #EF4444 0%, #DC2626 100%)`,
+                  boxShadow: `0 4px 15px #EF444440`,
+                }}
+              >
+                حذف
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -1640,7 +1982,7 @@ export default function DashboardPage() {
                 تفاصيل الشريك
               </DialogTitle>
             </DialogHeader>
-            
+
             {partnerLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="flex flex-col items-center gap-3">
@@ -1654,60 +1996,77 @@ export default function DashboardPage() {
                 <div className="flex flex-col sm:flex-row items-start gap-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
                   <div className="relative">
                     <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden border-4 border-white">
-                      {selectedPartnerOverview.logo?.url && selectedPartnerOverview.logo.url !== "" ? (
+                      {selectedPartnerOverview.logo?.url &&
+                      selectedPartnerOverview.logo.url !== "" ? (
                         <img
                           src={
                             buildImageUrl(selectedPartnerOverview.logo.url) ||
                             "/placeholder.svg"
                           }
-                          alt={selectedPartnerOverview.name_ar && selectedPartnerOverview.name_ar !== "" ? selectedPartnerOverview.name_ar : "صورة الشريك"}
+                          alt={
+                            selectedPartnerOverview.name_ar &&
+                            selectedPartnerOverview.name_ar !== ""
+                              ? selectedPartnerOverview.name_ar
+                              : "صورة الشريك"
+                          }
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <Building className="w-12 h-12 text-gray-400" />
                       )}
                     </div>
-                    {selectedPartnerOverview.logo?.url && selectedPartnerOverview.logo.url !== "" && (
-                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded-full text-xs text-gray-500 shadow-sm border">
-                        {getImageSize(selectedPartnerOverview.logo.url)}
-                      </div>
-                    )}
+                    {selectedPartnerOverview.logo?.url &&
+                      selectedPartnerOverview.logo.url !== "" && (
+                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded-full text-xs text-gray-500 shadow-sm border">
+                          {getImageSize(selectedPartnerOverview.logo.url)}
+                        </div>
+                      )}
                   </div>
-                  
+
                   <div className="flex-1 space-y-3">
                     <div>
                       <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                        {selectedPartnerOverview.name_ar && selectedPartnerOverview.name_ar !== "" ? selectedPartnerOverview.name_ar : "غير محدد"}
+                        {selectedPartnerOverview.name_ar &&
+                        selectedPartnerOverview.name_ar !== ""
+                          ? selectedPartnerOverview.name_ar
+                          : "غير محدد"}
                       </h3>
                       <p className="text-lg text-gray-600">
-                        {selectedPartnerOverview.name_en && selectedPartnerOverview.name_en !== "" ? selectedPartnerOverview.name_en : "غير محدد"}
+                        {selectedPartnerOverview.name_en &&
+                        selectedPartnerOverview.name_en !== ""
+                          ? selectedPartnerOverview.name_en
+                          : "غير محدد"}
                       </p>
                     </div>
-                    
+
                     <div className="flex flex-wrap gap-3">
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className="px-3 py-1 text-sm border-blue-200 text-blue-700 bg-blue-50"
                       >
-                        {selectedPartnerOverview.type && selectedPartnerOverview.type !== "" ? (
-                          selectedPartnerOverview.type === "org"
+                        {selectedPartnerOverview.type &&
+                        selectedPartnerOverview.type !== ""
+                          ? selectedPartnerOverview.type === "org"
                             ? "مؤسسة"
                             : selectedPartnerOverview.type === "firm"
                             ? "شركة"
                             : selectedPartnerOverview.type === "member"
                             ? "فرد"
                             : selectedPartnerOverview.type
-                        ) : "غير محدد"}
+                          : "غير محدد"}
                       </Badge>
-                      
-                      <Badge className={`px-3 py-1 text-sm ${getStatusColor(selectedPartnerOverview.status)}`}>
-                        {selectedPartnerOverview.status && selectedPartnerOverview.status !== "" ? (
-                          selectedPartnerOverview.status === "active"
+
+                      <Badge
+                        className={`px-3 py-1 text-sm ${getStatusColor(
+                          selectedPartnerOverview.status
+                        )}`}
+                      >
+                        {selectedPartnerOverview.status &&
+                        selectedPartnerOverview.status !== ""
+                          ? selectedPartnerOverview.status === "active"
                             ? "نشط"
                             : "غير نشط"
-                        ) : (
-                          "غير محدد"
-                        )}
+                          : "غير محدد"}
                       </Badge>
                     </div>
                   </div>
@@ -1719,7 +2078,7 @@ export default function DashboardPage() {
                     <Users className="h-5 w-5 text-green-600" />
                     معلومات التواصل
                   </h4>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
@@ -1729,12 +2088,15 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                           <p className="text-gray-800 font-medium">
-                            {selectedPartnerOverview.email && selectedPartnerOverview.email !== "" ? selectedPartnerOverview.email : "غير محدد"}
+                            {selectedPartnerOverview.email &&
+                            selectedPartnerOverview.email !== ""
+                              ? selectedPartnerOverview.email
+                              : "غير محدد"}
                           </p>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4">
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
                         <Label className="text-sm font-medium text-gray-600 mb-2 block">
@@ -1742,10 +2104,13 @@ export default function DashboardPage() {
                         </Label>
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                          {selectedPartnerOverview.website && selectedPartnerOverview.website !== "" ? (
+                          {selectedPartnerOverview.website &&
+                          selectedPartnerOverview.website !== "" ? (
                             <a
                               href={
-                                selectedPartnerOverview.website.startsWith("http")
+                                selectedPartnerOverview.website.startsWith(
+                                  "http"
+                                )
                                   ? selectedPartnerOverview.website
                                   : `https://${selectedPartnerOverview.website}`
                               }
@@ -1761,7 +2126,7 @@ export default function DashboardPage() {
                           )}
                         </div>
                       </div>
-                      
+
                       <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
                         <Label className="text-sm font-medium text-gray-600 mb-2 block">
                           تاريخ الانضمام
@@ -1769,7 +2134,10 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                           <p className="text-gray-800 font-medium">
-                            {selectedPartnerOverview.join_date && selectedPartnerOverview.join_date !== "" ? formatDate(selectedPartnerOverview.join_date) : "غير محدد"}
+                            {selectedPartnerOverview.join_date &&
+                            selectedPartnerOverview.join_date !== ""
+                              ? formatDate(selectedPartnerOverview.join_date)
+                              : "غير محدد"}
                           </p>
                         </div>
                       </div>
@@ -1778,7 +2146,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : null}
-            
+
             <DialogFooter className="border-t pt-4">
               <Button
                 variant="outline"
@@ -1807,7 +2175,10 @@ export default function DashboardPage() {
                   id="edit-nameAr"
                   value={partnerForm.name_ar}
                   onChange={(e) =>
-                    setPartnerForm((prev) => ({ ...prev, name_ar: e.target.value }))
+                    setPartnerForm((prev) => ({
+                      ...prev,
+                      name_ar: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1817,7 +2188,10 @@ export default function DashboardPage() {
                   id="edit-nameEn"
                   value={partnerForm.name_en}
                   onChange={(e) =>
-                    setPartnerForm((prev) => ({ ...prev, name_en: e.target.value }))
+                    setPartnerForm((prev) => ({
+                      ...prev,
+                      name_en: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1828,7 +2202,10 @@ export default function DashboardPage() {
                   type="email"
                   value={partnerForm.email}
                   onChange={(e) =>
-                    setPartnerForm((prev) => ({ ...prev, email: e.target.value }))
+                    setPartnerForm((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1869,7 +2246,10 @@ export default function DashboardPage() {
                 <Select
                   value={partnerForm.status}
                   onValueChange={(value) =>
-                    setPartnerForm((prev) => ({ ...prev, status: value as any }))
+                    setPartnerForm((prev) => ({
+                      ...prev,
+                      status: value as any,
+                    }))
                   }
                 >
                   <SelectTrigger>
@@ -1926,20 +2306,32 @@ export default function DashboardPage() {
                         alt="الصورة الحالية"
                         className="w-full h-full object-cover"
                       />
-              </div>
+                    </div>
                     <div className="mt-2 text-xs text-gray-500">
                       حجم الصورة: {getImageSize(partnerForm.logo)}
-            </div>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsPartnerEditOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsPartnerEditOpen(false)}
+              >
                 إلغاء
               </Button>
-              <Button onClick={handleUpdatePartner} disabled={partnerLoading}>
-                {partnerLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+              <Button
+                onClick={handleUpdatePartner}
+                disabled={partnerLoading}
+                style={{
+                  background: `linear-gradient(135deg, ${gradientColors.from} 0%, ${gradientColors.to} 100%)`,
+                  boxShadow: `0 4px 15px ${mainColor}40`,
+                }}
+              >
+                {partnerLoading && (
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                )}
                 حفظ التغييرات
               </Button>
             </DialogFooter>
@@ -1947,60 +2339,86 @@ export default function DashboardPage() {
         </Dialog>
 
         {/* Partner Delete Dialog */}
-        <AlertDialog open={isPartnerDeleteOpen} onOpenChange={setIsPartnerDeleteOpen}>
+        <AlertDialog
+          open={isPartnerDeleteOpen}
+          onOpenChange={setIsPartnerDeleteOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>تأكيد حذف الشريك</AlertDialogTitle>
-              <AlertDialogDescription>هذا الإجراء لا يمكن التراجع عنه</AlertDialogDescription>
+              <AlertDialogDescription>
+                هذا الإجراء لا يمكن التراجع عنه
+              </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
-              <AlertDialogAction onClick={async()=>{
-                const id = String(selectedPartnerOverview?._id || selectedPartnerOverview?.id || "");
-                if(!id) return;
-                setPartnerLoading(true);
-                try{
-                  await deletePartner(id);
-                  await loadOverview();
-                  toast({title:"تم حذف الشريك"});
-                }catch(e){
-                  toast({title:"فشل حذف الشريك",variant:"destructive"});
-                }finally{ setPartnerLoading(false); setIsPartnerDeleteOpen(false);} 
-              }} className="bg-red-600 hover:bg-red-700">حذف</AlertDialogAction>
+              <AlertDialogAction
+                onClick={async () => {
+                  const id = String(
+                    selectedPartnerOverview?._id ||
+                      selectedPartnerOverview?.id ||
+                      ""
+                  );
+                  if (!id) return;
+                  setPartnerLoading(true);
+                  try {
+                    await deletePartner(id);
+                    await loadOverview();
+                    toast({ title: "تم حذف الشريك" });
+                  } catch (e) {
+                    toast({ title: "فشل حذف الشريك", variant: "destructive" });
+                  } finally {
+                    setPartnerLoading(false);
+                    setIsPartnerDeleteOpen(false);
+                  }
+                }}
+                style={{
+                  background: `linear-gradient(135deg, #EF4444 0%, #DC2626 100%)`,
+                  boxShadow: `0 4px 15px #EF444440`,
+                }}
+              >
+                حذف
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-                {/* Project Edit Dialog */}
+        {/* Project Edit Dialog */}
         {isEditDialogOpen && (
-        <ProjectForm
-          isOpen={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false);
-            setEditingProjectInitial(null);
-          }}
-          onSubmit={handleUpdateProject}
-          initialData={editingProjectInitial || undefined}
-          title="تعديل مشروع"
-          isLoading={isEditLoading}
-        />
+          <ProjectForm
+            isOpen={isEditDialogOpen}
+            onClose={() => {
+              setIsEditDialogOpen(false);
+              setEditingProjectInitial(null);
+            }}
+            onSubmit={handleUpdateProject}
+            initialData={editingProjectInitial || undefined}
+            title="تعديل مشروع"
+            isLoading={isEditLoading}
+          />
         )}
 
         {/* Delete Confirmation Dialog */}
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
               <AlertDialogDescription>
-                هل أنت متأكد من حذف مشروع "{selectedProject?.title}"؟
-                لا يمكن التراجع عن هذا الإجراء.
+                هل أنت متأكد من حذف مشروع "{selectedProject?.title}"؟ لا يمكن
+                التراجع عن هذا الإجراء.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>إلغاء</AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmDelete}
-                className="bg-red-600 hover:bg-red-700"
+                style={{
+                  background: `linear-gradient(135deg, #EF4444 0%, #DC2626 100%)`,
+                  boxShadow: `0 4px 15px #EF444440`,
+                }}
                 disabled={deletingId === selectedProject?.id}
               >
                 {deletingId === selectedProject?.id ? (

@@ -48,22 +48,26 @@ const responseErrorHandler = (error: any) => {
   // Previously we dispatched a custom event for a ServerErrorProvider.
   // That provider has been removed, so we no longer emit any window events here.
 
-  // Handle 401: if token exists, don't force logout (could be authorization issue misreported as 401)
+  // Handle 401: Session expired or unauthorized
   if (error?.response?.status === 401 && typeof window !== "undefined") {
     try {
-      const token = localStorage.getItem("auth_token");
-      if (!token) {
-        // No token -> treat as unauthenticated and redirect to login
-        localStorage.removeItem("userData");
-        localStorage.removeItem("isAuthenticated");
-        document.cookie =
-          "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
+      // Check if the error response matches the expected format
+      const errorData = error.response?.data;
+      const isSessionExpired =
+        errorData?.status === "error" &&
+        errorData?.message === "فشل في عملية تسجيل دخول" &&
+        errorData?.details?.message === "انتهت صلاحية الجلسة";
+
+      // Clear all authentication data
+      clearAuthData();
+
+      // Redirect to login page if not already there
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
-      // If token exists, propagate error to caller for page-level handling
-    } catch {}
+    } catch (clearError) {
+      console.error("Error clearing authentication data:", clearError);
+    }
   }
 
   return Promise.reject(error);
@@ -104,6 +108,27 @@ export function createAuthErrorResponse() {
       message: "انتهت صلاحية الجلسة",
     },
   };
+}
+
+// Utility function to clear all authentication data
+export function clearAuthData() {
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("isAuthenticated");
+
+      // Clear authentication cookie
+      document.cookie =
+        "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+      // Clear axios default headers
+      delete api.defaults.headers.common.Authorization;
+      delete localApi.defaults.headers.common.Authorization;
+    }
+  } catch (error) {
+    console.error("Error clearing authentication data:", error);
+  }
 }
 
 // Middleware function for API routes to handle authentication errors
