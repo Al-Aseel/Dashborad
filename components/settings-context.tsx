@@ -95,6 +95,14 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       // تحديث اللون الأساسي
       if (data.mainColor) {
         setMainColor(data.mainColor);
+        try {
+          // Notify global color provider and any listeners immediately
+          window.dispatchEvent(
+            new CustomEvent("mainColorChanged", {
+              detail: data.mainColor,
+            }) as any
+          );
+        } catch {}
       }
 
       setInitialized(true);
@@ -121,6 +129,17 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
 
       // إعادة جلب البيانات الكاملة من الخادم لضمان التحديث الفوري
       await fetchSettings();
+
+      // حاول البث الفوري للّون في حال تغيّر
+      if ((updatedSettings as any)?.mainColor) {
+        try {
+          window.dispatchEvent(
+            new CustomEvent("mainColorChanged", {
+              detail: (updatedSettings as any).mainColor,
+            }) as any
+          );
+        } catch {}
+      }
 
       toast({
         title: "تم حفظ الإعدادات",

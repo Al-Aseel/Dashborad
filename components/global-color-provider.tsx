@@ -93,6 +93,19 @@ export const GlobalColorProvider: React.FC<GlobalColorProviderProps> = ({
     }
   }, [settings?.mainColor]);
 
+  // Listen for immediate color change events dispatched by settings provider
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const color = (e as CustomEvent<string>).detail;
+      if (typeof color === "string" && color.length > 0) {
+        setMainColor(color);
+      }
+    };
+    window.addEventListener("mainColorChanged", handler as EventListener);
+    return () =>
+      window.removeEventListener("mainColorChanged", handler as EventListener);
+  }, []);
+
   // Update CSS variables when mainColor changes
   useEffect(() => {
     const updateCSSVariables = (color: string) => {
