@@ -704,7 +704,10 @@ export default function PartnersPage() {
               إدارة الشركاء والمساهمين في أنشطة الجمعية
             </p>
           </div>
-          <Button onClick={openAddDialog}>
+          <Button
+            onClick={openAddDialog}
+            className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+          >
             <Plus className="w-4 h-4 ml-2" />
             إضافة شريك جديد
           </Button>
@@ -930,7 +933,10 @@ export default function PartnersPage() {
                               مسح الفلاتر
                             </Button>
                           ) : (
-                            <Button onClick={openAddDialog}>
+                            <Button
+                              onClick={openAddDialog}
+                              className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+                            >
                               <Plus className="w-4 h-4 ml-2" />
                               إضافة أول شريك
                             </Button>
@@ -1286,11 +1292,15 @@ export default function PartnersPage() {
                 )}
               </div>
             </div>
-            <DialogFooter className="sm:justify-start">
+            <DialogFooter className="sm:justify-start gap-3">
               <Button variant="outline" onClick={closeAddDialog}>
                 إلغاء
               </Button>
-              <Button onClick={handleAddPartner} disabled={isLoading}>
+              <Button
+                onClick={handleAddPartner}
+                disabled={isLoading}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 إضافة
               </Button>
@@ -1449,7 +1459,11 @@ export default function PartnersPage() {
               <Button variant="outline" onClick={closeEditDialog}>
                 إلغاء
               </Button>
-              <Button onClick={handleUpdatePartner} disabled={isLoading}>
+              <Button
+                onClick={handleUpdatePartner}
+                disabled={isLoading}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 حفظ التغييرات
               </Button>

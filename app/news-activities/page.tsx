@@ -1668,12 +1668,16 @@ export default function NewsActivitiesPage() {
 
             <DialogFooter
               dir="rtl"
-              className="flex-row-reverse justify-start sticky bottom-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t mt-6 py-3"
+              className="flex-row-reverse justify-start sticky bottom-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t mt-6 py-3 gap-3"
             >
               <Button variant="outline" onClick={handleCloseDialog}>
                 إلغاء
               </Button>
-              <Button onClick={handleSave} disabled={loading}>
+              <Button
+                onClick={handleSave}
+                disabled={loading}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 {loading ? "جاري الحفظ..." : "حفظ"}
               </Button>
             </DialogFooter>

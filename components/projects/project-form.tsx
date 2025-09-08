@@ -646,6 +646,7 @@ export function ProjectForm({
               <Button
                 type="submit"
                 disabled={isLoading} // تعطيل زر الإرسال أثناء التحميل
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
               >
                 {isLoading ? (
                   <>

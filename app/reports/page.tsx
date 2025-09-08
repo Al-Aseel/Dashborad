@@ -678,8 +678,8 @@ export default function ReportsPage() {
   const handleDownload = async (report: Report) => {
     try {
       // إذا كان التقرير من السيرفر، اجلب تفاصيله للحصول على رابط الملف واسم الملف
-      let fileUrl: string | undefined
-      let originalName: string | undefined
+      let fileUrl: string | undefined;
+      let originalName: string | undefined;
 
       if (typeof report.id === "string") {
         const full: any = await getReportById(report.id);
@@ -737,7 +737,10 @@ export default function ReportsPage() {
               )}
               تحديث
             </Button>
-            <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+            >
               <Plus className="w-4 h-4 ml-2" />
               إضافة تقرير جديد
             </Button>
@@ -859,7 +862,10 @@ export default function ReportsPage() {
                   {!searchTerm &&
                     statusFilter === "all" &&
                     typeFilter === "all" && (
-                      <Button onClick={() => setIsAddDialogOpen(true)}>
+                      <Button
+                        onClick={() => setIsAddDialogOpen(true)}
+                        className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+                      >
                         <Plus className="w-4 h-4 ml-2" />
                         إضافة تقرير جديد
                       </Button>
@@ -903,9 +909,9 @@ export default function ReportsPage() {
 
                       <div className="flex justify-between items-center">
                         <Button
-                          variant="outline"
                           size="sm"
                           onClick={() => handleDownload(report)}
+                          className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
                         >
                           <Download className="w-4 h-4 ml-1" />
                           تحميل
@@ -1010,6 +1016,7 @@ export default function ReportsPage() {
                     onClick={() =>
                       selectedReport && handleDownload(selectedReport)
                     }
+                    className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
                   >
                     <Download className="w-4 h-4 ml-1" />
                     تحميل التقرير
@@ -1187,6 +1194,7 @@ export default function ReportsPage() {
                 <Button
                   onClick={handleAddReport}
                   disabled={isLoading || isUploadingFile}
+                  className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
                 >
                   {isLoading
                     ? "جاري الإضافة..."
@@ -1329,7 +1337,11 @@ export default function ReportsPage() {
                 >
                   إلغاء
                 </Button>
-                <Button onClick={handleUpdateReport} disabled={isLoading}>
+                <Button
+                  onClick={handleUpdateReport}
+                  disabled={isLoading}
+                  className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+                >
                   {isLoading ? "جاري التحديث..." : "تحديث التقرير"}
                 </Button>
               </div>
