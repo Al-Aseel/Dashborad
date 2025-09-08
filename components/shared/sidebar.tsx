@@ -81,6 +81,19 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
   const { isCollapsed, setCollapsed, isHydrated, shouldAnimate } =
     usePersistentSidebarState();
 
+  // Split website name into two lines: top and bottom
+  const [websiteNameTop, websiteNameBottom] = (() => {
+    const name = (websiteName || "").trim();
+    if (!name) return ["", ""];
+    const parts = name.split(/\s+/);
+    if (parts.length === 1) return [name, ""];
+    const midIndex = Math.ceil(parts.length / 2);
+    return [
+      parts.slice(0, midIndex).join(" "),
+      parts.slice(midIndex).join(" "),
+    ];
+  })();
+
   const sidebarItems: SidebarItem[] = [
     { icon: BarChart3, label: "نظرة عامة", key: "overview", href: "/" },
     {
@@ -146,7 +159,7 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-gray-200">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-gray-200">
             {websiteLogo ? (
               <img
                 src={websiteLogo}
@@ -164,10 +177,14 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-lg font-bold text-foreground">
-                {websiteName}
+              <h1 className="text-lg font-bold text-foreground leading-tight">
+                {websiteNameTop}
               </h1>
-              <p className="text-sm text-muted-foreground">للتنمية الخيرية</p>
+              {websiteNameBottom && (
+                <h2 className="text-lg font-bold text-foreground leading-tight">
+                  {websiteNameBottom}
+                </h2>
+              )}
             </div>
           )}
         </Link>
