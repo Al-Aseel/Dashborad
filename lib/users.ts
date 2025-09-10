@@ -81,8 +81,7 @@ export const PasswordService = {
     const body = {
       token,
       password: newPassword,
-      // Laravel-style confirmation key for compatibility
-      password_confirmation: confirmPassword ?? newPassword,
+      confirmPassword: confirmPassword ?? newPassword,
     } as const;
     try {
       // Use the local API route which will handle the external API call
@@ -94,7 +93,7 @@ export const PasswordService = {
       // If local API fails, fallback to direct external API call
       const fallbackBody = {
         password: newPassword,
-        password_confirmation: confirmPassword ?? newPassword,
+        confirmPassword: confirmPassword ?? newPassword,
       };
       try {
         await api.post(`/user/reset-password`, fallbackBody, {

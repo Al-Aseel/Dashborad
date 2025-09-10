@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { token, password, password_confirmation } = body;
+    const { token, password, confirmPassword } = body;
 
-    if (!token || !password || !password_confirmation) {
+    if (!token || !password || !confirmPassword) {
       return NextResponse.json(
         {
           status: "error",
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password !== password_confirmation) {
+    if (password !== confirmPassword) {
       return NextResponse.json(
         {
           status: "error",
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           password,
-          password_confirmation,
+          confirmPassword,
         }),
       }
     );
