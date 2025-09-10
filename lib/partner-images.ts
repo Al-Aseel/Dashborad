@@ -25,7 +25,9 @@ export interface DeleteImageResponse {
  * @param file - ملف الصورة
  * @returns استجابة من السيرفر تحتوي على معلومات الصورة المرفوعة
  */
-export async function uploadPartnerImage(file: File): Promise<UploadImageResponse> {
+export async function uploadPartnerImage(
+  file: File
+): Promise<UploadImageResponse> {
   const formData = new FormData();
   formData.append("image", file, file.name);
 
@@ -33,7 +35,7 @@ export async function uploadPartnerImage(file: File): Promise<UploadImageRespons
     headers: {
       // لا نحدد Content-Type يدوياً - نترك المتصفح يحدده مع boundary
     },
-    timeout: 30000, // timeout أطول لرفع الملفات
+    timeout: 60000, // timeout أطول لرفع الملفات على الشبكات البطيئة
   });
 
   return response.data;
@@ -44,7 +46,9 @@ export async function uploadPartnerImage(file: File): Promise<UploadImageRespons
  * @param fileId - معرف الملف المراد حذفه
  * @returns استجابة من السيرفر
  */
-export async function deletePartnerImage(fileId: string): Promise<DeleteImageResponse> {
+export async function deletePartnerImage(
+  fileId: string
+): Promise<DeleteImageResponse> {
   const response = await api.delete(`/upload/file/${fileId}`);
   return response.data;
 }
@@ -54,13 +58,17 @@ export async function deletePartnerImage(fileId: string): Promise<DeleteImageRes
  * @param response - استجابة رفع الصورة
  * @returns معرف الملف أو undefined إذا لم يتم العثور عليه
  */
-export function extractPartnerImageId(response: UploadImageResponse): string | undefined {
+export function extractPartnerImageId(
+  response: UploadImageResponse
+): string | undefined {
   // نفضل Mongo ObjectId `_id` أولاً
   const objectId = String(response?.data?._id ?? "").trim();
   if (objectId && /^[a-f\d]{24}$/i.test(objectId)) return objectId;
-  
+
   // بدائل أخرى
-  const anyId = String(response?.data?.id ?? response?.data?.fileName ?? "").trim();
+  const anyId = String(
+    response?.data?.id ?? response?.data?.fileName ?? ""
+  ).trim();
   return anyId || undefined;
 }
 

@@ -1,17 +1,18 @@
 import axios from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+const baseURL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.elaseel.org/api/v1";
 export const API_BASE_URL = baseURL;
 
 export const api = axios.create({
   baseURL,
-  timeout: 10000, // تقليل timeout لسرعة اكتشاف المشاكل
+  timeout: 30000, // زيادة timeout للشبكات البطيئة
 });
 
 // Same-origin client for hitting Next.js API routes (no external baseURL)
 export const localApi = axios.create({
   baseURL: "",
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Attach token from localStorage on each request

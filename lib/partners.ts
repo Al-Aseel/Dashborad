@@ -77,7 +77,7 @@ export async function createPartner(
   partnerData: CreatePartnerRequest
 ): Promise<CreatePartnerResponse> {
   const response = await api.post("/partner", partnerData, {
-    timeout: 15000,
+    timeout: 45000,
   });
 
   return response.data;
@@ -93,7 +93,7 @@ export async function updatePartner(
 ): Promise<UpdatePartnerResponse> {
   const { _id, ...data } = partnerData;
   const response = await api.put(`/partner/${_id}`, data, {
-    timeout: 15000,
+    timeout: 45000,
   });
 
   return response.data;

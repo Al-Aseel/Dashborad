@@ -56,7 +56,10 @@ export const UsersService = {
     await api.delete(`/user/${userId}`);
   },
 
-  async update(userId: string, payload: UpdateUserPayload): Promise<BackendUser> {
+  async update(
+    userId: string,
+    payload: UpdateUserPayload
+  ): Promise<BackendUser> {
     const { data } = await api.put<ApiResponse<BackendUser>>(
       `/user/${userId}`,
       payload
@@ -81,17 +84,15 @@ export const PasswordService = {
       password_confirmation: confirmPassword ?? newPassword,
     } as const;
     try {
-      await api.patch(`/user/reset-password`, body, { params: { token } });
+      await api.post(`/user/reset-password`, body, { params: { token } });
     } catch (error: any) {
       const status = error?.response?.status;
-      // Fallback for servers expecting POST instead of PATCH or CSRF edge cases
+      // Fallback for servers expecting PATCH instead of POST
       if (status === 405 || status === 419) {
-        await api.post(`/user/reset-password`, body, { params: { token } });
+        await api.patch(`/user/reset-password`, body, { params: { token } });
         return;
       }
       throw error;
     }
   },
 };
-
-
