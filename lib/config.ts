@@ -1,12 +1,14 @@
 // Base URL for images and API
 export const config = {
-  // Base URL for images - يمكن تغييرها حسب البيئة
-  imageBaseUrl:
-    process.env.NEXT_PUBLIC_IMAGE_BASE_URL || "http://localhost:5000",
-
-  // API Base URL
+  // API Base URL - استخدام نفس baseURL للصور والAPI
   apiBaseUrl:
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1",
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.elaseel.org/api/v1",
+
+  // Base URL for images - استخراج من API Base URL
+  get imageBaseUrl() {
+    // إزالة /api/v1 من نهاية API Base URL للحصول على base URL للصور
+    return this.apiBaseUrl.replace("/api/v1", "");
+  },
 };
 
 // دالة لبناء URL الصورة

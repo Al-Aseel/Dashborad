@@ -178,12 +178,22 @@ export function ProjectForm({
 
   // Upload handlers
   const handleCoverUpload = async (file: File) => {
+    // If there is an existing cover file, delete it first after successful new upload
+    const previousFileId = coverFileId;
     const res = await uploadImage(file);
     const data: any = res.data;
     const fileId = String(data?.id ?? data?._id ?? data?.fileName);
     setCoverFileId(fileId);
     if (data?.url) {
       setFormData((prev) => ({ ...prev, mainImage: toBackendUrl(data.url) }));
+    }
+    // Try to delete old cover image on server if present
+    if (previousFileId && previousFileId !== fileId) {
+      try {
+        await deleteUploadedImage(previousFileId);
+      } catch {
+        // ignore delete failure
+      }
     }
   };
 
@@ -466,12 +476,20 @@ export function ProjectForm({
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value;
                   setFormData((prev) => ({
                     ...prev,
-                    description: e.target.value,
-                  }))
-                }
+                    description: value,
+                  }));
+                  if (value.trim().length > 6) {
+                    setValidationErrors((prev) => {
+                      if (!prev.description) return prev;
+                      const { description, ...rest } = prev;
+                      return rest;
+                    });
+                  }
+                }}
                 className="text-right"
                 rows={3}
               />
@@ -612,6 +630,12 @@ export function ProjectForm({
                   setFormData((prev) => ({ ...prev, mainImage: image }))
                 }
                 onUpload={handleCoverUpload}
+                onRemove={async () => {
+                  if (coverFileId) {
+                    await deleteUploadedImage(coverFileId);
+                    setCoverFileId(null);
+                  }
+                }}
                 label="الصورة الرئيسية للمشروع"
                 required
               />

@@ -371,6 +371,7 @@ export default function NewsActivitiesPage() {
   const [uploadingGalleryImages, setUploadingGalleryImages] = useState(false);
   const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<any[]>([]);
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -747,6 +748,8 @@ export default function NewsActivitiesPage() {
 
   const handleSave = async () => {
     setLoading(true);
+    setValidationErrors([]); // Clear previous validation errors
+
     try {
       // Basic validation according to backend requirements
       if (!formData.category || String(formData.category).trim() === "") {
@@ -832,8 +835,29 @@ export default function NewsActivitiesPage() {
       setFormTags([]);
       // Refresh featured after save
       refreshFeatured();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving activity:", error);
+
+      // Handle server validation errors
+      if (error?.response?.data?.details) {
+        setValidationErrors(error.response.data.details);
+        toast({
+          title: "خطأ في التحقق من صحة البيانات",
+          description: "يرجى مراجعة الأخطاء أدناه وإصلاحها",
+          variant: "destructive",
+        });
+      } else {
+        // Handle general errors
+        const errorMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "حدث خطأ أثناء حفظ البيانات";
+        toast({
+          title: "خطأ",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -864,6 +888,7 @@ export default function NewsActivitiesPage() {
     setFormImages([]);
     setFormGallery([]);
     setFormTags([]);
+    setValidationErrors([]); // Clear validation errors when closing dialog
   }, []);
 
   // Handle cover image upload
@@ -1472,6 +1497,48 @@ export default function NewsActivitiesPage() {
             </DialogHeader>
 
             <div dir="rtl" className="space-y-6 text-right">
+              {/* Server Validation Errors */}
+              {validationErrors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-fade-in-up">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="w-5 h-5 text-red-500 mt-0.5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800 mb-2">
+                        أخطاء في التحقق من صحة البيانات:
+                      </h4>
+                      <ul className="space-y-1">
+                        {validationErrors.map((error, index) => (
+                          <li
+                            key={index}
+                            className="text-sm text-red-700 flex items-start gap-2"
+                          >
+                            <span className="text-red-500 mt-0.5">•</span>
+                            <span>
+                              <span className="font-medium">
+                                {error.param}:
+                              </span>{" "}
+                              {error.msg}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
                 المعلومات الأساسية
               </h4>

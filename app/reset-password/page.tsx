@@ -25,7 +25,7 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const tokenParam = searchParams.get("token");
     const errorParam = searchParams.get("error");
-    
+
     // Handle error messages from API redirect
     if (errorParam) {
       let errorMessage = "حدث خطأ غير متوقع";
@@ -45,7 +45,7 @@ export default function ResetPasswordPage() {
         variant: "destructive",
       });
     }
-    
+
     if (tokenParam) {
       setToken(tokenParam);
       // فك تشفير البريد الإلكتروني من JWT token
@@ -206,6 +206,7 @@ export default function ResetPasswordPage() {
             <div className="relative">
               <Input
                 id="password"
+                dir="ltr"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -233,6 +234,7 @@ export default function ResetPasswordPage() {
             <div className="relative">
               <Input
                 id="confirmPassword"
+                dir="ltr"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

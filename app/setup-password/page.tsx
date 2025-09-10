@@ -203,6 +203,7 @@ export default function SetupPasswordPage() {
             <div className="relative">
               <Input
                 id="password"
+                dir="ltr"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -230,6 +231,7 @@ export default function SetupPasswordPage() {
             <div className="relative">
               <Input
                 id="confirmPassword"
+                dir="ltr"
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

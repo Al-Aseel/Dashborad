@@ -418,12 +418,24 @@ export default function ProjectsPage() {
       setIsAddDialogOpen(false);
 
       toast({ title: res.message || "تم إضافة المشروع بنجاح" });
-    } catch (error) {
+    } catch (error: any) {
+      const data = error?.response?.data;
+      const detailsJoined = Array.isArray(data?.details)
+        ? data.details
+            .map((d: any) => d?.msg)
+            .filter(Boolean)
+            .join(" | ")
+        : undefined;
       toast({
         title: "خطأ في إضافة المشروع",
-        description: "حدث خطأ أثناء إضافة المشروع. يرجى المحاولة مرة أخرى",
+        description:
+          detailsJoined ||
+          data?.message ||
+          "حدث خطأ أثناء إضافة المشروع. يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
+      // Rethrow so the form can map field errors
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -645,10 +657,20 @@ export default function ProjectsPage() {
       setIsEditDialogOpen(false);
       setEditingProjectInitial(null);
       toast({ title: res?.message || "تم تحديث المشروع بنجاح" });
-    } catch (error) {
+    } catch (error: any) {
+      const data = error?.response?.data;
+      const detailsJoined = Array.isArray(data?.details)
+        ? data.details
+            .map((d: any) => d?.msg)
+            .filter(Boolean)
+            .join(" | ")
+        : undefined;
       toast({
         title: "خطأ في تحديث المشروع",
-        description: "حدث خطأ أثناء تحديث المشروع. يرجى المحاولة مرة أخرى",
+        description:
+          detailsJoined ||
+          data?.message ||
+          "حدث خطأ أثناء تحديث المشروع. يرجى المحاولة مرة أخرى",
         variant: "destructive",
       });
       throw error;
