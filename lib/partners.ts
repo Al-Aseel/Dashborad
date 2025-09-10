@@ -195,9 +195,10 @@ export function validatePartnerData(data: any): {
   }
 
   if (data.website?.trim()) {
-    // السماح بالروابط المحلية والخارجية
+    // السماح بالروابط المحلية والخارجية مع دعم www. اختياري
+    // أمثلة صحيحة: example.com, www.example.com, https://www.example.com, http://example.com
     const websiteRegex =
-      /^(https?:\/\/)?([\da-z\.-]+)\.([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+      /^(https?:\/\/)?(www\.)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
     const isLocalhost =
       data.website.startsWith("http://localhost") ||
       data.website.startsWith("https://localhost");

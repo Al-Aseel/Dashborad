@@ -70,6 +70,7 @@ import {
   transformFormDataToAPI,
 } from "@/lib/partners";
 import { buildImageUrl } from "@/lib/config";
+import { Permissions } from "@/lib/auth";
 import {
   Dialog,
   DialogContent,
@@ -1042,7 +1043,13 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div
+                className={`grid gap-4 ${
+                  Permissions.canManageUsers(user?.role || "technical")
+                    ? "grid-cols-2 md:grid-cols-4"
+                    : "grid-cols-2 md:grid-cols-3"
+                }`}
+              >
                 <Button
                   onClick={() => handleQuickAction("add-project")}
                   className="h-20 flex-col gap-2 text-white shadow-lg transition-all duration-200 hover:shadow-xl"
@@ -1090,24 +1097,26 @@ export default function DashboardPage() {
                   <UserPlus className="w-6 h-6" />
                   <span className="font-medium">إضافة شريك</span>
                 </Button>
-                <Button
-                  onClick={() => handleQuickAction("add-user")}
-                  variant="outline"
-                  className="h-20 flex-col gap-2 border-2 transition-all duration-200 hover:shadow-lg"
-                  style={{
-                    borderColor: mainColor,
-                    color: mainColor,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
-                  }}
-                >
-                  <Users className="w-6 h-6" />
-                  <span className="font-medium">إضافة مستخدم</span>
-                </Button>
+                {Permissions.canManageUsers(user?.role || "technical") && (
+                  <Button
+                    onClick={() => handleQuickAction("add-user")}
+                    variant="outline"
+                    className="h-20 flex-col gap-2 border-2 transition-all duration-200 hover:shadow-lg"
+                    style={{
+                      borderColor: mainColor,
+                      color: mainColor,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <Users className="w-6 h-6" />
+                    <span className="font-medium">إضافة مستخدم</span>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
