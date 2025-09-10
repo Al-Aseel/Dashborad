@@ -12,9 +12,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect reset-password API link to setup-password page while preserving token
+  // Redirect reset-password API link to reset-password page while preserving token
   if (pathname.startsWith("/api/v1/user/reset-password")) {
-    const url = new URL("/setup-password", request.url);
+    const url = new URL("/reset-password", request.url);
     const token = request.nextUrl.searchParams.get("token");
     if (token) url.searchParams.set("token", token);
     return NextResponse.redirect(url);
