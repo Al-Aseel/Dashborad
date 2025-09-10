@@ -24,6 +24,28 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const tokenParam = searchParams.get("token");
+    const errorParam = searchParams.get("error");
+    
+    // Handle error messages from API redirect
+    if (errorParam) {
+      let errorMessage = "حدث خطأ غير متوقع";
+      switch (errorParam) {
+        case "missing_token":
+          errorMessage = "الرمز المميز مفقود من الرابط";
+          break;
+        case "invalid_request":
+          errorMessage = "طلب غير صالح";
+          break;
+        default:
+          errorMessage = "حدث خطأ في الرابط";
+      }
+      toast({
+        title: "خطأ في الرابط",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+    
     if (tokenParam) {
       setToken(tokenParam);
       // فك تشفير البريد الإلكتروني من JWT token
@@ -41,7 +63,7 @@ export default function ResetPasswordPage() {
         console.error("خطأ في فك تشفير الرمز المميز:", error);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   const validatePassword = (password: string) => {
     const minLength = password.length >= 8;
