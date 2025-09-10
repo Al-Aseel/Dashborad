@@ -86,7 +86,7 @@ export const PasswordService = {
     } as const;
     try {
       // Use the local API route which will handle the external API call
-      const { data } = await localApi.post(`/api/reset-password`, body);
+      const { data } = await localApi.post(`/api/v1/user/reset-password`, body);
       if (data.status !== "success") {
         throw new Error(data.message || "فشل في إعادة تعيين كلمة المرور");
       }
@@ -97,12 +97,16 @@ export const PasswordService = {
         password_confirmation: confirmPassword ?? newPassword,
       };
       try {
-        await api.post(`/user/reset-password`, fallbackBody, { params: { token } });
+        await api.post(`/user/reset-password`, fallbackBody, {
+          params: { token },
+        });
       } catch (fallbackError: any) {
         const status = fallbackError?.response?.status;
         // Fallback for servers expecting PATCH instead of POST
         if (status === 405 || status === 419) {
-          await api.patch(`/user/reset-password`, fallbackBody, { params: { token } });
+          await api.patch(`/user/reset-password`, fallbackBody, {
+            params: { token },
+          });
           return;
         }
         throw fallbackError;
