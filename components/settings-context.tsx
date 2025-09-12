@@ -87,7 +87,7 @@ export const SettingsProvider = ({ children }: SettingsProviderProps) => {
       }
 
       if (data.websiteLogo?.url) {
-        const host = "http://localhost:5000";
+        const host = process.env.NEXT_PUBLIC_API_HOST;
         const logoUrl = `${host}/${data.websiteLogo.url}`;
         setWebsiteLogo(logoUrl);
       }
