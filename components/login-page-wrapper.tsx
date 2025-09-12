@@ -238,13 +238,56 @@ export default function LoginPageWrapper() {
 
               {/* Remember Me */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onCheckedChange={(v) => setRememberMe(Boolean(v))}
-                  />
-                  <Label htmlFor="rememberMe" className="text-sm text-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Checkbox
+                      id="rememberMe"
+                      checked={rememberMe}
+                      onCheckedChange={(v) => setRememberMe(Boolean(v))}
+                      className={`
+                        h-5 w-5 rounded-md border-2 transition-all duration-200 ease-in-out
+                        ${
+                          rememberMe
+                            ? "border-transparent shadow-lg"
+                            : "border-gray-300 hover:border-gray-400"
+                        }
+                        focus-visible:ring-2 focus-visible:ring-offset-2
+                        data-[state=checked]:shadow-lg
+                      `}
+                      style={
+                        {
+                          "--tw-ring-color": mainColor,
+                          "--tw-ring-offset-color": "white",
+                          backgroundColor: rememberMe
+                            ? `linear-gradient(135deg, ${gradientColors.from} 0%, ${gradientColors.to} 100%)`
+                            : "white",
+                          boxShadow: rememberMe
+                            ? `0 4px 12px ${mainColor}40, inset 0 1px 0 rgba(255, 255, 255, 0.2)`
+                            : "0 1px 3px rgba(0, 0, 0, 0.1)",
+                        } as React.CSSProperties
+                      }
+                    />
+                    {rememberMe && (
+                      <div
+                        className="absolute inset-0 rounded-md pointer-events-none"
+                        style={{
+                          background: `linear-gradient(135deg, ${gradientColors.from} 0%, ${gradientColors.to} 100%)`,
+                          opacity: 0.1,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <Label
+                    htmlFor="rememberMe"
+                    className={`
+                      text-sm font-medium cursor-pointer transition-colors duration-200
+                      ${
+                        rememberMe
+                          ? "text-gray-900"
+                          : "text-gray-700 hover:text-gray-900"
+                      }
+                    `}
+                  >
                     تذكرني
                   </Label>
                 </div>
