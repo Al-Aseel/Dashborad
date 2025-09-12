@@ -175,8 +175,7 @@ export default function SettingsPage() {
       let websiteLogoUrl = null;
       if (settings.websiteLogo && typeof settings.websiteLogo === "object") {
         websiteLogoId = settings.websiteLogo._id;
-        // بناء URL الصورة من host + url من الاستجابة
-        const host = "http://localhost:5000"; // من API_BASE_URL
+        const host = process.env.NEXT_PUBLIC_API_HOST; 
         websiteLogoUrl = `${host}/${settings.websiteLogo.url}`;
       }
 
