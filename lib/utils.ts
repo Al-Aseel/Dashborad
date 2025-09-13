@@ -42,3 +42,40 @@ export function toBackendUrl(pathOrUrl: string | undefined | null): string {
     }
   }
 }
+
+// Get the public website URL for end-user review
+export function getPublicWebsiteUrl(): string {
+  // First try environment variable for public website URL
+  if (process.env.NEXT_PUBLIC_WEBSITE_URL) {
+    return process.env.NEXT_PUBLIC_WEBSITE_URL;
+  }
+
+  // Fallback: derive from API base URL by removing /api/v1
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || API_BASE_URL;
+    const url = new URL(apiUrl);
+    return url.origin;
+  } catch {
+    // Final fallback
+    return "https://elaseel.org";
+  }
+}
+
+// Get the public website URL from settings API
+export async function getPublicWebsiteUrlFromSettings(): Promise<string> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/setting`);
+    const data = await response.json();
+
+    if (data.status === "sucsess" && data.data?.website) {
+      return data.data.website;
+    }
+
+    // Fallback to environment variable or default
+    return getPublicWebsiteUrl();
+  } catch (error) {
+    console.error("Failed to fetch website URL from settings:", error);
+    // Fallback to environment variable or default
+    return getPublicWebsiteUrl();
+  }
+}

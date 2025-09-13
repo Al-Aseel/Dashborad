@@ -12,6 +12,7 @@ import {
   Sun,
   Bell,
   Search,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,6 +29,7 @@ import { LogoutDialog } from "@/components/logout-dialog";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useWebsiteInfo } from "@/hooks/use-website-name";
+import { useWebsiteUrl } from "@/hooks/use-website-url";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -47,6 +49,7 @@ export const DashboardLayout = ({
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { mainColor } = useWebsiteInfo();
+  const { websiteUrl, isLoading: isWebsiteUrlLoading } = useWebsiteUrl();
 
   useEffect(() => setMounted(true), []);
 
@@ -80,6 +83,32 @@ export const DashboardLayout = ({
               </div>
 
               <div className="flex items-center gap-3">
+                {/* Website Review Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 rounded-lg hover:bg-muted/50 transition-all duration-200 border-2"
+                  onClick={() => {
+                    if (websiteUrl) {
+                      window.open(websiteUrl, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  disabled={isWebsiteUrlLoading || !websiteUrl}
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                  {isWebsiteUrlLoading ? "جاري التحميل..." : "مراجعة الموقع"}
+                </Button>
+
                 {/* Theme Toggle */}
                 <Button
                   variant="outline"

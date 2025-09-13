@@ -19,6 +19,7 @@ import {
   Building,
   ExternalLink,
   Activity,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +48,7 @@ import { ProgramsApi } from "@/lib/programs";
 import { getDashboardOverview } from "@/lib/overview";
 import { useAuth } from "@/hooks/use-auth";
 import { toBackendUrl } from "@/lib/utils";
+import { useWebsiteUrl } from "@/hooks/use-website-url";
 import { api } from "@/lib/api";
 import { useDynamicColor } from "@/hooks/use-dynamic-color";
 import { ProjectForm } from "@/components/projects/project-form";
@@ -142,6 +144,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { mainColor, gradientColors, isColorLoading } = useDynamicColor();
+  const { websiteUrl, isLoading: isWebsiteUrlLoading } = useWebsiteUrl();
 
   // Overview API state
   const [isLoadingOverview, setIsLoadingOverview] = useState(false);
@@ -1046,8 +1049,8 @@ export default function DashboardPage() {
               <div
                 className={`grid gap-4 ${
                   Permissions.canManageUsers(user?.role || "technical")
-                    ? "grid-cols-2 md:grid-cols-4"
-                    : "grid-cols-2 md:grid-cols-3"
+                    ? "grid-cols-2 md:grid-cols-5"
+                    : "grid-cols-2 md:grid-cols-4"
                 }`}
               >
                 <Button
@@ -1117,6 +1120,33 @@ export default function DashboardPage() {
                     <span className="font-medium">إضافة مستخدم</span>
                   </Button>
                 )}
+
+                {/* Website Review Button */}
+                <Button
+                  onClick={() => {
+                    if (websiteUrl) {
+                      window.open(websiteUrl, "_blank", "noopener,noreferrer");
+                    }
+                  }}
+                  disabled={isWebsiteUrlLoading || !websiteUrl}
+                  variant="outline"
+                  className="h-20 flex-col gap-2 border-2 transition-all duration-200 hover:shadow-lg"
+                  style={{
+                    borderColor: mainColor,
+                    color: mainColor,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${mainColor}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "transparent";
+                  }}
+                >
+                  <Globe className="w-6 h-6" />
+                  <span className="font-medium">
+                    {isWebsiteUrlLoading ? " ...جاري التحميل" : "مراجعة الموقع"}
+                  </span>
+                </Button>
               </div>
             </CardContent>
           </Card>
