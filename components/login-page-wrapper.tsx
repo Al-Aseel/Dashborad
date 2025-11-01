@@ -28,17 +28,19 @@ export default function LoginPageWrapper() {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
-  const { login, isAuthenticated } = useAuthContext();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuthContext();
   const router = useRouter();
   const { settings, loading: settingsLoading } = useLoginSettings();
   const { mainColor, gradientColors, isColorLoading } = useDynamicColor();
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/");
+    if (isAuthenticated && !authLoading && !isLoading) {
+      // Use window.location.replace to ensure middleware picks up the authentication cookie
+      // and prevent going back to login page
+      window.location.replace("/");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, authLoading, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,13 +51,32 @@ export default function LoginPageWrapper() {
       const success = await login(email, password, rememberMe);
 
       if (success) {
-        router.push("/");
+        // Wait for cookie to be set and state to update
+        // Check cookie is set before redirecting
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (attempts < maxAttempts) {
+          const cookieSet = document.cookie.includes("isAuthenticated=true");
+          if (cookieSet) {
+            // Cookie is set, now redirect with full page reload to ensure middleware picks it up
+            // Use replace() to prevent going back to login page
+            window.location.replace("/");
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          attempts++;
+        }
+
+        // If cookie check fails after max attempts, still redirect
+        // The middleware will handle authentication check
+        window.location.replace("/");
       } else {
         setError("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+        setIsLoading(false);
       }
     } catch (err) {
       setError("حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.");
-    } finally {
       setIsLoading(false);
     }
   };
