@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Eye, EyeOff, Lock, Mail, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,14 +33,8 @@ export default function LoginPageWrapper() {
   const { settings, loading: settingsLoading } = useLoginSettings();
   const { mainColor, gradientColors, isColorLoading } = useDynamicColor();
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated && !authLoading && !isLoading) {
-      // Use window.location.replace to ensure middleware picks up the authentication cookie
-      // and prevent going back to login page
-      window.location.replace("/");
-    }
-  }, [isAuthenticated, authLoading, isLoading]);
+  // Note: Middleware handles redirecting authenticated users away from /login
+  // No need for client-side redirect here to avoid refresh loops
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
