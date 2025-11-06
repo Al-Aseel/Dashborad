@@ -82,6 +82,7 @@ interface NewsActivity {
   views: number;
   featured: boolean;
   createdAt: string;
+  video?: string;
 }
 
 // Move status config outside component to prevent recreation
@@ -372,6 +373,7 @@ export default function NewsActivitiesPage() {
   const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [featuredOnly, setFeaturedOnly] = useState(false);
   const [validationErrors, setValidationErrors] = useState<any[]>([]);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -607,6 +609,7 @@ export default function NewsActivitiesPage() {
         createdAt: act.createdAt
           ? new Date(act.createdAt).toISOString().split("T")[0]
           : "",
+        video: (act as any).video || "",
       } as any);
 
       // Normalize cover image
@@ -731,6 +734,7 @@ export default function NewsActivitiesPage() {
         createdAt: act.createdAt
           ? new Date(act.createdAt).toISOString().split("T")[0]
           : "",
+        video: (act as any).video || "",
       };
       setSelectedItem(normalized);
       setShowDetailsDialog(true);
@@ -761,6 +765,24 @@ export default function NewsActivitiesPage() {
         return;
       }
 
+      // Validate YouTube URL if provided
+      const videoUrl = (formData as any).video as string | undefined;
+      const isValidYouTubeUrl = (url: string) => {
+        const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}([&?].*)?$/i;
+        return pattern.test(url.trim());
+      };
+      if (videoUrl && videoUrl.trim() !== "" && !isValidYouTubeUrl(videoUrl)) {
+        setVideoError("يرجى إدخال رابط يوتيوب صالح");
+        toast({
+          title: "رابط غير صالح",
+          description: "صيغة رابط الفيديو غير صحيحة",
+          variant: "destructive",
+        });
+        return;
+      } else {
+        setVideoError(null);
+      }
+
       // Prepare activity data for API
       // Images are already uploaded when selected
       const coverImageFileName =
@@ -785,6 +807,13 @@ export default function NewsActivitiesPage() {
         }
       }
 
+      const videoToSend =
+        videoUrl && videoUrl.trim() !== ""
+          ? videoUrl.trim()
+          : showEditDialog
+          ? null
+          : undefined;
+
       const activityData: any = {
         name: formData.title || "",
         coverImage: coverImageFileName,
@@ -805,6 +834,7 @@ export default function NewsActivitiesPage() {
         gallery: galleryItems.length > 0 ? galleryItems : undefined,
         keywords: formTags && formTags.length ? formTags : undefined,
         isSpecial: !!formData.featured,
+        video: videoToSend,
       };
 
       if (showEditDialog && selectedItem) {
@@ -1061,6 +1091,16 @@ export default function NewsActivitiesPage() {
 
   const handleCategoriesDialog = useCallback(() => {
     setShowCategoriesDialog(true);
+  }, []);
+
+  // Extract YouTube video ID and build embed URL
+  const getYouTubeEmbedUrl = useCallback((url?: string) => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    // Match watch?v=, youtu.be/, or shorts/
+    const match = trimmed.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/i);
+    const id = match?.[1];
+    return id ? `https://www.youtube.com/embed/${id}` : null;
   }, []);
 
   // Memoized pagination handlers
@@ -1690,6 +1730,28 @@ export default function NewsActivitiesPage() {
               <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
                 الوسائط
               </h4>
+              <FormField label="رابط فيديو يوتيوب (اختياري)">
+                <div className="space-y-1">
+                  <Input
+                    id="video"
+                    placeholder="مثال: https://youtu.be/XXXXXXXXXXX أو https://www.youtube.com/watch?v=XXXXXXXXXXX"
+                    value={(formData as any).video || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData((prev) => ({ ...(prev as any), video: value }));
+                      if (!value || value.trim() === "") {
+                        setVideoError(null);
+                        return;
+                      }
+                      const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}([&?].*)?$/i;
+                      setVideoError(pattern.test(value.trim()) ? null : "يرجى إدخال رابط يوتيوب صالح");
+                    }}
+                  />
+                  {videoError && (
+                    <p className="text-xs text-red-600">{videoError}</p>
+                  )}
+                </div>
+              </FormField>
               <FormField label="الصورة الرئيسية" required>
                 <GalleryUpload
                   currentImages={formImages}
@@ -1803,6 +1865,19 @@ export default function NewsActivitiesPage() {
                     className="w-full h-full object-cover"
                   />
                 </div>
+
+                  {/* Video Preview */}
+                  {getYouTubeEmbedUrl((selectedItem as any).video) && (
+                    <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                      <iframe
+                        src={`${getYouTubeEmbedUrl((selectedItem as any).video)}`}
+                        title="معاينة الفيديو"
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
 
                 <div className="flex items-center gap-2 mb-4 justify-start">
                   <Badge
