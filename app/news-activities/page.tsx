@@ -1697,12 +1697,12 @@ export default function NewsActivitiesPage() {
               <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
                 الملخص والمحتوى
               </h4>
-              <FormField label="الملخص" required>
+              <FormField label="الملخص">
                 <Textarea
                   id="summary"
                   value={formData.summary || ""}
                   onChange={(e) => updateFormField("summary", e.target.value)}
-                  placeholder="أدخل ملخص مختصر للخبر/النشاط"
+                  placeholder="أدخل ملخص مختصر للخبر/النشاط (اختياري)"
                   rows={3}
                   className="text-right"
                 />
