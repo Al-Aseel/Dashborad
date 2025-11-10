@@ -24,6 +24,7 @@ export interface Settings {
   whatsappNumber: string;
   website: string;
   description: string;
+  workingHours: string;
   _id: string;
   createdAt: string;
   updatedAt: string;
@@ -51,6 +52,7 @@ export interface UpdateSettingsRequest {
   whatsappNumber: string;
   website: string;
   description: string;
+  workingHours: string;
 }
 
 export interface ValidationError {

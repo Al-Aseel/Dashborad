@@ -116,6 +116,7 @@ export default function SettingsPage() {
     whatsappNumber: "",
     website: "",
     description: "",
+    workingHours: "",
   });
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
 
@@ -175,7 +176,7 @@ export default function SettingsPage() {
       let websiteLogoUrl = null;
       if (settings.websiteLogo && typeof settings.websiteLogo === "object") {
         websiteLogoId = settings.websiteLogo._id;
-        const host = process.env.NEXT_PUBLIC_API_HOST; 
+        const host = process.env.NEXT_PUBLIC_API_HOST;
         websiteLogoUrl = `${host}/${settings.websiteLogo.url}`;
       }
 
@@ -194,6 +195,7 @@ export default function SettingsPage() {
         whatsappNumber: settings.whatsappNumber || "",
         website: settings.website || "",
         description: settings.description || "",
+        workingHours: settings.workingHours || "",
       });
 
       // حفظ URL الصورة
@@ -591,6 +593,24 @@ export default function SettingsPage() {
                   <ValidationErrors
                     errors={validationErrors}
                     fieldName="website"
+                  />
+                </div>
+
+                {/* مواعيد العمل */}
+                <div className="space-y-2">
+                  <Label htmlFor="workingHours">مواعيد عمل المؤسسة</Label>
+                  <Input
+                    id="workingHours"
+                    value={formData.workingHours || ""}
+                    onChange={(e) =>
+                      handleInputChange("workingHours", e.target.value)
+                    }
+                    placeholder="مثال: من الأحد إلى الخميس: 9:00 ص - 5:00 م"
+                    disabled={!isAdmin}
+                  />
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="workingHours"
                   />
                 </div>
 
