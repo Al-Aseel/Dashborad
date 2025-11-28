@@ -59,7 +59,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DashboardLayout } from "@/components/shared/dashboard-layout";
 import { useSliderImages } from "@/hooks/use-slider-images";
-import { SliderImage } from "@/lib/slider-images";
+import {
+  SliderImage,
+  CreateSliderImageRequest,
+  UpdateSliderImageRequest,
+} from "@/lib/slider-images";
 import { API_BASE_URL } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
@@ -138,12 +142,18 @@ export default function HomeImagesPage() {
     return () => clearTimeout(timer);
   }, []);
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
   const filteredImages = (sliderImages || []).filter((image) => {
-    if (!image || !image.title || !image.description) return false;
-    const matchesSearch =
-      image.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      image.description.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    if (!image) return false;
+    if (!normalizedSearch) return true;
+    const titleMatch = image.title
+      ?.toLowerCase()
+      .includes(normalizedSearch);
+    const descriptionMatch = image.description
+      ?.toLowerCase()
+      .includes(normalizedSearch);
+    return Boolean(titleMatch || descriptionMatch);
   });
 
   const mainImage = (sliderImages || [])[0]; // First image as main
@@ -165,8 +175,8 @@ export default function HomeImagesPage() {
   const handleEdit = (item: SliderImage) => {
     setSelectedItem(item);
     setFormData({
-      title: item.title,
-      description: item.description,
+      title: item.title || "",
+      description: item.description || "",
       isActive: item.isActive ?? true,
       isMainImage: item.isMainImage ?? false,
     });
@@ -294,35 +304,27 @@ export default function HomeImagesPage() {
       return;
     }
 
-    // Client-side validation
-    if (!formData.title || formData.title.trim().length < 3) {
-      toast({
-        title: "خطأ في العنوان",
-        description: "عنوان الصورة يجب أن يكون أطول من ثلاث حروف",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.description || formData.description.trim().length < 6) {
-      toast({
-        title: "خطأ في الوصف",
-        description: "وصف الصورة يجب أن يكون أطول من 6 حروف",
-        variant: "destructive",
-      });
-      return;
-    }
+    const trimmedTitle = formData.title.trim();
+    const trimmedDescription = formData.description.trim();
 
     try {
       if (showEditDialog && selectedItem) {
-        // Update existing image
-        await updateExistingSliderImage(selectedItem._id, {
+        const updatePayload: UpdateSliderImageRequest = {
           image: uploadedImage.id,
-          title: formData.title.trim(),
-          description: formData.description.trim(),
           isActive: formData.isActive,
           isMainImage: formData.isMainImage,
-        });
+        };
+
+        if (trimmedTitle) {
+          updatePayload.title = trimmedTitle;
+        }
+
+        if (trimmedDescription) {
+          updatePayload.description = trimmedDescription;
+        }
+
+        // Update existing image
+        await updateExistingSliderImage(selectedItem._id, updatePayload);
 
         toast({
           title: "تم التحديث بنجاح",
@@ -330,14 +332,22 @@ export default function HomeImagesPage() {
           variant: "default",
         });
       } else {
-        // Create new image
-        await createNewSliderImage({
+        const createPayload: CreateSliderImageRequest = {
           image: uploadedImage.id,
-          title: formData.title.trim(),
-          description: formData.description.trim(),
           isActive: formData.isActive,
           isMainImage: formData.isMainImage,
-        });
+        };
+
+        if (trimmedTitle) {
+          createPayload.title = trimmedTitle;
+        }
+
+        if (trimmedDescription) {
+          createPayload.description = trimmedDescription;
+        }
+
+        // Create new image
+        await createNewSliderImage(createPayload);
 
         toast({
           title: "تم الإضافة بنجاح",
@@ -493,14 +503,16 @@ export default function HomeImagesPage() {
                   <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-100">
                     <img
                       src={mainImage.imageUrl || "/placeholder.svg"}
-                      alt={mainImage.title}
+                      alt={mainImage.title || "home image"}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end">
                       <div className="p-4 text-white">
-                        <h3 className="font-bold text-lg">{mainImage.title}</h3>
+                        <h3 className="font-bold text-lg">
+                          {mainImage.title || "بدون عنوان"}
+                        </h3>
                         <p className="text-sm opacity-90">
-                          {mainImage.description}
+                          {mainImage.description || "لا يوجد وصف"}
                         </p>
                       </div>
                     </div>
@@ -571,7 +583,7 @@ export default function HomeImagesPage() {
                     >
                       <img
                         src={image.imageUrl || "/placeholder.svg"}
-                        alt={image.title}
+                        alt={image.title || "slider image"}
                         className="w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -680,19 +692,21 @@ export default function HomeImagesPage() {
                           <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100">
                             <img
                               src={image.imageUrl || "/placeholder.svg"}
-                              alt={image.title}
+                              alt={image.title || "slider image"}
                               className="w-full h-full object-cover"
                             />
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <div>
-                            <p className="font-medium">{image.title}</p>
+                            <p className="font-medium">
+                              {image.title || "بدون عنوان"}
+                            </p>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <p className="text-sm text-gray-500 truncate max-w-xs">
-                            {image.description}
+                            {image.description || "لا يوجد وصف"}
                           </p>
                         </TableCell>
                         <TableCell className="text-right">
@@ -912,7 +926,7 @@ export default function HomeImagesPage() {
                   htmlFor="title"
                   className="text-sm font-medium text-gray-700 text-right block"
                 >
-                  عنوان الصورة
+                  عنوان الصورة (اختياري)
                 </Label>
                 <Input
                   id="title"
@@ -920,27 +934,12 @@ export default function HomeImagesPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, title: e.target.value })
                   }
-                  placeholder="أدخل عنوان الصورة (3 أحرف على الأقل)"
-                  className={`w-full text-right ${
-                    formData.title.length > 0 && formData.title.length < 3
-                      ? "border-red-500 focus:border-red-500"
-                      : ""
-                  }`}
+                  placeholder="أدخل عنوان الصورة (اختياري)"
+                  className="w-full text-right"
                 />
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-gray-500">
-                    يجب أن يكون العنوان 3 أحرف على الأقل
-                  </span>
-                  <span
-                    className={`${
-                      formData.title.length < 3 && formData.title.length > 0
-                        ? "text-red-500"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    {formData.title.length}/3
-                  </span>
-                </div>
+                <p className="text-xs text-gray-500 text-right">
+                  يمكن ترك العنوان فارغاً وسيُعرض النص الافتراضي "بدون عنوان"
+                </p>
               </div>
             </div>
 
@@ -949,7 +948,7 @@ export default function HomeImagesPage() {
                 htmlFor="description"
                 className="text-sm font-medium text-gray-700 text-right block"
               >
-                وصف الصورة
+                وصف الصورة (اختياري)
               </Label>
               <Textarea
                 id="description"
@@ -957,30 +956,13 @@ export default function HomeImagesPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
-                placeholder="أدخل وصف الصورة (6 أحرف على الأقل)"
+                placeholder="أدخل وصف الصورة (اختياري)"
                 rows={3}
-                className={`w-full text-right ${
-                  formData.description.length > 0 &&
-                  formData.description.length < 6
-                    ? "border-red-500 focus:border-red-500"
-                    : ""
-                }`}
+                className="w-full text-right"
               />
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-gray-500">
-                  يجب أن يكون الوصف 6 أحرف على الأقل
-                </span>
-                <span
-                  className={`${
-                    formData.description.length < 6 &&
-                    formData.description.length > 0
-                      ? "text-red-500"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {formData.description.length}/6
-                </span>
-              </div>
+              <p className="text-xs text-gray-500 text-right">
+                يمكن ترك الوصف فارغاً وسيُعرض النص الافتراضي "لا يوجد وصف"
+              </p>
             </div>
 
             {/* Settings */}
@@ -1248,14 +1230,7 @@ export default function HomeImagesPage() {
           <DialogFooter className="flex justify-start gap-3" dir="rtl">
             <DynamicButton
               onClick={handleSave}
-              disabled={
-                loading ||
-                !uploadedImage ||
-                !formData.title.trim() ||
-                formData.title.trim().length < 3 ||
-                !formData.description.trim() ||
-                formData.description.trim().length < 6
-              }
+              disabled={loading || !uploadedImage}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "جاري الحفظ..." : "حفظ"}
@@ -1279,7 +1254,8 @@ export default function HomeImagesPage() {
           <DialogHeader>
             <DialogTitle>تأكيد الحذف</DialogTitle>
             <DialogDescription>
-              هل أنت متأكد من حذف الصورة "{selectedItem?.title}"؟ لا يمكن
+              هل أنت متأكد من حذف الصورة "
+              {selectedItem?.title || "بدون عنوان"}"؟ لا يمكن
               التراجع عن هذا الإجراء.
             </DialogDescription>
           </DialogHeader>
@@ -1331,14 +1307,14 @@ export default function HomeImagesPage() {
                 <div className="w-full aspect-[16/9] rounded-xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 shadow-lg">
                   <img
                     src={selectedItem.imageUrl || "/placeholder.svg"}
-                    alt={selectedItem.title}
+                    alt={selectedItem.title || "slider image"}
                     className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
                   />
                   {/* Overlay with title */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent">
                     <div className="absolute bottom-0 left-0 right-0 p-6">
                       <h2 className="text-white text-2xl font-bold mb-2">
-                        {selectedItem.title}
+                        {selectedItem.title || "بدون عنوان"}
                       </h2>
                       <div className="flex items-center gap-3">
                         <Badge
@@ -1388,7 +1364,7 @@ export default function HomeImagesPage() {
                     <CardContent>
                       <div className="bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-blue-100">
                         <p className="text-gray-700 leading-relaxed text-base">
-                          {selectedItem.description}
+                          {selectedItem.description || "لا يوجد وصف"}
                         </p>
                       </div>
                     </CardContent>
