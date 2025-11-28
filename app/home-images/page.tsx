@@ -313,15 +313,9 @@ export default function HomeImagesPage() {
           image: uploadedImage.id,
           isActive: formData.isActive,
           isMainImage: formData.isMainImage,
+          title: trimmedTitle,
+          description: trimmedDescription,
         };
-
-        if (trimmedTitle) {
-          updatePayload.title = trimmedTitle;
-        }
-
-        if (trimmedDescription) {
-          updatePayload.description = trimmedDescription;
-        }
 
         // Update existing image
         await updateExistingSliderImage(selectedItem._id, updatePayload);
@@ -336,15 +330,9 @@ export default function HomeImagesPage() {
           image: uploadedImage.id,
           isActive: formData.isActive,
           isMainImage: formData.isMainImage,
+          title: trimmedTitle,
+          description: trimmedDescription,
         };
-
-        if (trimmedTitle) {
-          createPayload.title = trimmedTitle;
-        }
-
-        if (trimmedDescription) {
-          createPayload.description = trimmedDescription;
-        }
 
         // Create new image
         await createNewSliderImage(createPayload);
