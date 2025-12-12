@@ -1,9 +1,9 @@
+/* Quill Snow theme base styles must come first for Turbopack */
+@import url("quill/dist/quill.snow.css");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Quill Snow theme base styles */
-@import url("quill/dist/quill.snow.css");
 
 @layer utilities {
   .text-balance {
