@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, localApi } from "./api";
 
 export interface BackendUser {
   _id: string;
@@ -56,7 +56,10 @@ export const UsersService = {
     await api.delete(`/user/${userId}`);
   },
 
-  async update(userId: string, payload: UpdateUserPayload): Promise<BackendUser> {
+  async update(
+    userId: string,
+    payload: UpdateUserPayload
+  ): Promise<BackendUser> {
     const { data } = await api.put<ApiResponse<BackendUser>>(
       `/user/${userId}`,
       payload
@@ -76,22 +79,37 @@ export const PasswordService = {
     confirmPassword?: string
   ): Promise<void> {
     const body = {
+      token,
       password: newPassword,
-      // Laravel-style confirmation key for compatibility
-      password_confirmation: confirmPassword ?? newPassword,
+      confirmPassword: confirmPassword ?? newPassword,
     } as const;
     try {
-      await api.patch(`/user/reset-password`, body, { params: { token } });
-    } catch (error: any) {
-      const status = error?.response?.status;
-      // Fallback for servers expecting POST instead of PATCH or CSRF edge cases
-      if (status === 405 || status === 419) {
-        await api.post(`/user/reset-password`, body, { params: { token } });
-        return;
+      // Use the local API route which will handle the external API call
+      const { data } = await localApi.post(`/api/v1/user/reset-password`, body);
+      if (data.status !== "success") {
+        throw new Error(data.message || "فشل في إعادة تعيين كلمة المرور");
       }
-      throw error;
+    } catch (error: any) {
+      // If local API fails, fallback to direct external API call
+      const fallbackBody = {
+        password: newPassword,
+        confirmPassword: confirmPassword ?? newPassword,
+      };
+      try {
+        await api.post(`/user/reset-password`, fallbackBody, {
+          params: { token },
+        });
+      } catch (fallbackError: any) {
+        const status = fallbackError?.response?.status;
+        // Fallback for servers expecting PATCH instead of POST
+        if (status === 405 || status === 419) {
+          await api.patch(`/user/reset-password`, fallbackBody, {
+            params: { token },
+          });
+          return;
+        }
+        throw fallbackError;
+      }
     }
   },
 };
-
-

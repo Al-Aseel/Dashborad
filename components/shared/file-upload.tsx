@@ -1,19 +1,21 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useRef } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { X, Upload, ImageIcon } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { X, Upload, ImageIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSystemSettings } from "@/hooks/use-system-settings";
+import { isImageFile, compressImage } from "@/lib/image-compression";
 
 interface FileUploadProps {
-  onFilesChange: (files: File[]) => void
-  maxFiles?: number
-  acceptedTypes?: string[]
-  className?: string
-  currentFiles?: string[] // Added support for displaying current files
+  onFilesChange: (files: File[]) => void;
+  maxFiles?: number;
+  acceptedTypes?: string[];
+  className?: string;
+  currentFiles?: string[]; // Added support for displaying current files
 }
 
 export function FileUpload({
@@ -23,57 +25,69 @@ export function FileUpload({
   className,
   currentFiles = [], // Added default empty array for current files
 }: FileUploadProps) {
-  const [files, setFiles] = useState<File[]>([])
-  const [dragActive, setDragActive] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { settings: systemSettings } = useSystemSettings();
 
-  const handleFiles = (newFiles: FileList | null) => {
-    if (!newFiles) return
+  const handleFiles = async (newFiles: FileList | null) => {
+    if (!newFiles) return;
 
-    const fileArray = Array.from(newFiles)
+    const fileArray = Array.from(newFiles);
     const validFiles = fileArray.filter((file) => {
       return acceptedTypes.some((type) => {
         if (type.includes("*")) {
-          return file.type.startsWith(type.replace("*", ""))
+          return file.type.startsWith(type.replace("*", ""));
         }
-        return file.name.toLowerCase().endsWith(type)
-      })
-    })
+        return file.name.toLowerCase().endsWith(type);
+      });
+    });
 
-    const updatedFiles = [...files, ...validFiles].slice(0, maxFiles)
-    setFiles(updatedFiles)
-    onFilesChange(updatedFiles)
-  }
+    // If compression enabled, compress images client-side before setting
+    let processedFiles = validFiles;
+    try {
+      if (systemSettings?.enableFileCompression) {
+        const promises = validFiles.map(async (f) =>
+          isImageFile(f) ? await compressImage(f) : f
+        );
+        processedFiles = await Promise.all(promises);
+      }
+    } catch {}
+
+    const updatedFiles = [...files, ...processedFiles].slice(0, maxFiles);
+    setFiles(updatedFiles);
+    onFilesChange(updatedFiles);
+  };
 
   const removeFile = (index: number) => {
-    const updatedFiles = files.filter((_, i) => i !== index)
-    setFiles(updatedFiles)
-    onFilesChange(updatedFiles)
-  }
+    const updatedFiles = files.filter((_, i) => i !== index);
+    setFiles(updatedFiles);
+    onFilesChange(updatedFiles);
+  };
 
   const removeCurrentFile = (index: number) => {
     // This would need to be handled by parent component
     // For now, we'll just show the files
-  }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
+      setDragActive(true);
     } else if (e.type === "dragleave") {
-      setDragActive(false)
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-    handleFiles(e.dataTransfer.files)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    handleFiles(e.dataTransfer.files);
+  };
 
-  const totalFiles = files.length + currentFiles.length
+  const totalFiles = files.length + currentFiles.length;
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -81,7 +95,9 @@ export function FileUpload({
         <Card
           className={cn(
             "border-2 border-dashed p-6 text-center cursor-pointer transition-colors",
-            dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400",
+            dragActive
+              ? "border-blue-500 bg-blue-50"
+              : "border-gray-300 hover:border-gray-400"
           )}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -90,7 +106,9 @@ export function FileUpload({
           onClick={() => inputRef.current?.click()}
         >
           <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <p className="text-lg font-medium text-gray-900 mb-2">اضغط لتحديد الملفات</p>
+          <p className="text-lg font-medium text-gray-900 mb-2">
+            اضغط لتحديد الملفات
+          </p>
           <p className="text-sm text-gray-500">أو اسحب الملفات هنا</p>
           <p className="text-xs text-gray-400 mt-2">
             الحد الأقصى: {maxFiles} ملفات ({totalFiles}/{maxFiles})
@@ -163,19 +181,28 @@ export function FileUpload({
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 truncate">{file.name}</p>
+                  <p className="text-xs text-gray-500 mt-1 truncate">
+                    {file.name}
+                  </p>
                 </div>
               ))}
             </div>
           ) : (
             // Original list view for non-image files
             files.map((file, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div
+                key={index}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              >
                 <div className="flex items-center gap-3">
                   <ImageIcon className="h-5 w-5 text-gray-500" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                    <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
                   </div>
                 </div>
                 <Button
@@ -192,5 +219,5 @@ export function FileUpload({
         </div>
       )}
     </div>
-  )
+  );
 }

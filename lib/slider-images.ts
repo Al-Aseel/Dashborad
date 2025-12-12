@@ -14,8 +14,8 @@ function getBaseUrl(): string {
 export interface SliderImage {
   _id: string;
   image: string; // image ID
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   imageUrl?: string; // full URL for display
   isActive?: boolean;
   isMainImage?: boolean;
@@ -25,8 +25,8 @@ export interface SliderImage {
 
 export interface CreateSliderImageRequest {
   image: string; // image ID
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   isActive?: boolean;
   isMainImage?: boolean;
 }
@@ -50,7 +50,7 @@ export async function uploadImage(
     headers: {
       "Content-Type": "multipart/form-data",
     },
-    timeout: 30000,
+    timeout: 60000,
   });
 
   const responseData = response.data.data || response.data;

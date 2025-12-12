@@ -213,8 +213,8 @@ export const activitiesApi = {
         // Don't set Content-Type manually - let the browser set it with boundary
         // "Content-Type": "multipart/form-data",
       },
-      // Ensure proper timeout for file uploads
-      timeout: 30000,
+      // Ensure proper timeout for file uploads - increased for gallery uploads
+      timeout: 90000,
     });
     return response.data;
   },
@@ -248,8 +248,8 @@ export const activitiesApi = {
         // Don't set Content-Type manually - let the browser set it with boundary
         // "Content-Type": "multipart/form-data",
       },
-      // Ensure proper timeout for file uploads
-      timeout: 30000,
+      // Ensure proper timeout for file uploads - increased for gallery uploads
+      timeout: 90000,
     });
     return response.data;
   },

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import React, {
+  useMemo,
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import "quill/dist/quill.snow.css";
 
 interface RichTextEditorProps {
@@ -9,25 +15,39 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeholder }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({
+  value,
+  onChange,
+  placeholder,
+}) => {
   const [isRTL, setIsRTL] = useState(true);
   const [autoDetectDir, setAutoDetectDir] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const quillInstanceRef = useRef<any>(null);
 
-  const modules = useMemo(() => ({
-    toolbar: [
-      [{ header: [1, 2, 3, 4, 5, 6, false] }],
-      ["bold", "italic", "underline", "strike", { script: "sub" }, { script: "super" }],
-      [{ color: [] }, { background: [] }],
-      [{ list: "ordered" }, { list: "bullet" }],
-      [{ align: [] }, { direction: "rtl" }],
-      ["blockquote", "code-block", "link", "image"],
-      ["clean"],
-    ],
-    clipboard: { matchVisual: true },
-    history: { delay: 500, maxStack: 200, userOnly: true },
-  }), []);
+  const modules = useMemo(
+    () => ({
+      toolbar: [
+        [{ header: [1, 2, 3, 4, 5, 6, false] }],
+        [
+          "bold",
+          "italic",
+          "underline",
+          "strike",
+          { script: "sub" },
+          { script: "super" },
+        ],
+        [{ color: [] }, { background: [] }],
+        [{ list: "ordered" }, { list: "bullet" }],
+        [{ align: [] }, { direction: "rtl" }],
+        ["blockquote", "code-block", "link", "image"],
+        ["clean"],
+      ],
+      clipboard: { matchVisual: true },
+      history: { delay: 500, maxStack: 200, userOnly: true },
+    }),
+    []
+  );
 
   const formats = useMemo(
     () => [
@@ -59,13 +79,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     root.style.textAlign = isRTL ? "right" : "left";
   }, [isRTL]);
 
-  const detectDirection = useCallback((text: string) => {
-    if (!autoDetectDir) return;
-    const hasArabic = /[\u0600-\u06FF]/.test(text);
-    if (hasArabic !== isRTL) {
-      setIsRTL(hasArabic);
-    }
-  }, [autoDetectDir, isRTL]);
+  const detectDirection = useCallback(
+    (text: string) => {
+      if (!autoDetectDir) return;
+      const hasArabic = /[\u0600-\u06FF]/.test(text);
+      if (hasArabic !== isRTL) {
+        setIsRTL(hasArabic);
+      }
+    },
+    [autoDetectDir, isRTL]
+  );
 
   useEffect(() => {
     if (quillInstanceRef.current) return; // initialize once
@@ -106,8 +129,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     return () => {
       isMounted = false;
     };
-  // deliberately only run once on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // deliberately only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // update when external value changes
@@ -133,7 +156,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
     <div className="space-y-2">
       <div className="flex items-center gap-3 justify-end">
         <label className="text-xs">
-          <input type="checkbox" className="mr-1" checked={autoDetectDir} onChange={(e) => setAutoDetectDir(e.target.checked)} />
+          <input
+            type="checkbox"
+            className="mr-1"
+            checked={autoDetectDir}
+            onChange={(e) => setAutoDetectDir(e.target.checked)}
+          />
           تلقائي RTL
         </label>
         <button
@@ -143,33 +171,36 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange,
         >
           {isRTL ? "LTR" : "RTL"}
         </button>
-          </div>
+      </div>
       <div ref={containerRef} />
       <style jsx global>{`
         .ql-editor {
           min-height: 300px;
-            line-height: 1.8;
-          }
+          line-height: 1.8;
+        }
         .ql-container.ql-snow {
-            border-radius: 0.5rem;
+          border-radius: 0.5rem;
         }
         /* Fix list alignment for RTL */
-        .ql-editor[dir='rtl'] ol,
-        .ql-editor[dir='rtl'] ul {
+        .ql-editor[dir="rtl"] ol,
+        .ql-editor[dir="rtl"] ul {
           padding-right: 1.5rem;
           padding-left: 0;
           list-style-position: inside;
         }
-        .ql-editor[dir='rtl'] li {
+        .ql-editor[dir="rtl"] li {
           text-align: right;
         }
         .ql-editor ol,
         .ql-editor ul {
           margin: 0.5rem 0;
-          }
-        `}</style>
-      </div>
+        }
+        /* Heading dropdown layout: make options row-reverse */
+        .ql-snow .ql-picker .ql-picker-label {
+          display: flex;
+          flex-direction: row-reverse;
+        }
+      `}</style>
+    </div>
   );
 };
-
-

@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { AuthService } from "@/lib/auth";
@@ -29,7 +35,8 @@ export function EditProfileForm() {
     const loadUserData = () => {
       try {
         if (typeof window !== "undefined") {
-          const userData = localStorage.getItem("userData") || sessionStorage.getItem("userData");
+          // Always use localStorage for userData
+          const userData = localStorage.getItem("userData");
           if (userData) {
             const parsedUser = JSON.parse(userData);
             setFormData({
@@ -65,7 +72,7 @@ export function EditProfileForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -94,10 +101,12 @@ export function EditProfileForm() {
           window.location.href = "/login";
         }
       }, 2000); // Wait 2 seconds for user to read the message
-
     } catch (error: any) {
       // Handle server validation errors
-      if (error?.response?.data?.status === "error" && error?.response?.data?.details) {
+      if (
+        error?.response?.data?.status === "error" &&
+        error?.response?.data?.details
+      ) {
         const details = error.response.data.details;
         if (Array.isArray(details) && details.length > 0) {
           // Show first error message in toast
@@ -107,7 +116,7 @@ export function EditProfileForm() {
             description: firstError.msg,
             variant: "destructive",
           });
-          
+
           // Set field-specific errors
           const newErrors: Record<string, string> = {};
           details.forEach((detail: any) => {
@@ -118,7 +127,8 @@ export function EditProfileForm() {
           setErrors(newErrors);
         } else {
           // Fallback for other error formats
-          const errorMessage = error?.response?.data?.message || "حدث خطأ أثناء تحديث البيانات";
+          const errorMessage =
+            error?.response?.data?.message || "حدث خطأ أثناء تحديث البيانات";
           toast({
             title: "فشل تحديث البيانات",
             description: errorMessage,
@@ -127,7 +137,8 @@ export function EditProfileForm() {
         }
       } else {
         // Handle other types of errors
-        const errorMessage = error?.response?.data?.message || "حدث خطأ أثناء تحديث البيانات";
+        const errorMessage =
+          error?.response?.data?.message || "حدث خطأ أثناء تحديث البيانات";
         toast({
           title: "فشل تحديث البيانات",
           description: errorMessage,
@@ -159,7 +170,9 @@ export function EditProfileForm() {
               id="name"
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               className={errors.name ? "border-red-500" : ""}
               placeholder="أدخل اسمك"
             />
@@ -177,7 +190,9 @@ export function EditProfileForm() {
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
               className={errors.email ? "border-red-500" : ""}
               placeholder="أدخل بريدك الإلكتروني"
               dir="ltr"

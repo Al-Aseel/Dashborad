@@ -4,6 +4,9 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SettingsProvider } from "@/components/settings-context";
+import { DynamicColorProvider } from "@/components/dynamic-color-provider";
+import { GlobalColorProvider } from "@/components/global-color-provider";
 import { Toaster } from "@/components/ui/toaster";
 
 const cairo = Cairo({
@@ -30,7 +33,13 @@ export default function RootLayout({
     <html lang="ar" suppressHydrationWarning>
       <body className={`${cairo.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          <AuthProvider>{children}</AuthProvider>
+          <GlobalColorProvider>
+            <AuthProvider>
+              <SettingsProvider>
+                <DynamicColorProvider>{children}</DynamicColorProvider>
+              </SettingsProvider>
+            </AuthProvider>
+          </GlobalColorProvider>
           <Toaster />
         </ThemeProvider>
       </body>

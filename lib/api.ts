@@ -1,17 +1,18 @@
 import axios from "axios";
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+const baseURL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.elaseel.org/api/v1";
 export const API_BASE_URL = baseURL;
 
 export const api = axios.create({
   baseURL,
-  timeout: 10000, // تقليل timeout لسرعة اكتشاف المشاكل
+  timeout: 30000, // زيادة timeout للشبكات البطيئة
 });
 
 // Same-origin client for hitting Next.js API routes (no external baseURL)
 export const localApi = axios.create({
   baseURL: "",
-  timeout: 10000,
+  timeout: 30000,
 });
 
 // Attach token from localStorage on each request
@@ -19,10 +20,8 @@ const attachAuthToken = (config: any) => {
   try {
     let token: string | null = null;
     if (typeof window !== "undefined") {
-      // Prefer persistent token, fallback to session token
-      token =
-        localStorage.getItem("auth_token") ||
-        sessionStorage.getItem("auth_token");
+      // Always use localStorage for auth_token
+      token = localStorage.getItem("auth_token");
     }
     if (token) {
       config.headers = config.headers || {};
@@ -50,21 +49,25 @@ const responseErrorHandler = (error: any) => {
   // Previously we dispatched a custom event for a ServerErrorProvider.
   // That provider has been removed, so we no longer emit any window events here.
 
-  // Handle 401 globally
+  // Handle 401: Session expired or unauthorized
   if (error?.response?.status === 401 && typeof window !== "undefined") {
     try {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("userData");
-      localStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("auth_token");
-      sessionStorage.removeItem("userData");
-      sessionStorage.removeItem("isAuthenticated");
-      document.cookie =
-        "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    } catch {}
-    // Redirect to login
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
+      // Check if the error response matches the expected format
+      const errorData = error.response?.data;
+      const isSessionExpired =
+        errorData?.status === "error" &&
+        errorData?.message === "فشل في عملية تسجيل دخول" &&
+        errorData?.details?.message === "انتهت صلاحية الجلسة";
+
+      // Clear all authentication data
+      clearAuthData();
+
+      // Redirect to login page if not already there
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    } catch (clearError) {
+      console.error("Error clearing authentication data:", clearError);
     }
   }
 
@@ -84,24 +87,63 @@ export function setAuthToken(
 ) {
   if (token) {
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
-    const remember = options?.remember ?? true;
     try {
-      // Ensure token exists in only one storage
+      // Always use localStorage for auth_token
       localStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_token");
-      if (remember) {
-        localStorage.setItem("auth_token", token);
-      } else {
-        sessionStorage.setItem("auth_token", token);
-      }
+      localStorage.setItem("auth_token", token);
     } catch {}
   } else {
     delete api.defaults.headers.common.Authorization;
     try {
       localStorage.removeItem("auth_token");
-      sessionStorage.removeItem("auth_token");
     } catch {}
   }
 }
+
+// Utility function to create standard authentication error response
+export function createAuthErrorResponse() {
+  return {
+    status: "error",
+    message: "فشل في عملية تسجيل دخول",
+    details: {
+      message: "انتهت صلاحية الجلسة",
+    },
+  };
+}
+
+// Utility function to clear all authentication data
+export function clearAuthData() {
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("userData");
+      localStorage.removeItem("isAuthenticated");
+
+      // Clear authentication cookie
+      document.cookie =
+        "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+      // Clear axios default headers
+      delete api.defaults.headers.common.Authorization;
+      delete localApi.defaults.headers.common.Authorization;
+    }
+  } catch (error) {
+    console.error("Error clearing authentication data:", error);
+  }
+}
+
+// Middleware function for API routes to handle authentication errors
+export function handleApiAuthError(error: any) {
+  if (error?.response?.status === 401) {
+    return new Response(JSON.stringify(createAuthErrorResponse()), {
+      status: 401,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  }
+  return null; // Let the calling code handle other errors
+}
+
 // Helper function to check if server is reachable
 // Removed checkServerHealth as ServerErrorProvider is no longer used

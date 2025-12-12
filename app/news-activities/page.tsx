@@ -58,7 +58,7 @@ import { DashboardLayout } from "@/components/shared/dashboard-layout";
 import { useCategories } from "@/hooks/use-categories";
 import { toBackendUrl } from "@/lib/utils";
 import { CategoryManager } from "@/components/shared/category-manager";
-import { useActivities, Activity } from "@/hooks/use-activities";
+import { useActivities } from "@/hooks/use-activities";
 import { activitiesApi } from "@/lib/activities";
 import { useToast } from "@/hooks/use-toast";
 import React from "react";
@@ -82,6 +82,7 @@ interface NewsActivity {
   views: number;
   featured: boolean;
   createdAt: string;
+  video?: string;
 }
 
 // Move status config outside component to prevent recreation
@@ -104,240 +105,241 @@ const STATUS_CONFIG = {
 } as const;
 
 // Memoized Stats Card Component
-const StatsCard = React.memo(({ 
-  title, 
-  value, 
-  icon: Icon, 
-  iconBgColor, 
-  iconColor 
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
-  iconBgColor: string;
-  iconColor: string;
-}) => (
-  <Card>
-    <CardContent className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+const StatsCard = React.memo(
+  ({
+    title,
+    value,
+    icon: Icon,
+    iconBgColor,
+    iconColor,
+  }: {
+    title: string;
+    value: string | number;
+    icon: React.ComponentType<{ className?: string }>;
+    iconBgColor: string;
+    iconColor: string;
+  }) => (
+    <Card className="hover:shadow-lg hover:scale-105 transition-all duration-300 ease-out">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl font-bold text-gray-900">{value}</p>
+          </div>
+          <div
+            className={`p-3 rounded-full ${iconBgColor} ${iconColor} transition-transform duration-300 ease-out hover:scale-110`}
+          >
+            <Icon className="w-6 h-6" />
+          </div>
         </div>
-        <div className={`p-3 rounded-full ${iconBgColor} ${iconColor}`}>
-          <Icon className="w-6 h-6" />
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-));
+      </CardContent>
+    </Card>
+  )
+);
 
-StatsCard.displayName = 'StatsCard';
+StatsCard.displayName = "StatsCard";
 
 // Memoized News Activity Item Component
-const NewsActivityItem = React.memo(({ 
-  item, 
-  onView, 
-  onEdit, 
-  onDelete,
-  StatusBadge 
-}: {
-  item: NewsActivity;
-  onView: (item: NewsActivity) => void;
-  onEdit: (item: NewsActivity) => void;
-  onDelete: (item: NewsActivity) => void;
-  StatusBadge: React.ComponentType<{ status: string }>;
-}) => (
-  <div className="flex gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
-    <div className="w-24 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-      <img
-        src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
-        alt={item.title}
-        className="w-full h-full object-cover"
-      />
+const NewsActivityItem = React.memo(
+  ({
+    item,
+    onView,
+    onEdit,
+    onDelete,
+    StatusBadge,
+  }: {
+    item: NewsActivity;
+    onView: (item: NewsActivity) => void;
+    onEdit: (item: NewsActivity) => void;
+    onDelete: (item: NewsActivity) => void;
+    StatusBadge: React.ComponentType<{ status: string }>;
+  }) => (
+    <div className="flex gap-4 p-4 border rounded-lg hover:shadow-lg hover:scale-[1.02] transition-all duration-300 ease-out">
+      <div className="w-24 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+        <img
+          src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
+          alt={item.title}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-bold text-lg truncate pr-4">{item.title}</h3>
+          <div className="flex gap-2 flex-shrink-0">
+            <Badge
+              className={item.type === "news" ? "bg-blue-500" : "bg-green-500"}
+            >
+              {item.type === "news" ? "خبر" : "نشاط"}
+            </Badge>
+            <Badge variant="outline">{item.category}</Badge>
+            <StatusBadge status={item.status} />
+            {item.featured && (
+              <Badge className="bg-orange-500">
+                <Star className="w-3 h-3 mr-1" />
+                مميز
+              </Badge>
+            )}
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {item.summary}
+        </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <span>بواسطة: {item.author}</span>
+            <span>
+              {item.status === "scheduled" ? (
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>مجدول: {item.scheduledDate}</span>
+                  <Clock className="w-4 h-4" />
+                  <span>{item.scheduledTime}</span>
+                </div>
+              ) : (
+                `تاريخ النشر: ${item.publishDate}`
+              )}
+            </span>
+            <div className="flex items-center gap-1">
+              <Eye className="w-4 h-4" />
+              <span>{item.views}</span>
+            </div>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onView(item)}>
+                <Eye className="w-4 h-4 mr-2" />
+                عرض التفاصيل
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(item)}>
+                <Edit className="w-4 h-4 mr-2" />
+                تعديل
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDelete(item)}
+                className="text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                حذف
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
     </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-bold text-lg truncate pr-4">
-          {item.title}
-        </h3>
-        <div className="flex gap-2 flex-shrink-0">
+  )
+);
+
+NewsActivityItem.displayName = "NewsActivityItem";
+
+// Memoized Featured News Card Component
+const FeaturedNewsCard = React.memo(
+  ({
+    item,
+    onView,
+    onEdit,
+    onDelete,
+  }: {
+    item: NewsActivity;
+    onView: (item: NewsActivity) => void;
+    onEdit: (item: NewsActivity) => void;
+    onDelete: (item: NewsActivity) => void;
+  }) => (
+    <Card className="overflow-hidden hover:shadow-xl hover:scale-[1.03] transition-all duration-300 ease-out">
+      <div className="relative aspect-video">
+        <img
+          src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
+          alt={item.title}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute top-2 right-2">
           <Badge
-            className={
-              item.type === "news"
-                ? "bg-blue-500"
-                : "bg-green-500"
-            }
+            className={item.type === "news" ? "bg-blue-500" : "bg-green-500"}
           >
             {item.type === "news" ? "خبر" : "نشاط"}
           </Badge>
-          <Badge variant="outline">{item.category}</Badge>
-          <StatusBadge status={item.status} />
-          {item.featured && (
-            <Badge className="bg-orange-500">
-              <Star className="w-3 h-3 mr-1" />
-              مميز
-            </Badge>
-          )}
+        </div>
+        <div className="absolute top-2 left-2">
+          <Badge variant="outline" className="bg-white">
+            {item.category}
+          </Badge>
+        </div>
+        <div className="absolute bottom-2 right-2">
+          <Badge className="bg-orange-500">
+            <Star className="w-3 h-3 mr-1" />
+            مميز
+          </Badge>
         </div>
       </div>
-      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-        {item.summary}
-      </p>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span>بواسطة: {item.author}</span>
-          <span>
-            {item.status === "scheduled" ? (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                <span>مجدول: {item.scheduledDate}</span>
-                <Clock className="w-4 h-4" />
-                <span>{item.scheduledTime}</span>
-              </div>
-            ) : (
-              `تاريخ النشر: ${item.publishDate}`
-            )}
-          </span>
-          <div className="flex items-center gap-1">
+      <CardContent className="p-4">
+        <h3 className="font-bold text-lg mb-2 line-clamp-2">{item.title}</h3>
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {item.summary}
+        </p>
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+          <span>{item.author}</span>
+          <span>{item.publishDate}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-sm text-gray-500">
             <Eye className="w-4 h-4" />
             <span>{item.views}</span>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onView(item)}>
+                <Eye className="w-4 h-4 mr-2" />
+                عرض التفاصيل
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(item)}>
+                <Edit className="w-4 h-4 mr-2" />
+                تعديل
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(item)}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                حذف
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onView(item)}>
-              <Eye className="w-4 h-4 mr-2" />
-              عرض التفاصيل
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(item)}>
-              <Edit className="w-4 h-4 mr-2" />
-              تعديل
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onDelete(item)} className="text-red-600">
-              <Trash2 className="w-4 h-4 mr-2" />
-              حذف
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-  </div>
-));
+      </CardContent>
+    </Card>
+  )
+);
 
-NewsActivityItem.displayName = 'NewsActivityItem';
-
-// Memoized Featured News Card Component
-const FeaturedNewsCard = React.memo(({ 
-  item, 
-  onView, 
-  onEdit, 
-  onDelete 
-}: {
-  item: NewsActivity;
-  onView: (item: NewsActivity) => void;
-  onEdit: (item: NewsActivity) => void;
-  onDelete: (item: NewsActivity) => void;
-}) => (
-  <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-    <div className="relative aspect-video">
-      <img
-        src={toBackendUrl(item.imageUrl) || "/placeholder.svg"}
-        alt={item.title}
-        className="w-full h-full object-cover"
-      />
-      <div className="absolute top-2 right-2">
-        <Badge
-          className={
-            item.type === "news"
-              ? "bg-blue-500"
-              : "bg-green-500"
-          }
-        >
-          {item.type === "news" ? "خبر" : "نشاط"}
-        </Badge>
-      </div>
-      <div className="absolute top-2 left-2">
-        <Badge variant="outline" className="bg-white">
-          {item.category}
-        </Badge>
-      </div>
-      <div className="absolute bottom-2 right-2">
-        <Badge className="bg-orange-500">
-          <Star className="w-3 h-3 mr-1" />
-          مميز
-        </Badge>
-      </div>
-    </div>
-    <CardContent className="p-4">
-      <h3 className="font-bold text-lg mb-2 line-clamp-2">
-        {item.title}
-      </h3>
-      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-        {item.summary}
-      </p>
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-        <span>{item.author}</span>
-        <span>{item.publishDate}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-sm text-gray-500">
-          <Eye className="w-4 h-4" />
-          <span>{item.views}</span>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={() => onView(item)}>
-              <Eye className="w-4 h-4 mr-2" />
-              عرض التفاصيل
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(item)}>
-              <Edit className="w-4 h-4 mr-2" />
-              تعديل
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(item)}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              حذف
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </CardContent>
-  </Card>
-));
-
-FeaturedNewsCard.displayName = 'FeaturedNewsCard';
+FeaturedNewsCard.displayName = "FeaturedNewsCard";
 
 // Memoized Form Field Component
-const FormField = React.memo(({ 
-  label, 
-  children, 
-  required = false 
-}: {
-  label: string;
-  children: React.ReactNode;
-  required?: boolean;
-}) => (
-  <div className="space-y-2">
-    <Label htmlFor={label.toLowerCase()}>
-      {label} {required && "*"}
-    </Label>
-    {children}
-  </div>
-));
+const FormField = React.memo(
+  ({
+    label,
+    children,
+    required = false,
+  }: {
+    label: string;
+    children: React.ReactNode;
+    required?: boolean;
+  }) => (
+    <div className="space-y-2">
+      <Label htmlFor={label.toLowerCase()}>
+        {label} {required && "*"}
+      </Label>
+      {children}
+    </div>
+  )
+);
 
-FormField.displayName = 'FormField';
+FormField.displayName = "FormField";
 
 export default function NewsActivitiesPage() {
   const { byModule, refreshCategories } = useCategories();
@@ -368,8 +370,10 @@ export default function NewsActivitiesPage() {
   const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
   const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
   const [uploadingGalleryImages, setUploadingGalleryImages] = useState(false);
-  const [featuredItems, setFeaturedItems] = useState<Activity[]>([]);
+  const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<any[]>([]);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Dialog states
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -390,7 +394,9 @@ export default function NewsActivitiesPage() {
 
   // Memoized status badge component
   const StatusBadge = useCallback(({ status }: { status: string }) => {
-    const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.published;
+    const config =
+      STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] ||
+      STATUS_CONFIG.published;
     return (
       <Badge variant={config.variant} className={config.color}>
         {config.label}
@@ -401,7 +407,7 @@ export default function NewsActivitiesPage() {
   // Convert API activities to local format
   const newsActivities = useMemo(
     () =>
-      activities.map((activity: Activity) => ({
+      activities.map((activity: any) => ({
         id: activity._id,
         title: activity.name,
         content: activity.content,
@@ -446,7 +452,7 @@ export default function NewsActivitiesPage() {
             title: img.title ?? img._id ?? img.fileName,
           })) || [],
         tags: activity.keywords || [],
-        views: 0, // API doesn't provide views yet
+        views: activity.numberOfViews || 0,
         featured: activity.isSpecial,
         createdAt: new Date(activity.createdAt).toISOString().split("T")[0],
       })),
@@ -470,7 +476,7 @@ export default function NewsActivitiesPage() {
   // Map featuredItems from API into local shape and always show all
   const featuredNews = useMemo(
     () =>
-      featuredItems.map((activity: Activity) => ({
+      featuredItems.map((activity: any) => ({
         id: activity._id,
         title: activity.name,
         content: activity.content,
@@ -525,7 +531,11 @@ export default function NewsActivitiesPage() {
   // Dedicated fetch for featured items
   const refreshFeatured = useCallback(async () => {
     try {
-      const res = await activitiesApi.getAll({ isSpecial: true, limit: 1000, page: 1 });
+      const res = await activitiesApi.getAll({
+        isSpecial: true,
+        limit: 1000,
+        page: 1,
+      });
       // اعرض جميع العناصر المميزة بغض النظر عن حالة النشر
       setFeaturedItems(res.data.activities);
     } catch (e) {
@@ -539,9 +549,12 @@ export default function NewsActivitiesPage() {
   }, [refreshFeatured]);
 
   // Optimized form update handlers
-  const updateFormField = useCallback((field: keyof NewsActivity, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  const updateFormField = useCallback(
+    (field: keyof NewsActivity, value: any) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    []
+  );
 
   const handleAdd = useCallback(async () => {
     await refreshCategories("news-activities");
@@ -596,6 +609,7 @@ export default function NewsActivitiesPage() {
         createdAt: act.createdAt
           ? new Date(act.createdAt).toISOString().split("T")[0]
           : "",
+        video: (act as any).video || "",
       } as any);
 
       // Normalize cover image
@@ -720,6 +734,7 @@ export default function NewsActivitiesPage() {
         createdAt: act.createdAt
           ? new Date(act.createdAt).toISOString().split("T")[0]
           : "",
+        video: (act as any).video || "",
       };
       setSelectedItem(normalized);
       setShowDetailsDialog(true);
@@ -737,6 +752,8 @@ export default function NewsActivitiesPage() {
 
   const handleSave = async () => {
     setLoading(true);
+    setValidationErrors([]); // Clear previous validation errors
+
     try {
       // Basic validation according to backend requirements
       if (!formData.category || String(formData.category).trim() === "") {
@@ -746,6 +763,24 @@ export default function NewsActivitiesPage() {
           variant: "destructive",
         });
         return;
+      }
+
+      // Validate YouTube URL if provided
+      const videoUrl = (formData as any).video as string | undefined;
+      const isValidYouTubeUrl = (url: string) => {
+        const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}([&?].*)?$/i;
+        return pattern.test(url.trim());
+      };
+      if (videoUrl && videoUrl.trim() !== "" && !isValidYouTubeUrl(videoUrl)) {
+        setVideoError("يرجى إدخال رابط يوتيوب صالح");
+        toast({
+          title: "رابط غير صالح",
+          description: "صيغة رابط الفيديو غير صحيحة",
+          variant: "destructive",
+        });
+        return;
+      } else {
+        setVideoError(null);
       }
 
       // Prepare activity data for API
@@ -772,6 +807,13 @@ export default function NewsActivitiesPage() {
         }
       }
 
+      const videoToSend =
+        videoUrl && videoUrl.trim() !== ""
+          ? videoUrl.trim()
+          : showEditDialog
+          ? null
+          : undefined;
+
       const activityData: any = {
         name: formData.title || "",
         coverImage: coverImageFileName,
@@ -792,6 +834,7 @@ export default function NewsActivitiesPage() {
         gallery: galleryItems.length > 0 ? galleryItems : undefined,
         keywords: formTags && formTags.length ? formTags : undefined,
         isSpecial: !!formData.featured,
+        video: videoToSend,
       };
 
       if (showEditDialog && selectedItem) {
@@ -822,8 +865,29 @@ export default function NewsActivitiesPage() {
       setFormTags([]);
       // Refresh featured after save
       refreshFeatured();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving activity:", error);
+
+      // Handle server validation errors
+      if (error?.response?.data?.details) {
+        setValidationErrors(error.response.data.details);
+        toast({
+          title: "خطأ في التحقق من صحة البيانات",
+          description: "يرجى مراجعة الأخطاء أدناه وإصلاحها",
+          variant: "destructive",
+        });
+      } else {
+        // Handle general errors
+        const errorMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "حدث خطأ أثناء حفظ البيانات";
+        toast({
+          title: "خطأ",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -854,6 +918,7 @@ export default function NewsActivitiesPage() {
     setFormImages([]);
     setFormGallery([]);
     setFormTags([]);
+    setValidationErrors([]); // Clear validation errors when closing dialog
   }, []);
 
   // Handle cover image upload
@@ -1028,29 +1093,48 @@ export default function NewsActivitiesPage() {
     setShowCategoriesDialog(true);
   }, []);
 
-  // Memoized pagination handlers
-  const handlePageChange = useCallback((page: number) => {
-    fetchActivities({ page });
-  }, [fetchActivities]);
+  // Extract YouTube video ID and build embed URL
+  const getYouTubeEmbedUrl = useCallback((url?: string) => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    // Match watch?v=, youtu.be/, or shorts/
+    const match = trimmed.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/i);
+    const id = match?.[1];
+    return id ? `https://www.youtube.com/embed/${id}` : null;
+  }, []);
 
-  const handleLimitChange = useCallback((limit: number) => {
-    fetchActivities({ limit, page: 1 });
-  }, [fetchActivities]);
+  // Memoized pagination handlers
+  const handlePageChange = useCallback(
+    (page: number) => {
+      fetchActivities({ page });
+    },
+    [fetchActivities]
+  );
+
+  const handleLimitChange = useCallback(
+    (limit: number) => {
+      fetchActivities({ limit, page: 1 });
+    },
+    [fetchActivities]
+  );
 
   // Memoized pagination info
-  const paginationInfo = useMemo(() => ({
-    start: (pagination.page - 1) * pagination.limit + 1,
-    end: Math.min(pagination.page * pagination.limit, pagination.total),
-    total: pagination.total,
-    page: pagination.page,
-    totalPages: pagination.totalPages,
-  }), [pagination]);
+  const paginationInfo = useMemo(
+    () => ({
+      start: (pagination.page - 1) * pagination.limit + 1,
+      end: Math.min(pagination.page * pagination.limit, pagination.total),
+      total: pagination.total,
+      page: pagination.page,
+      totalPages: pagination.totalPages,
+    }),
+    [pagination]
+  );
 
   // Memoized pagination buttons
   const paginationButtons = useMemo(() => {
     const buttons = [];
     const maxButtons = Math.min(5, pagination.totalPages);
-    
+
     for (let i = 1; i <= maxButtons; i++) {
       buttons.push(
         <Button
@@ -1058,12 +1142,15 @@ export default function NewsActivitiesPage() {
           variant={pagination.page === i ? "default" : "outline"}
           size="sm"
           onClick={() => handlePageChange(i)}
+          className={`${
+            pagination.page === i ? "btn-primary" : ""
+          } hover:scale-105 transition-transform duration-200 ease-out`}
         >
           {i}
         </Button>
       );
     }
-    
+
     return buttons;
   }, [pagination.page, pagination.totalPages, handlePageChange]);
 
@@ -1079,7 +1166,7 @@ export default function NewsActivitiesPage() {
             <div className="flex gap-2">
               <Button
                 onClick={handleAdd}
-                className="bg-gradient-to-r from-blue-500 to-purple-600"
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 إضافة خبر/نشاط جديد
@@ -1088,6 +1175,7 @@ export default function NewsActivitiesPage() {
                 variant="outline"
                 onClick={handleRefresh}
                 disabled={activitiesLoading}
+                className="hover:scale-105 transition-transform duration-200 ease-out"
               >
                 <RefreshCw
                   className={`w-4 h-4 mr-2 ${
@@ -1100,6 +1188,7 @@ export default function NewsActivitiesPage() {
             <Button
               variant="outline"
               onClick={handleCategoriesDialog}
+              className="hover:scale-105 transition-transform duration-200 ease-out"
             >
               إدارة الفئات
             </Button>
@@ -1107,53 +1196,85 @@ export default function NewsActivitiesPage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <StatsCard
-              title="إجمالي الأخبار"
-              value={useMemo(() => 
-                newsActivities.filter((item) => item.type === "news").length,
-                [newsActivities]
-              )}
-              icon={FileText}
-              iconBgColor="bg-blue-50"
-              iconColor="text-blue-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.1s" }}
+            >
+              <StatsCard
+                title="إجمالي الأخبار"
+                value={useMemo(
+                  () =>
+                    newsActivities.filter((item) => item.type === "news")
+                      .length,
+                  [newsActivities]
+                )}
+                icon={FileText}
+                iconBgColor="bg-blue-50"
+                iconColor="text-blue-600"
+              />
+            </div>
 
-            <StatsCard
-              title="إجمالي الأنشطة"
-              value={useMemo(() => 
-                newsActivities.filter((item) => item.type === "activity").length,
-                [newsActivities]
-              )}
-              icon={Heart}
-              iconBgColor="bg-green-50"
-              iconColor="text-green-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.2s" }}
+            >
+              <StatsCard
+                title="إجمالي الأنشطة"
+                value={useMemo(
+                  () =>
+                    newsActivities.filter((item) => item.type === "activity")
+                      .length,
+                  [newsActivities]
+                )}
+                icon={Heart}
+                iconBgColor="bg-green-50"
+                iconColor="text-green-600"
+              />
+            </div>
 
-            <StatsCard
-              title="المحتوى المنشور"
-              value={useMemo(() => 
-                newsActivities.filter((item) => item.status === "published").length,
-                [newsActivities]
-              )}
-              icon={Eye}
-              iconBgColor="bg-purple-50"
-              iconColor="text-purple-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <StatsCard
+                title="المحتوى المنشور"
+                value={useMemo(
+                  () =>
+                    newsActivities.filter((item) => item.status === "published")
+                      .length,
+                  [newsActivities]
+                )}
+                icon={Eye}
+                iconBgColor="bg-purple-50"
+                iconColor="text-purple-600"
+              />
+            </div>
 
-            <StatsCard
-              title="إجمالي المشاهدات"
-              value={useMemo(() => 
-                newsActivities.reduce((sum, item) => sum + item.views, 0).toLocaleString(),
-                [newsActivities]
-              )}
-              icon={BarChart3}
-              iconBgColor="bg-orange-50"
-              iconColor="text-orange-600"
-            />
+            <div
+              className="animate-fade-in-up"
+              style={{ animationDelay: "0.4s" }}
+            >
+              <StatsCard
+                title="إجمالي المشاهدات"
+                value={useMemo(
+                  () =>
+                    newsActivities
+                      .reduce((sum, item) => sum + item.views, 0)
+                      .toLocaleString(),
+                  [newsActivities]
+                )}
+                icon={BarChart3}
+                iconBgColor="bg-orange-50"
+                iconColor="text-orange-600"
+              />
+            </div>
           </div>
 
           {/* Featured News */}
-          <Card>
+          <Card
+            className="animate-fade-in-up"
+            style={{ animationDelay: "0.5s" }}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Award className="w-5 h-5" />
@@ -1163,21 +1284,29 @@ export default function NewsActivitiesPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {featuredNews.map((item) => (
-                  <FeaturedNewsCard
+                {featuredNews.map((item, index) => (
+                  <div
                     key={item.id}
-                    item={item}
-                    onView={handleView}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                  />
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${0.6 + index * 0.1}s` }}
+                  >
+                    <FeaturedNewsCard
+                      item={item}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
           {/* Filters */}
-          <Card>
+          <Card
+            className="animate-fade-in-up"
+            style={{ animationDelay: "0.7s" }}
+          >
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
@@ -1188,7 +1317,10 @@ export default function NewsActivitiesPage() {
                     className="w-full"
                   />
                 </div>
-                <Select value={filterType} onValueChange={handleFilterTypeChange}>
+                <Select
+                  value={filterType}
+                  onValueChange={handleFilterTypeChange}
+                >
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="فلترة حسب النوع" />
                   </SelectTrigger>
@@ -1198,7 +1330,10 @@ export default function NewsActivitiesPage() {
                     <SelectItem value="activity">أنشطة</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterStatus} onValueChange={handleFilterStatusChange}>
+                <Select
+                  value={filterStatus}
+                  onValueChange={handleFilterStatusChange}
+                >
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="فلترة حسب الحالة" />
                   </SelectTrigger>
@@ -1227,6 +1362,7 @@ export default function NewsActivitiesPage() {
                 <Button
                   variant={featuredOnly ? "default" : "outline"}
                   onClick={handleFeaturedFilter}
+                  className="hover:scale-105 transition-transform duration-200 ease-out"
                 >
                   <Star className="w-4 h-4 mr-2" />
                   المميزة فقط
@@ -1237,7 +1373,7 @@ export default function NewsActivitiesPage() {
 
           {/* Error Message */}
           {activitiesError && (
-            <Card className="border-red-200 bg-red-50">
+            <Card className="border-red-200 bg-red-50 animate-fade-in-up">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-red-700">
                   <span className="text-sm font-medium">
@@ -1248,7 +1384,7 @@ export default function NewsActivitiesPage() {
                     variant="outline"
                     size="sm"
                     onClick={handleRefresh}
-                    className="mr-auto"
+                    className="mr-auto hover:scale-105 transition-transform duration-200 ease-out"
                   >
                     <RefreshCw className="w-4 h-4 mr-2" />
                     إعادة المحاولة
@@ -1260,7 +1396,7 @@ export default function NewsActivitiesPage() {
 
           {/* Loading State */}
           {activitiesLoading && (
-            <Card>
+            <Card className="animate-fade-in-up">
               <CardContent className="p-8">
                 <div className="flex items-center justify-center gap-2">
                   <RefreshCw className="w-5 h-5 animate-spin" />
@@ -1271,14 +1407,17 @@ export default function NewsActivitiesPage() {
           )}
 
           {/* News & Activities List */}
-          <Card>
+          <Card
+            className="animate-fade-in-up"
+            style={{ animationDelay: "0.8s" }}
+          >
             <CardHeader>
               <CardTitle>جميع الأخبار والأنشطة ({pagination.total})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {filteredNewsActivities.length === 0 && !activitiesLoading ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-8 animate-fade-in-up">
                     <div className="text-gray-500 mb-4">
                       <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
                       <h3 className="text-lg font-medium mb-2">
@@ -1298,21 +1437,27 @@ export default function NewsActivitiesPage() {
                       <Button
                         variant="outline"
                         onClick={handleResetFilters}
+                        className="hover:scale-105 transition-transform duration-200 ease-out"
                       >
                         إعادة تعيين الفلاتر
                       </Button>
                     )}
                   </div>
                 ) : (
-                  filteredNewsActivities.map((item) => (
-                    <NewsActivityItem
+                  filteredNewsActivities.map((item, index) => (
+                    <div
                       key={item.id}
-                      item={item}
-                      onView={handleView}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      StatusBadge={StatusBadge}
-                    />
+                      className="animate-fade-in-up"
+                      style={{ animationDelay: `${0.8 + index * 0.05}s` }}
+                    >
+                      <NewsActivityItem
+                        item={item}
+                        onView={handleView}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        StatusBadge={StatusBadge}
+                      />
+                    </div>
                   ))
                 )}
               </div>
@@ -1322,21 +1467,27 @@ export default function NewsActivitiesPage() {
                 <div className="mt-6 pt-4 border-t">
                   <div className="flex items-center justify-between text-sm text-gray-600">
                     <span>
-                      عرض {paginationInfo.start} إلى {paginationInfo.end} من {paginationInfo.total} نتيجة
+                      عرض {paginationInfo.start} إلى {paginationInfo.end} من{" "}
+                      {paginationInfo.total} نتيجة
                     </span>
                     <span>
-                      الصفحة {paginationInfo.page} من {paginationInfo.totalPages}
+                      الصفحة {paginationInfo.page} من{" "}
+                      {paginationInfo.totalPages}
                     </span>
                   </div>
 
                   {/* Pagination Buttons */}
                   {pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-4">
+                    <div
+                      className="flex items-center justify-center gap-2 mt-4 animate-fade-in-up"
+                      style={{ animationDelay: "0.2s" }}
+                    >
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handlePageChange(pagination.page - 1)}
                         disabled={pagination.page <= 1}
+                        className="hover:scale-105 transition-transform duration-200 ease-out"
                       >
                         السابق
                       </Button>
@@ -1348,6 +1499,7 @@ export default function NewsActivitiesPage() {
                         size="sm"
                         onClick={() => handlePageChange(pagination.page + 1)}
                         disabled={pagination.page >= pagination.totalPages}
+                        className="hover:scale-105 transition-transform duration-200 ease-out"
                       >
                         التالي
                       </Button>
@@ -1369,7 +1521,10 @@ export default function NewsActivitiesPage() {
             }
           }}
         >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto close-left">
+          <DialogContent
+            dir="rtl"
+            className="max-w-4xl max-h-[90vh] overflow-y-auto close-left text-right rounded-xl shadow-xl border border-gray-100 transition-all duration-300 ease-out"
+          >
             <DialogHeader dir="rtl" className="text-right items-end">
               <DialogTitle className="w-full text-right">
                 {showEditDialog ? "تعديل" : "إضافة"}{" "}
@@ -1382,6 +1537,51 @@ export default function NewsActivitiesPage() {
             </DialogHeader>
 
             <div dir="rtl" className="space-y-6 text-right">
+              {/* Server Validation Errors */}
+              {validationErrors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 animate-fade-in-up">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="w-5 h-5 text-red-500 mt-0.5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800 mb-2">
+                        أخطاء في التحقق من صحة البيانات:
+                      </h4>
+                      <ul className="space-y-1">
+                        {validationErrors.map((error, index) => (
+                          <li
+                            key={index}
+                            className="text-sm text-red-700 flex items-start gap-2"
+                          >
+                            <span className="text-red-500 mt-0.5">•</span>
+                            <span>
+                              <span className="font-medium">
+                                {error.param}:
+                              </span>{" "}
+                              {error.msg}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                المعلومات الأساسية
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="العنوان" required>
                   <Input
@@ -1461,7 +1661,9 @@ export default function NewsActivitiesPage() {
                     id="publishDate"
                     type="date"
                     value={formData.publishDate || ""}
-                    onChange={(e) => updateFormField("publishDate", e.target.value)}
+                    onChange={(e) =>
+                      updateFormField("publishDate", e.target.value)
+                    }
                   />
                 </FormField>
               </div>
@@ -1474,7 +1676,9 @@ export default function NewsActivitiesPage() {
                       id="scheduledDate"
                       type="date"
                       value={formData.scheduledDate || ""}
-                      onChange={(e) => updateFormField("scheduledDate", e.target.value)}
+                      onChange={(e) =>
+                        updateFormField("scheduledDate", e.target.value)
+                      }
                     />
                   </FormField>
                   <FormField label="وقت الجدولة" required>
@@ -1482,19 +1686,25 @@ export default function NewsActivitiesPage() {
                       id="scheduledTime"
                       type="time"
                       value={formData.scheduledTime || ""}
-                      onChange={(e) => updateFormField("scheduledTime", e.target.value)}
+                      onChange={(e) =>
+                        updateFormField("scheduledTime", e.target.value)
+                      }
                     />
                   </FormField>
                 </div>
               )}
 
-              <FormField label="الملخص" required>
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                الملخص والمحتوى
+              </h4>
+              <FormField label="الملخص">
                 <Textarea
                   id="summary"
                   value={formData.summary || ""}
                   onChange={(e) => updateFormField("summary", e.target.value)}
-                  placeholder="أدخل ملخص مختصر للخبر/النشاط"
+                  placeholder="أدخل ملخص مختصر للخبر/النشاط (اختياري)"
                   rows={3}
+                  className="text-right"
                 />
               </FormField>
 
@@ -1517,6 +1727,31 @@ export default function NewsActivitiesPage() {
                 />
               </FormField>
 
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                الوسائط
+              </h4>
+              <FormField label="رابط فيديو يوتيوب (اختياري)">
+                <div className="space-y-1">
+                  <Input
+                    id="video"
+                    placeholder="مثال: https://youtu.be/XXXXXXXXXXX أو https://www.youtube.com/watch?v=XXXXXXXXXXX"
+                    value={(formData as any).video || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setFormData((prev) => ({ ...(prev as any), video: value }));
+                      if (!value || value.trim() === "") {
+                        setVideoError(null);
+                        return;
+                      }
+                      const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}([&?].*)?$/i;
+                      setVideoError(pattern.test(value.trim()) ? null : "يرجى إدخال رابط يوتيوب صالح");
+                    }}
+                  />
+                  {videoError && (
+                    <p className="text-xs text-red-600">{videoError}</p>
+                  )}
+                </div>
+              </FormField>
               <FormField label="الصورة الرئيسية" required>
                 <GalleryUpload
                   currentImages={formImages}
@@ -1544,21 +1779,34 @@ export default function NewsActivitiesPage() {
                 />
               </FormField>
 
-              <div className="flex items-center space-x-2 space-x-reverse">
+              <div className="h-px bg-gray-200" />
+              <h4 className="text-sm font-semibold text-gray-800 tracking-wide">
+                خيارات
+              </h4>
+              <div dir="ltr" className="flex items-center space-x-2">
                 <Switch
                   id="featured"
                   checked={formData.featured || false}
-                  onCheckedChange={(checked) => updateFormField("featured", checked)}
+                  onCheckedChange={(checked) =>
+                    updateFormField("featured", checked)
+                  }
                 />
                 <Label htmlFor="featured">مميز</Label>
               </div>
             </div>
 
-            <DialogFooter className="justify-start">
+            <DialogFooter
+              dir="rtl"
+              className="flex-row-reverse justify-start sticky bottom-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t mt-6 py-3 gap-3"
+            >
               <Button variant="outline" onClick={handleCloseDialog}>
                 إلغاء
               </Button>
-              <Button onClick={handleSave} disabled={loading}>
+              <Button
+                onClick={handleSave}
+                disabled={loading}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 {loading ? "جاري الحفظ..." : "حفظ"}
               </Button>
             </DialogFooter>
@@ -1567,15 +1815,15 @@ export default function NewsActivitiesPage() {
 
         {/* Delete Dialog */}
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <DialogContent>
-            <DialogHeader>
+          <DialogContent dir="rtl" className="text-right">
+            <DialogHeader className="text-right items-end">
               <DialogTitle>تأكيد الحذف</DialogTitle>
               <DialogDescription>
                 هل أنت متأكد من حذف "{selectedItem?.title}"؟ لا يمكن التراجع عن
                 هذا الإجراء.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
+            <DialogFooter dir="rtl" className="flex-row-reverse justify-start">
               <Button
                 variant="outline"
                 onClick={() => setShowDeleteDialog(false)}
@@ -1595,16 +1843,20 @@ export default function NewsActivitiesPage() {
 
         {/* Details Dialog */}
         <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto close-left">
-            <DialogHeader className="text-right">
+          <DialogContent
+            dir="rtl"
+            className="max-w-4xl max-h-[90vh] overflow-y-auto close-left text-right rounded-xl shadow-xl border border-gray-100 transition-all duration-300 ease-out"
+          >
+            <DialogHeader dir="rtl" className="text-left items-start">
               <DialogTitle>
                 تفاصيل {selectedItem?.type === "news" ? "الخبر" : "النشاط"}
               </DialogTitle>
+              <DialogDescription>{selectedItem?.title}</DialogDescription>
             </DialogHeader>
 
             {selectedItem && (
-              <div className="space-y-6">
-                <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
+              <div dir="rtl" className="space-y-6 text-right">
+                <div className="aspect-video rounded-lg overflow-hidden bg-gray-100 transition-transform duration-300 ease-out hover:scale-[1.01]">
                   <img
                     src={
                       toBackendUrl(selectedItem.imageUrl) || "/placeholder.svg"
@@ -1614,7 +1866,20 @@ export default function NewsActivitiesPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 mb-4">
+                  {/* Video Preview */}
+                  {getYouTubeEmbedUrl((selectedItem as any).video) && (
+                    <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                      <iframe
+                        src={`${getYouTubeEmbedUrl((selectedItem as any).video)}`}
+                        title="معاينة الفيديو"
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
+
+                <div className="flex items-center gap-2 mb-4 justify-start">
                   <Badge
                     className={
                       selectedItem.type === "news"
@@ -1634,11 +1899,9 @@ export default function NewsActivitiesPage() {
                   )}
                 </div>
 
-                <h3 className="font-bold text-2xl mb-4">
-                  {selectedItem.title}
-                </h3>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-gray-600">
+                <div className="h-px bg-gray-200" />
+                <h4 className="text-sm font-semibold text-gray-700">معلومات</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-sm text-gray-600 text-right">
                   <div>
                     <span className="font-medium">الكاتب:</span>{" "}
                     {selectedItem.author}
@@ -1659,19 +1922,24 @@ export default function NewsActivitiesPage() {
 
                 {selectedItem.summary && (
                   <div className="mb-6">
+                    <div className="h-px bg-gray-200 mb-3" />
                     <h4 className="font-bold mb-2">الملخص:</h4>
-                    <p className="text-gray-700 leading-relaxed">
+                    <p className="text-gray-700 leading-relaxed text-right">
                       {selectedItem.summary}
                     </p>
                   </div>
                 )}
 
-                <div className="max-w-none">
+                <div className="max-w-none p-4 bg-gray-50 rounded-lg border">
                   <h4 className="font-bold mb-2">المحتوى:</h4>
-                  <div className="ql-snow">
+                  <div className="ql-snow text-right">
                     <div
                       className="ql-editor"
-                      dir={(/[\u0600-\u06FF]/.test(selectedItem.content || "") ? "rtl" : "ltr") as any}
+                      dir={
+                        (/[\u0600-\u06FF]/.test(selectedItem.content || "")
+                          ? "rtl"
+                          : "ltr") as any
+                      }
                       dangerouslySetInnerHTML={{ __html: selectedItem.content }}
                     />
                   </div>
@@ -1679,8 +1947,9 @@ export default function NewsActivitiesPage() {
 
                 {selectedItem.tags && selectedItem.tags.length > 0 && (
                   <div className="mt-6">
+                    <div className="h-px bg-gray-200 mb-3" />
                     <h4 className="font-bold mb-2">الكلمات المفتاحية:</h4>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 justify-start">
                       {selectedItem.tags.map((tag: string, index: number) => (
                         <Badge key={index} variant="outline">
                           {tag}
@@ -1692,6 +1961,7 @@ export default function NewsActivitiesPage() {
 
                 {selectedItem.gallery && selectedItem.gallery.length > 0 && (
                   <div className="mt-6">
+                    <div className="h-px bg-gray-200 mb-3" />
                     <h4 className="font-bold mb-3">معرض الصور:</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {selectedItem.gallery.map((image: any, index: number) => (
@@ -1718,7 +1988,10 @@ export default function NewsActivitiesPage() {
               </div>
             )}
 
-            <DialogFooter className="justify-start">
+            <DialogFooter
+              dir="rtl"
+              className="flex-row-reverse justify-start sticky bottom-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t mt-6 py-3"
+            >
               <Button onClick={() => setShowDetailsDialog(false)}>إغلاق</Button>
             </DialogFooter>
           </DialogContent>

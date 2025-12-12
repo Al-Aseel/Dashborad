@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AuthService, type AuthUser } from "@/lib/auth";
 import { UsersService, type BackendUser } from "@/lib/users";
+import { clearAuthData } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 interface User extends AuthUser {}
@@ -33,12 +34,12 @@ export function useAuth() {
     const verify = async () => {
       if (isVerifying.current) return;
       isVerifying.current = true;
-      
+
       try {
         // Check if we have cached user data first
         const cachedUser = localStorage.getItem("userData");
         const cachedAuth = localStorage.getItem("isAuthenticated");
-        
+
         if (cachedUser && cachedAuth === "true") {
           try {
             const userData = JSON.parse(cachedUser);
@@ -56,14 +57,15 @@ export function useAuth() {
         const convertedUser = convertBackendUserToUser(me);
         setUser(convertedUser);
         setIsAuthenticated(true);
-        
+
         // Persist minimal user info for UX
         try {
-          const targetStorage = window.localStorage.getItem("auth_token")
-            ? window.localStorage
-            : window.sessionStorage;
-          targetStorage.setItem("userData", JSON.stringify(convertedUser));
-          targetStorage.setItem("isAuthenticated", "true");
+          // Always use localStorage for userData and isAuthenticated
+          window.localStorage.setItem(
+            "userData",
+            JSON.stringify(convertedUser)
+          );
+          window.localStorage.setItem("isAuthenticated", "true");
           if (!document.cookie.includes("isAuthenticated=true")) {
             document.cookie = "isAuthenticated=true; path=/";
           }
@@ -72,13 +74,11 @@ export function useAuth() {
         // 401 will be caught by interceptor and redirected; just reflect state
         setIsAuthenticated(false);
         setUser(null);
-        
+
         // Clear invalid cached data
         try {
           localStorage.removeItem("userData");
           localStorage.removeItem("isAuthenticated");
-          sessionStorage.removeItem("userData");
-          sessionStorage.removeItem("isAuthenticated");
         } catch {}
       } finally {
         setIsLoading(false);
@@ -86,7 +86,7 @@ export function useAuth() {
         isVerifying.current = false;
       }
     };
-    
+
     verify();
   }, []);
 
@@ -99,20 +99,21 @@ export function useAuth() {
     ): Promise<boolean> => {
       try {
         const response = await AuthService.login(email, password, rememberMe);
-        
+
         // After token is set by AuthService.login, fetch fresh user profile from server
         try {
           const me = await UsersService.getMyData();
           const convertedUser = convertBackendUserToUser(me);
           setUser(convertedUser);
-          
+
           // Persist minimal user info for UX
           try {
-            const targetStorage = window.localStorage.getItem("auth_token")
-              ? window.localStorage
-              : window.sessionStorage;
-            targetStorage.setItem("userData", JSON.stringify(convertedUser));
-            targetStorage.setItem("isAuthenticated", "true");
+            // Always use localStorage for userData and isAuthenticated
+            window.localStorage.setItem(
+              "userData",
+              JSON.stringify(convertedUser)
+            );
+            window.localStorage.setItem("isAuthenticated", "true");
             if (!document.cookie.includes("isAuthenticated=true")) {
               document.cookie = "isAuthenticated=true; path=/";
             }
@@ -121,7 +122,7 @@ export function useAuth() {
           // Fall back to user returned by login if getMyData fails
           setUser(response.data);
         }
-        
+
         setIsAuthenticated(true);
         isInitialized.current = true;
         return true;
@@ -137,43 +138,71 @@ export function useAuth() {
   const logout = useCallback(() => {
     try {
       AuthService.logout();
-    } catch {}
-    
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      isInitialized.current = false;
+      try {
+        // Ensure cached flags cleared
+        localStorage.removeItem("userData");
+        localStorage.removeItem("isAuthenticated");
+        document.cookie =
+          "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      } catch {}
+
+      // Dispatch logout event for refetch
+      window.dispatchEvent(new CustomEvent("logout"));
+
+      router.push("/login");
+    }
+  }, [router]);
+
+  // Handle authentication error response
+  const handleAuthError = useCallback(() => {
+    const errorResponse = {
+      status: "error",
+      message: "فشل في عملية تسجيل دخول",
+      details: {
+        message: "انتهت صلاحية الجلسة",
+      },
+    };
+
+    // Clear authentication data using the utility function
+    clearAuthData();
+
     setUser(null);
     setIsAuthenticated(false);
     isInitialized.current = false;
-    
-    // Clear cached data
-    try {
-      localStorage.removeItem("userData");
-      localStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("userData");
-      sessionStorage.removeItem("isAuthenticated");
-      document.cookie = "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    } catch {}
-    
-    router.push("/login");
-  }, [router]);
+
+    // Dispatch logout event for refetch
+    window.dispatchEvent(new CustomEvent("logout"));
+
+    return errorResponse;
+  }, []);
 
   // Logout from all devices
   const logoutAllDevices = useCallback(async () => {
     try {
       await AuthService.logoutAll();
     } catch {}
-    
+
     setUser(null);
     setIsAuthenticated(false);
     isInitialized.current = false;
-    
+
     // Clear cached data
     try {
       localStorage.removeItem("userData");
       localStorage.removeItem("isAuthenticated");
-      sessionStorage.removeItem("userData");
-      sessionStorage.removeItem("isAuthenticated");
-      document.cookie = "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie =
+        "isAuthenticated=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     } catch {}
-    
+
+    // Dispatch logout event for refetch
+    window.dispatchEvent(new CustomEvent("logout"));
+
     router.push("/login");
   }, [router]);
 

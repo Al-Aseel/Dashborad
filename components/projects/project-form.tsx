@@ -109,7 +109,9 @@ export function ProjectForm({
 
   const [newObjective, setNewObjective] = useState("");
   const [newActivity, setNewActivity] = useState("");
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     if (isOpen) {
@@ -127,7 +129,9 @@ export function ProjectForm({
           endDate: initialData.endDate || "",
           status: initialData.status || "مخطط",
           details: initialData.details || "",
-          mainImage: initialData.mainImage ? toBackendUrl(initialData.mainImage) : null,
+          mainImage: initialData.mainImage
+            ? toBackendUrl(initialData.mainImage)
+            : null,
           gallery: Array.isArray(initialData.gallery)
             ? initialData.gallery.map((g: any) => ({
                 ...g,
@@ -135,6 +139,8 @@ export function ProjectForm({
               }))
             : [],
         });
+        // Ensure existing cover image id is respected in edit mode
+        setCoverFileId(initialData.coverFileId || null);
         setObjectives(initialData.objectives || []);
         setActivities(initialData.activities || []);
       } else {
@@ -172,12 +178,22 @@ export function ProjectForm({
 
   // Upload handlers
   const handleCoverUpload = async (file: File) => {
+    // If there is an existing cover file, delete it first after successful new upload
+    const previousFileId = coverFileId;
     const res = await uploadImage(file);
     const data: any = res.data;
     const fileId = String(data?.id ?? data?._id ?? data?.fileName);
     setCoverFileId(fileId);
     if (data?.url) {
       setFormData((prev) => ({ ...prev, mainImage: toBackendUrl(data.url) }));
+    }
+    // Try to delete old cover image on server if present
+    if (previousFileId && previousFileId !== fileId) {
+      try {
+        await deleteUploadedImage(previousFileId);
+      } catch {
+        // ignore delete failure
+      }
     }
   };
 
@@ -190,7 +206,10 @@ export function ProjectForm({
         title: "",
         fileId: String(img?.id ?? img?._id ?? img?.fileName),
       }));
-      setFormData((prev: any) => ({ ...prev, gallery: [...prev.gallery, ...newItems] }));
+      setFormData((prev: any) => ({
+        ...prev,
+        gallery: [...prev.gallery, ...newItems],
+      }));
     } finally {
       setUploadingGallery(false);
     }
@@ -210,10 +229,10 @@ export function ProjectForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Clear previous validation errors
     setValidationErrors({});
-    
+
     // Validate required fields (client-side)
     const errors: Record<string, string> = {};
     if (!formData.description?.trim()) {
@@ -246,15 +265,18 @@ export function ProjectForm({
     }
 
     try {
-      await Promise.resolve(onSubmit({
-        ...formData,
-        objectives,
-        activities,
-        coverFileId,
-      }));
+      await Promise.resolve(
+        onSubmit({
+          ...formData,
+          objectives,
+          activities,
+          coverFileId,
+        })
+      );
     } catch (err: any) {
       // Map server-side validation errors if present
-      const serverDetails: Array<{ param?: string; msg?: string }> = err?.response?.data?.details || [];
+      const serverDetails: Array<{ param?: string; msg?: string }> =
+        err?.response?.data?.details || [];
       if (Array.isArray(serverDetails) && serverDetails.length > 0) {
         const mapped: Record<string, string> = {};
         for (const d of serverDetails) {
@@ -287,9 +309,14 @@ export function ProjectForm({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-right">{title}</DialogTitle>
+        <DialogContent
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          dir="rtl"
+        >
+          <DialogHeader className="pb-4">
+            <DialogTitle className="text-center text-xl font-semibold">
+              {title}
+            </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -337,7 +364,9 @@ export function ProjectForm({
                   className="text-right"
                 />
                 {validationErrors.location && (
-                  <p className="text-sm text-red-600">{validationErrors.location}</p>
+                  <p className="text-sm text-red-600">
+                    {validationErrors.location}
+                  </p>
                 )}
               </div>
 
@@ -381,7 +410,7 @@ export function ProjectForm({
                     setFormData((prev) => ({ ...prev, budget: e.target.value }))
                   }
                   className="text-right"
-                  placeholder="مثال: 100,000 ر.س"
+                  placeholder="مثال: 100,000 دولار"
                 />
               </div>
 
@@ -415,7 +444,9 @@ export function ProjectForm({
                   }
                 />
                 {validationErrors.startDate && (
-                  <p className="text-sm text-red-600">{validationErrors.startDate}</p>
+                  <p className="text-sm text-red-600">
+                    {validationErrors.startDate}
+                  </p>
                 )}
               </div>
 
@@ -433,7 +464,9 @@ export function ProjectForm({
                   }
                 />
                 {validationErrors.endDate && (
-                  <p className="text-sm text-red-600">{validationErrors.endDate}</p>
+                  <p className="text-sm text-red-600">
+                    {validationErrors.endDate}
+                  </p>
                 )}
               </div>
             </div>
@@ -443,17 +476,27 @@ export function ProjectForm({
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value;
                   setFormData((prev) => ({
                     ...prev,
-                    description: e.target.value,
-                  }))
-                }
+                    description: value,
+                  }));
+                  if (value.trim().length > 6) {
+                    setValidationErrors((prev) => {
+                      if (!prev.description) return prev;
+                      const { description, ...rest } = prev;
+                      return rest;
+                    });
+                  }
+                }}
                 className="text-right"
                 rows={3}
               />
               {validationErrors.description && (
-                <p className="text-sm text-red-600">{validationErrors.description}</p>
+                <p className="text-sm text-red-600">
+                  {validationErrors.description}
+                </p>
               )}
             </div>
 
@@ -554,7 +597,9 @@ export function ProjectForm({
                 }
               />
               {validationErrors.content && (
-                <p className="text-sm text-red-600">{validationErrors.content}</p>
+                <p className="text-sm text-red-600">
+                  {validationErrors.content}
+                </p>
               )}
             </div>
 
@@ -581,8 +626,16 @@ export function ProjectForm({
             <div className="space-y-2">
               <CoverImageUpload
                 currentImage={formData.mainImage}
-                onImageChange={(image) => setFormData((prev) => ({ ...prev, mainImage: image }))}
+                onImageChange={(image) =>
+                  setFormData((prev) => ({ ...prev, mainImage: image }))
+                }
                 onUpload={handleCoverUpload}
+                onRemove={async () => {
+                  if (coverFileId) {
+                    await deleteUploadedImage(coverFileId);
+                    setCoverFileId(null);
+                  }
+                }}
                 label="الصورة الرئيسية للمشروع"
                 required
               />
@@ -594,7 +647,9 @@ export function ProjectForm({
             <div className="space-y-2">
               <GalleryUpload
                 currentImages={formData.gallery as any}
-                onImagesChange={(gallery) => setFormData((prev) => ({ ...prev, gallery }))}
+                onImagesChange={(gallery) =>
+                  setFormData((prev) => ({ ...prev, gallery }))
+                }
                 label="معرض الصور (اختياري)"
                 maxImages={10}
                 onUpload={handleGalleryUpload}
@@ -615,6 +670,7 @@ export function ProjectForm({
               <Button
                 type="submit"
                 disabled={isLoading} // تعطيل زر الإرسال أثناء التحميل
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
               >
                 {isLoading ? (
                   <>

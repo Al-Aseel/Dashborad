@@ -14,6 +14,7 @@ interface CoverImageUploadProps {
   required?: boolean;
   label?: string;
   onUpload?: (file: File) => Promise<any>; // Upload callback
+  onRemove?: () => Promise<any>; // Server-side remove callback
 }
 
 export function CoverImageUpload({
@@ -23,9 +24,11 @@ export function CoverImageUpload({
   required = false,
   label = "صورة الغلاف",
   onUpload,
+  onRemove,
 }: CoverImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
@@ -58,13 +61,14 @@ export function CoverImageUpload({
     // Compress image before preview/upload
     let processed = file;
     try {
-      const { compressImage, isImageFile } = await import("@/lib/image-compression");
+      const { compressImage, isImageFile } = await import(
+        "@/lib/image-compression"
+      );
       if (isImageFile(file)) {
-        const { file: compressed } = await compressImage(file, {
-          maxWidth: 1920,
-          maxHeight: 1080,
+        const compressed = await compressImage(file, {
+          maxWidthOrHeight: 1920,
           quality: 0.8,
-          format: "jpeg",
+          fileType: "image/jpeg",
         });
         processed = compressed;
       }
@@ -107,10 +111,26 @@ export function CoverImageUpload({
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
+    if (onRemove) {
+      setRemoving(true);
+      try {
+        await onRemove();
+        toast({ title: "نجح", description: "تم حذف الصورة بنجاح" });
+      } catch (error) {
+        toast({
+          title: "خطأ",
+          description: "فشل في حذف الصورة",
+          variant: "destructive",
+        });
+        setRemoving(false);
+        return;
+      }
+      setRemoving(false);
+    }
+
     onImageChange(null);
 
-    // Also clear the file object if callback is provided
     if (onFileChange) {
       onFileChange(null);
     }
@@ -159,7 +179,7 @@ export function CoverImageUpload({
               size="sm"
               className="absolute top-2 right-2 w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
               onClick={handleRemoveImage}
-              disabled={uploading}
+              disabled={uploading || removing}
             >
               <X className="w-4 h-4" />
             </Button>
@@ -170,7 +190,7 @@ export function CoverImageUpload({
               variant="outline"
               className="flex-1 bg-transparent"
               onClick={handleClick}
-              disabled={uploading}
+              disabled={uploading || removing}
             >
               <Camera className="w-4 h-4 mr-2" />
               تغيير الصورة
@@ -181,21 +201,29 @@ export function CoverImageUpload({
                 جاري الرفع...
               </Button>
             )}
+            {removing && (
+              <Button variant="outline" disabled className="px-4">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                جاري الحذف...
+              </Button>
+            )}
           </div>
         </div>
       ) : (
         <div
           className={`w-full h-48 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
-            uploading
+            uploading || removing
               ? "border-gray-400 bg-gray-50 cursor-not-allowed"
               : "hover:border-gray-400"
           }`}
           onClick={handleClick}
         >
-          {uploading ? (
+          {uploading || removing ? (
             <>
               <Loader2 className="w-12 h-12 text-gray-400 mb-2 animate-spin" />
-              <p className="text-gray-600 text-center">جاري رفع الصورة...</p>
+              <p className="text-gray-600 text-center">
+                {removing ? "جاري حذف الصورة..." : "جاري رفع الصورة..."}
+              </p>
             </>
           ) : (
             <>

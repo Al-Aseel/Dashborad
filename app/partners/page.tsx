@@ -105,6 +105,7 @@ export default function PartnersPage() {
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -132,6 +133,13 @@ export default function PartnersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
+  // Global stats from API (independent of filters/search)
+  const [globalStats, setGlobalStats] = useState({
+    totalPartners: 0,
+    activePartners: 0,
+    inactivePartners: 0,
+  });
+
   // Filtered partners
   const filteredPartners = useMemo(() => {
     return partners.filter((partner) => {
@@ -149,14 +157,14 @@ export default function PartnersPage() {
     });
   }, [partners, debouncedSearchTerm, statusFilter]);
 
-  // Stats
+  // Stats - استخدام الإحصائيات الكاملة من API بدلاً من البيانات المفلترة
   const stats = useMemo(
     () => ({
-      total: totalItems,
-      active: partners.filter((p) => p.status === "active").length,
-      inactive: partners.filter((p) => p.status === "inactive").length,
+      total: globalStats.totalPartners,
+      active: globalStats.activePartners,
+      inactive: globalStats.inactivePartners,
     }),
-    [partners, totalItems]
+    [globalStats]
   );
 
   // Reset form
@@ -176,14 +184,14 @@ export default function PartnersPage() {
   };
 
   // Load partners from API
-  const loadPartners = async (page = currentPage) => {
+  const loadPartners = async (page = currentPage, limit = pageSize) => {
     setIsLoadingPartners(true);
     try {
       const response = await getPartners({
         search: debouncedSearchTerm,
         status: statusFilter !== "all" ? statusFilter : undefined,
         page: page,
-        limit: pageSize,
+        limit: limit,
       });
 
       if (response.status === "sucsess") {
@@ -212,6 +220,16 @@ export default function PartnersPage() {
         setTotalPages(pagination.totalPages);
         setTotalItems(pagination.total);
         setCurrentPage(pagination.page);
+
+        // تحديث الإحصائيات الكاملة من API response
+        const resAny = response as any;
+        setGlobalStats({
+          totalPartners: resAny.totalNumberOfPartners || 0,
+          activePartners: resAny.numberOfActivePartners || 0,
+          inactivePartners:
+            (resAny.totalNumberOfPartners || 0) -
+            (resAny.numberOfActivePartners || 0),
+        });
       } else {
         throw new Error(response.message || "فشل في تحميل الشركاء");
       }
@@ -262,17 +280,17 @@ export default function PartnersPage() {
       // استدعاء API لإنشاء الشريك
       const response = await createPartner(apiData);
 
-             if (response.status === "sucsess") {
-         closeAddDialog();
+      if (response.status === "sucsess") {
+        closeAddDialog();
 
-         // تحديث قائمة الشركاء لرؤية الشريك الجديد
-         await loadPartners(currentPage);
+        // تحديث قائمة الشركاء لرؤية الشريك الجديد
+        await loadPartners(currentPage);
 
-         toast({
-           title: "تم بنجاح",
-           description: response.message || "تم إضافة الشريك بنجاح",
-         });
-       } else {
+        toast({
+          title: "تم بنجاح",
+          description: response.message || "تم إضافة الشريك بنجاح",
+        });
+      } else {
         throw new Error(response.message || "فشل في إنشاء الشريك");
       }
     } catch (error: any) {
@@ -281,7 +299,24 @@ export default function PartnersPage() {
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء إضافة الشريك";
       if (error.response?.data?.details) {
-        errorMessage = error.response.data.details.join("، ");
+        // التحقق من نوع details
+        if (
+          typeof error.response.data.details === "object" &&
+          error.response.data.details.msg
+        ) {
+          // إذا كان details كائن يحتوي على msg
+          errorMessage = error.response.data.details.msg;
+        } else if (Array.isArray(error.response.data.details)) {
+          // إذا كان details مصفوفة
+          const firstError = error.response.data.details[0];
+          if (firstError && firstError.msg) {
+            errorMessage = firstError.msg;
+          } else {
+            errorMessage = error.response.data.details.join("، ");
+          }
+        } else {
+          errorMessage = String(error.response.data.details);
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -403,17 +438,17 @@ export default function PartnersPage() {
         ...apiData,
       });
 
-             if (response.status === "sucsess") {
-         closeEditDialog();
+      if (response.status === "sucsess") {
+        closeEditDialog();
 
-         // تحديث قائمة الشركاء لرؤية التحديثات
-         await loadPartners(currentPage);
+        // تحديث قائمة الشركاء لرؤية التحديثات
+        await loadPartners(currentPage);
 
-         toast({
-           title: "تم بنجاح",
-           description: response.message || "تم تحديث بيانات الشريك بنجاح",
-         });
-       } else {
+        toast({
+          title: "تم بنجاح",
+          description: response.message || "تم تحديث بيانات الشريك بنجاح",
+        });
+      } else {
         throw new Error(response.message || "فشل في تحديث الشريك");
       }
     } catch (error: any) {
@@ -422,7 +457,24 @@ export default function PartnersPage() {
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء تحديث بيانات الشريك";
       if (error.response?.data?.details) {
-        errorMessage = error.response.data.details.join("، ");
+        // التحقق من نوع details
+        if (
+          typeof error.response.data.details === "object" &&
+          error.response.data.details.msg
+        ) {
+          // إذا كان details كائن يحتوي على msg
+          errorMessage = error.response.data.details.msg;
+        } else if (Array.isArray(error.response.data.details)) {
+          // إذا كان details مصفوفة
+          const firstError = error.response.data.details[0];
+          if (firstError && firstError.msg) {
+            errorMessage = firstError.msg;
+          } else {
+            errorMessage = error.response.data.details.join("، ");
+          }
+        } else {
+          errorMessage = String(error.response.data.details);
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -440,9 +492,56 @@ export default function PartnersPage() {
   };
 
   // Handle view partner
-  const openViewDialog = (partner: Partner) => {
-    setSelectedPartner(partner);
-    setIsViewDialogOpen(true);
+  const openViewDialog = async (partner: Partner) => {
+    setIsLoadingDetails(true);
+    try {
+      // جلب البيانات المحدثة من API
+      const response = await getPartner(partner._id || "");
+
+      if (response.status === "sucsess") {
+        // تحويل بيانات API إلى تنسيق النموذج
+        const apiPartner = response.data;
+        const transformedPartner = {
+          _id: apiPartner._id,
+          id: Date.now() + Math.random(), // توليد ID مؤقت
+          nameAr: apiPartner.name_ar,
+          nameEn: apiPartner.name_en || "",
+          type: apiPartner.type,
+          status: apiPartner.status,
+          email: apiPartner.email,
+          phone: (apiPartner as any).phone || "",
+          website: apiPartner.website || "",
+          joinDate: apiPartner.join_date,
+          logo: apiPartner.logo?.url || "",
+          logoFileId: apiPartner.logo?._id || "",
+        };
+
+        setSelectedPartner(transformedPartner);
+        setIsViewDialogOpen(true);
+      } else {
+        throw new Error(response.message || "فشل في جلب بيانات الشريك");
+      }
+    } catch (error: any) {
+      console.error("Error fetching partner details:", error);
+
+      // معالجة أخطاء API
+      let errorMessage = "حدث خطأ أثناء جلب بيانات الشريك";
+      if (error.response?.data?.details) {
+        errorMessage = error.response.data.details.join("، ");
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: "خطأ",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingDetails(false);
+    }
   };
 
   // Handle delete partner
@@ -459,18 +558,18 @@ export default function PartnersPage() {
       // استدعاء API لحذف الشريك
       const response = await deletePartner(selectedPartner._id || "");
 
-             if (response.status === "sucsess") {
-         setIsDeleteDialogOpen(false);
-         setSelectedPartner(null);
+      if (response.status === "sucsess") {
+        setIsDeleteDialogOpen(false);
+        setSelectedPartner(null);
 
-         // تحديث قائمة الشركاء لرؤية التغييرات
-         await loadPartners(currentPage);
+        // تحديث قائمة الشركاء لرؤية التغييرات
+        await loadPartners(currentPage);
 
-         toast({
-           title: "تم بنجاح",
-           description: response.message || "تم حذف الشريك بنجاح",
-         });
-       } else {
+        toast({
+          title: "تم بنجاح",
+          description: response.message || "تم حذف الشريك بنجاح",
+        });
+      } else {
         throw new Error(response.message || "فشل في حذف الشريك");
       }
     } catch (error: any) {
@@ -479,7 +578,12 @@ export default function PartnersPage() {
       // معالجة أخطاء API
       let errorMessage = "حدث خطأ أثناء حذف الشريك";
       if (error.response?.data?.details) {
-        errorMessage = error.response.data.details.join("، ");
+        // التأكد من أن details مصفوفة قبل استخدام join
+        if (Array.isArray(error.response.data.details)) {
+          errorMessage = error.response.data.details.join("، ");
+        } else {
+          errorMessage = String(error.response.data.details);
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error.message) {
@@ -512,20 +616,20 @@ export default function PartnersPage() {
 
   const getStatusColor = (status: string) => {
     return status === "active"
-      ? "bg-green-100 text-green-800"
-      : "bg-red-100 text-red-800";
+      ? "bg-primary/10 text-primary"
+      : "bg-muted text-muted-foreground";
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
       case "org":
-        return "bg-blue-100 text-blue-800";
+        return "bg-primary/10 text-primary";
       case "firm":
-        return "bg-purple-100 text-purple-800";
+        return "bg-primary/10 text-primary";
       case "member":
-        return "bg-orange-100 text-orange-800";
+        return "bg-primary/10 text-primary";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -591,7 +695,7 @@ export default function PartnersPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -602,7 +706,7 @@ export default function PartnersPage() {
           </div>
           <Button
             onClick={openAddDialog}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+            className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
           >
             <Plus className="w-4 h-4 ml-2" />
             إضافة شريك جديد
@@ -638,7 +742,7 @@ export default function PartnersPage() {
               <CardTitle className="text-sm font-medium">
                 الشركاء النشطون
               </CardTitle>
-              <Building className="h-4 w-4 text-green-600" />
+              <Building className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               {isLoadingPartners ? (
@@ -648,7 +752,7 @@ export default function PartnersPage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-primary">
                     {stats.active}
                   </div>
                   <p className="text-xs text-muted-foreground">شريك نشط</p>
@@ -662,7 +766,7 @@ export default function PartnersPage() {
               <CardTitle className="text-sm font-medium">
                 الشركاء غير النشطين
               </CardTitle>
-              <Building className="h-4 w-4 text-red-600" />
+              <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               {isLoadingPartners ? (
@@ -672,7 +776,7 @@ export default function PartnersPage() {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-2xl font-bold text-muted-foreground">
                     {stats.inactive}
                   </div>
                   <p className="text-xs text-muted-foreground">شريك غير نشط</p>
@@ -706,23 +810,29 @@ export default function PartnersPage() {
             </SelectContent>
           </Select>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">عرض:</span>
-            <Select 
-              value={pageSize.toString()} 
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              عرض:
+            </span>
+            <Select
+              value={pageSize.toString()}
               onValueChange={(value) => {
-                setPageSize(Number(value));
+                const newPageSize = Number(value);
+                setPageSize(newPageSize);
                 setCurrentPage(1);
-                loadPartners(1);
+                loadPartners(1, newPageSize);
               }}
             >
               <SelectTrigger className="w-20">
-                <SelectValue />
+                <SelectValue>
+                  {pageSize === 1000 ? "الكل" : pageSize}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="5">5</SelectItem>
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="20">20</SelectItem>
                 <SelectItem value="50">50</SelectItem>
+                <SelectItem value="1000">الكل</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -825,7 +935,7 @@ export default function PartnersPage() {
                           ) : (
                             <Button
                               onClick={openAddDialog}
-                              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                              className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
                             >
                               <Plus className="w-4 h-4 ml-2" />
                               إضافة أول شريك
@@ -923,101 +1033,112 @@ export default function PartnersPage() {
               </TableBody>
             </Table>
           </CardContent>
-          
-                     {/* Pagination */}
-           {!isLoadingPartners && totalPages > 1 && (
-             <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50/50">
-               <div className="text-sm text-muted-foreground">
-                 عرض {partners.length} من {totalItems} شريك
-               </div>
-                               <Pagination className="flex items-center">
-                  <PaginationContent className="gap-2">
-                   {/* Previous Button */}
-                   <PaginationItem>
-                     <PaginationPrevious 
-                       onClick={() => handlePageChange(currentPage - 1)}
-                       className={
-                         currentPage <= 1 || isLoadingPartners 
-                           ? "pointer-events-none opacity-50" 
-                           : "cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
-                       }
-                     />
-                   </PaginationItem>
-                   
-                   {/* First page */}
-                   {currentPage > 3 && (
-                     <>
-                       <PaginationItem>
-                         <PaginationLink
-                           onClick={() => handlePageChange(1)}
-                           className="cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 min-w-[40px] justify-center"
-                         >
-                           1
-                         </PaginationLink>
-                       </PaginationItem>
-                       {currentPage > 4 && (
-                         <PaginationItem>
-                           <PaginationEllipsis className="px-2" />
-                         </PaginationItem>
-                       )}
-                     </>
-                   )}
-                   
-                   {/* Current page and neighbors */}
-                   {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                     const page = currentPage - 1 + i;
-                     if (page < 1 || page > totalPages) return null;
-                     return (
-                       <PaginationItem key={page}>
-                         <PaginationLink
-                           onClick={() => handlePageChange(page)}
-                           isActive={page === currentPage}
-                           className={
-                             isLoadingPartners 
-                               ? "pointer-events-none opacity-50" 
-                               : "cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 min-w-[40px] justify-center"
-                           }
-                         >
-                           {page}
-                         </PaginationLink>
-                       </PaginationItem>
-                     );
-                   })}
-                   
-                   {/* Last page */}
-                   {currentPage < totalPages - 2 && (
-                     <>
-                       {currentPage < totalPages - 3 && (
-                         <PaginationItem>
-                           <PaginationEllipsis className="px-2" />
-                         </PaginationItem>
-                       )}
-                       <PaginationItem>
-                         <PaginationLink
-                           onClick={() => handlePageChange(totalPages)}
-                           className="cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 min-w-[40px] justify-center"
-                         >
-                           {totalPages}
-                         </PaginationLink>
-                       </PaginationItem>
-                     </>
-                   )}
-                   
-                   {/* Next Button */}
-                   <PaginationItem>
-                     <PaginationNext 
-                       onClick={() => handlePageChange(currentPage + 1)}
-                       className={
-                         currentPage >= totalPages || isLoadingPartners 
-                           ? "pointer-events-none opacity-50" 
-                           : "cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
-                       }
-                     />
-                   </PaginationItem>
-                 </PaginationContent>
-               </Pagination>
-             </div>
-           )}
+
+          {/* Pagination */}
+          {!isLoadingPartners && totalPages > 1 && pageSize !== 1000 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50/50">
+              <div className="text-sm text-muted-foreground">
+                {pageSize === 1000
+                  ? `عرض جميع الشركاء (${totalItems})`
+                  : `عرض ${partners.length} من ${totalItems} شريك`}
+              </div>
+              <Pagination className="flex items-center">
+                <PaginationContent className="gap-2">
+                  {/* Previous Button */}
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      className={
+                        currentPage <= 1 || isLoadingPartners
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+                      }
+                    />
+                  </PaginationItem>
+
+                  {/* First page */}
+                  {currentPage > 3 && (
+                    <>
+                      <PaginationItem>
+                        <PaginationLink
+                          onClick={() => handlePageChange(1)}
+                          className="cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 min-w-[40px] justify-center"
+                        >
+                          1
+                        </PaginationLink>
+                      </PaginationItem>
+                      {currentPage > 4 && (
+                        <PaginationItem>
+                          <PaginationEllipsis className="px-2" />
+                        </PaginationItem>
+                      )}
+                    </>
+                  )}
+
+                  {/* Current page and neighbors */}
+                  {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                    const page = currentPage - 1 + i;
+                    if (page < 1 || page > totalPages) return null;
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => handlePageChange(page)}
+                          isActive={page === currentPage}
+                          className={
+                            isLoadingPartners
+                              ? "pointer-events-none opacity-50"
+                              : "cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 min-w-[40px] justify-center"
+                          }
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+
+                  {/* Last page */}
+                  {currentPage < totalPages - 2 && (
+                    <>
+                      {currentPage < totalPages - 3 && (
+                        <PaginationItem>
+                          <PaginationEllipsis className="px-2" />
+                        </PaginationItem>
+                      )}
+                      <PaginationItem>
+                        <PaginationLink
+                          onClick={() => handlePageChange(totalPages)}
+                          className="cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200 min-w-[40px] justify-center"
+                        >
+                          {totalPages}
+                        </PaginationLink>
+                      </PaginationItem>
+                    </>
+                  )}
+
+                  {/* Next Button */}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      className={
+                        currentPage >= totalPages || isLoadingPartners
+                          ? "pointer-events-none opacity-50"
+                          : "cursor-pointer hover:bg-gray-100 hover:text-gray-900 transition-all duration-200"
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
+
+          {/* Show info when "All" is selected */}
+          {!isLoadingPartners && pageSize === 1000 && (
+            <div className="flex items-center justify-center px-6 py-4 border-t bg-gray-50/50">
+              <div className="text-sm text-muted-foreground">
+                عرض جميع الشركاء ({totalItems})
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Add Partner Dialog */}
@@ -1025,7 +1146,10 @@ export default function PartnersPage() {
           open={isAddDialogOpen}
           onOpenChange={(open) => (open ? openAddDialog() : closeAddDialog())}
         >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            dir="rtl"
+            className="max-w-2xl max-h-[90vh] overflow-y-auto text-right"
+          >
             <DialogHeader>
               <DialogTitle>إضافة شريك</DialogTitle>
             </DialogHeader>
@@ -1053,7 +1177,7 @@ export default function PartnersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">معلومات الاتصال *</Label>
+                <Label htmlFor="email">الايميل *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -1128,27 +1252,27 @@ export default function PartnersPage() {
                   }
                 />
               </div>
-                             <div className="md:col-span-2 space-y-2">
-                 <Label>لوجو الشريك *</Label>
-                 <p className="text-xs text-gray-500 mb-2">
-                   سيتم ضغط الصورة تلقائياً لتقليل حجمها مع الحفاظ على الجودة
-                 </p>
-                 <SingleImageUpload
-                   currentImage={formData.logo}
-                   currentFileId={formData.logoFileId}
-                   onImageChange={(image) =>
-                     setFormData((prev) => ({ ...prev, logo: image || "" }))
-                   }
-                   onFileIdChange={(fileId) =>
-                     setFormData((prev) => ({
-                       ...prev,
-                       logoFileId: fileId || "",
-                     }))
-                   }
-                   label="اضغط لاختيار صورة"
-                   required
-                   autoUpload={true}
-                 />
+              <div className="md:col-span-2 space-y-2">
+                <Label>لوجو الشريك *</Label>
+                <p className="text-xs text-gray-500 mb-2">
+                  سيتم ضغط الصورة تلقائياً لتقليل حجمها مع الحفاظ على الجودة
+                </p>
+                <SingleImageUpload
+                  currentImage={formData.logo}
+                  currentFileId={formData.logoFileId}
+                  onImageChange={(image) =>
+                    setFormData((prev) => ({ ...prev, logo: image || "" }))
+                  }
+                  onFileIdChange={(fileId) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      logoFileId: fileId || "",
+                    }))
+                  }
+                  label="اضغط لاختيار صورة"
+                  required
+                  autoUpload={true}
+                />
                 {formData.logo && (
                   <div className="mt-2">
                     <Label className="text-sm text-gray-500">
@@ -1168,11 +1292,15 @@ export default function PartnersPage() {
                 )}
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-start gap-3">
               <Button variant="outline" onClick={closeAddDialog}>
                 إلغاء
               </Button>
-              <Button onClick={handleAddPartner} disabled={isLoading}>
+              <Button
+                onClick={handleAddPartner}
+                disabled={isLoading}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 إضافة
               </Button>
@@ -1185,7 +1313,10 @@ export default function PartnersPage() {
           open={isEditDialogOpen}
           onOpenChange={(open) => (open ? null : closeEditDialog())}
         >
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent
+            dir="rtl"
+            className="max-w-2xl max-h-[90vh] overflow-y-auto text-right"
+          >
             <DialogHeader>
               <DialogTitle>تعديل بيانات الشريك</DialogTitle>
             </DialogHeader>
@@ -1212,7 +1343,7 @@ export default function PartnersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">معلومات الاتصال *</Label>
+                <Label htmlFor="edit-email">الايميل *</Label>
                 <Input
                   id="edit-email"
                   type="email"
@@ -1285,26 +1416,26 @@ export default function PartnersPage() {
                   }
                 />
               </div>
-                             <div className="md:col-span-2 space-y-2">
-                 <Label>لوجو الشريك</Label>
-                 <p className="text-xs text-gray-500 mb-2">
-                   سيتم ضغط الصورة تلقائياً لتقليل حجمها مع الحفاظ على الجودة
-                 </p>
-                 <SingleImageUpload
-                   currentImage={formData.logo}
-                   currentFileId={formData.logoFileId}
-                   onImageChange={(image) =>
-                     setFormData((prev) => ({ ...prev, logo: image || "" }))
-                   }
-                   onFileIdChange={(fileId) =>
-                     setFormData((prev) => ({
-                       ...prev,
-                       logoFileId: fileId || "",
-                     }))
-                   }
-                   label="اضغط لاختيار صورة"
-                   autoUpload={true}
-                 />
+              <div className="md:col-span-2 space-y-2">
+                <Label>لوجو الشريك</Label>
+                <p className="text-xs text-gray-500 mb-2">
+                  سيتم ضغط الصورة تلقائياً لتقليل حجمها مع الحفاظ على الجودة
+                </p>
+                <SingleImageUpload
+                  currentImage={formData.logo}
+                  currentFileId={formData.logoFileId}
+                  onImageChange={(image) =>
+                    setFormData((prev) => ({ ...prev, logo: image || "" }))
+                  }
+                  onFileIdChange={(fileId) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      logoFileId: fileId || "",
+                    }))
+                  }
+                  label="اضغط لاختيار صورة"
+                  autoUpload={true}
+                />
                 {formData.logo && (
                   <div className="mt-2">
                     <Label className="text-sm text-gray-500">
@@ -1324,11 +1455,15 @@ export default function PartnersPage() {
                 )}
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-start">
               <Button variant="outline" onClick={closeEditDialog}>
                 إلغاء
               </Button>
-              <Button onClick={handleUpdatePartner} disabled={isLoading}>
+              <Button
+                onClick={handleUpdatePartner}
+                disabled={isLoading}
+                className="btn-primary hover:scale-105 transition-transform duration-200 ease-out"
+              >
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 حفظ التغييرات
               </Button>
@@ -1338,114 +1473,178 @@ export default function PartnersPage() {
 
         {/* View Partner Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>تفاصيل الشريك</DialogTitle>
+          <DialogContent
+            dir="rtl"
+            className="max-w-3xl max-h-[90vh] overflow-y-auto text-right"
+          >
+            <DialogHeader className="border-b pb-4 ">
+              <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2 mt-4">
+                <Building className="h-6 w-6 text-primary" />
+                تفاصيل الشريك
+              </DialogTitle>
             </DialogHeader>
-            {selectedPartner && (
-              <div className="space-y-6 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {selectedPartner.logo ? (
-                      <img
-                        src={
-                          buildImageUrl(selectedPartner.logo) ||
-                          "/placeholder.svg"
-                        }
-                        alt={selectedPartner.nameAr}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Building className="w-8 h-8 text-gray-500" />
+
+            {isLoadingDetails ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="text-gray-600">جاري جلب البيانات...</span>
+                </div>
+              </div>
+            ) : selectedPartner ? (
+              <div className="py-6 space-y-8">
+                {/* Header Section - Logo and Basic Info */}
+                <div className="flex flex-col sm:flex-row items-start gap-6 p-6 bg-primary/5 rounded-xl border border-primary/20">
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden border-4 border-white">
+                      {selectedPartner.logo && selectedPartner.logo !== "" ? (
+                        <img
+                          src={
+                            buildImageUrl(selectedPartner.logo) ||
+                            "/placeholder.svg"
+                          }
+                          alt={
+                            selectedPartner.nameAr &&
+                            selectedPartner.nameAr !== ""
+                              ? selectedPartner.nameAr
+                              : "صورة الشريك"
+                          }
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Building className="w-12 h-12 text-gray-400" />
+                      )}
+                    </div>
+                    {selectedPartner.logo && selectedPartner.logo !== "" && (
+                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white px-2 py-1 rounded-full text-xs text-gray-500 shadow-sm border">
+                        {getImageSize(selectedPartner.logo)}
+                      </div>
                     )}
                   </div>
-                  {selectedPartner.logo && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      حجم الصورة: {getImageSize(selectedPartner.logo)}
+
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900 mb-1">
+                        {selectedPartner.nameAr && selectedPartner.nameAr !== ""
+                          ? selectedPartner.nameAr
+                          : "غير محدد"}
+                      </h3>
+                      <p className="text-lg text-gray-600">
+                        {selectedPartner.nameEn && selectedPartner.nameEn !== ""
+                          ? selectedPartner.nameEn
+                          : "غير محدد"}
+                      </p>
                     </div>
-                  )}
-                  <div>
-                    <h3 className="text-xl font-bold">
-                      {selectedPartner.nameAr}
-                    </h3>
-                    <p className="text-gray-600">{selectedPartner.nameEn}</p>
+
+                    <div className="flex flex-wrap gap-3">
+                      <Badge
+                        variant="outline"
+                        className="px-3 py-1 text-sm border-primary/20 text-primary bg-primary/5"
+                      >
+                        {selectedPartner.type && selectedPartner.type !== ""
+                          ? selectedPartner.type === "org"
+                            ? "مؤسسة"
+                            : selectedPartner.type === "firm"
+                            ? "شركة"
+                            : selectedPartner.type === "member"
+                            ? "فرد"
+                            : selectedPartner.type
+                          : "غير محدد"}
+                      </Badge>
+
+                      <Badge
+                        className={`px-3 py-1 text-sm ${getStatusColor(
+                          selectedPartner.status
+                        )}`}
+                      >
+                        {selectedPartner.status && selectedPartner.status !== ""
+                          ? selectedPartner.status === "active"
+                            ? "نشط"
+                            : "غير نشط"
+                          : "غير محدد"}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      النوع
-                    </Label>
-                    <p className="mt-1">
-                      {selectedPartner.type === "org"
-                        ? "مؤسسة"
-                        : selectedPartner.type === "firm"
-                        ? "شركة"
-                        : selectedPartner.type === "member"
-                        ? "فرد"
-                        : selectedPartner.type}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الحالة
-                    </Label>
-                    <p className="mt-1">
-                      <Badge className={getStatusColor(selectedPartner.status)}>
-                        {selectedPartner.status === "active"
-                          ? "نشط"
-                          : "غير نشط"}
-                      </Badge>
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      البريد الإلكتروني
-                    </Label>
-                    <p className="mt-1">{selectedPartner.email}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الهاتف
-                    </Label>
-                    <p className="mt-1">{selectedPartner.phone}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      الموقع الإلكتروني
-                    </Label>
-                    <p className="mt-1">
-                      <a
-                        href={
-                          selectedPartner.website.startsWith("http")
-                            ? selectedPartner.website
-                            : `https://${selectedPartner.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {selectedPartner.website}
-                      </a>
-                    </p>
-                  </div>
+                {/* Contact Information */}
+                <div className="space-y-6">
+                  <h4 className="text-lg font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
+                    <Users className="h-5 w-5 text-green-600" />
+                    معلومات التواصل
+                  </h4>
 
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">
-                      تاريخ الانضمام
-                    </Label>
-                    <p className="mt-1">
-                      {formatDate(selectedPartner.joinDate)}
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          البريد الإلكتروني
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                          <p className="text-gray-800 font-medium">
+                            {selectedPartner.email &&
+                            selectedPartner.email !== ""
+                              ? selectedPartner.email
+                              : "غير محدد"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          الموقع الإلكتروني
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                          {selectedPartner.website &&
+                          selectedPartner.website !== "" ? (
+                            <a
+                              href={
+                                selectedPartner.website.startsWith("http")
+                                  ? selectedPartner.website
+                                  : `https://${selectedPartner.website}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:text-primary/80 hover:underline font-medium flex items-center gap-1"
+                            >
+                              {selectedPartner.website}
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          ) : (
+                            <p className="text-gray-500">غير محدد</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <Label className="text-sm font-medium text-gray-600 mb-2 block">
+                          تاريخ الانضمام
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                          <p className="text-gray-800 font-medium">
+                            {selectedPartner.joinDate &&
+                            selectedPartner.joinDate !== ""
+                              ? formatDate(selectedPartner.joinDate)
+                              : "غير محدد"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-            <DialogFooter>
+            ) : null}
+
+            <DialogFooter className="border-t pt-4 sm:justify-start">
               <Button
                 variant="outline"
                 onClick={() => setIsViewDialogOpen(false)}
+                className="px-6 py-2"
               >
                 إغلاق
               </Button>
@@ -1455,7 +1654,7 @@ export default function PartnersPage() {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent dir="rtl" className="max-w-md text-right">
             <DialogHeader>
               <DialogTitle>تأكيد الحذف</DialogTitle>
               <DialogDescription>
@@ -1463,7 +1662,7 @@ export default function PartnersPage() {
                 استرجاعه لاحقاً.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-start">
               <Button
                 variant="outline"
                 onClick={() => setIsDeleteDialogOpen(false)}

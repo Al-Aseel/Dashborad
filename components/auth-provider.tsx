@@ -15,6 +15,11 @@ interface AuthContextType {
   logout: () => void;
   logoutAllDevices: () => Promise<void>;
   checkAuthStatus: () => boolean;
+  handleAuthError: () => {
+    status: "error";
+    message: string;
+    details: { message: string };
+  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

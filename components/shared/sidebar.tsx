@@ -12,13 +12,13 @@ import {
   MessageSquare,
   Settings,
   Users,
-  UserPlus2
-  
+  UserPlus2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useAuthContext } from "@/components/auth-provider";
+import { useWebsiteInfo } from "@/hooks/use-website-name";
 
 interface SidebarItem {
   icon: any;
@@ -76,9 +76,23 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
   const pathname = usePathname();
   const isRTL = language === "ar";
   const { user, isAuthenticated, isLoading } = useAuthContext();
+  const { websiteName, websiteLogo, mainColor } = useWebsiteInfo();
 
   const { isCollapsed, setCollapsed, isHydrated, shouldAnimate } =
     usePersistentSidebarState();
+
+  // Split website name into two lines: top and bottom
+  const [websiteNameTop, websiteNameBottom] = (() => {
+    const name = (websiteName || "").trim();
+    if (!name) return ["", ""];
+    const parts = name.split(/\s+/);
+    if (parts.length === 1) return [name, ""];
+    const midIndex = Math.ceil(parts.length / 2);
+    return [
+      parts.slice(0, midIndex).join(" "),
+      parts.slice(midIndex).join(" "),
+    ];
+  })();
 
   const sidebarItems: SidebarItem[] = [
     { icon: BarChart3, label: "نظرة عامة", key: "overview", href: "/" },
@@ -97,7 +111,12 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
     { icon: Heart, label: "المشاريع", key: "projects", href: "/projects" },
     { icon: FileText, label: "التقارير", key: "reports", href: "/reports" },
     { icon: Users, label: "الشركاء", key: "partners", href: "/partners" },
-    { icon: MessageSquare, label: "الرسائل", key: "messages" , href: "/messages" },
+    {
+      icon: MessageSquare,
+      label: "الرسائل",
+      key: "messages",
+      href: "/messages",
+    },
     { icon: UserPlus2, label: "المستخدمين", key: "users", href: "/users" },
     { icon: Archive, label: "الأرشيف", key: "archive", href: "/archive" },
     { icon: Settings, label: "الإعدادات", key: "settings", href: "/settings" },
@@ -140,13 +159,32 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           href="/"
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <Heart className="w-7 h-7 text-white" />
+          <div className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-gray-200">
+            {websiteLogo ? (
+              <img
+                src={websiteLogo}
+                alt="شعار الموقع"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{ backgroundColor: mainColor }}
+              >
+                <Heart className="w-7 h-7 text-white" />
+              </div>
+            )}
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-lg font-bold text-foreground">جمعية أصيل</h1>
-              <p className="text-sm text-muted-foreground">للتنمية الخيرية</p>
+              <h1 className="text-lg font-bold text-foreground leading-tight">
+                {websiteNameTop}
+              </h1>
+              {websiteNameBottom && (
+                <h2 className="text-lg font-bold text-foreground leading-tight">
+                  {websiteNameBottom}
+                </h2>
+              )}
             </div>
           )}
         </Link>
@@ -157,33 +195,48 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
           .filter((item) => {
             if (item.key === "users") {
               // Show Users link only when auth loaded and role is superadmin
-              return !isLoading && isAuthenticated && user?.role === "superadmin";
+              return (
+                !isLoading && isAuthenticated && user?.role === "superadmin"
+              );
+            }
+            if (item.key === "settings") {
+              // Show settings for subadmin+ (view-only for subadmin)
+              return (
+                !isLoading &&
+                isAuthenticated &&
+                (user?.role === "subadmin" ||
+                  user?.role === "admin" ||
+                  user?.role === "superadmin")
+              );
             }
             return true;
           })
           .map((item, index) => {
-          const isActive = isActiveRoute(item.href);
+            const isActive = isActiveRoute(item.href);
 
-          return (
-            <Link
-              key={index}
-              href={item.href}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 ${
-                isActive
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              } ${isRTL ? "flex-row" : ""} ${
-                isCollapsed ? "justify-center px-2" : ""
-              }`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!isCollapsed && (
-                <span className="font-medium">{item.label}</span>
-              )}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={index}
+                href={item.href}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-right transition-all duration-200 ${
+                  isActive
+                    ? "text-white shadow-lg"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                } ${isRTL ? "flex-row" : ""} ${
+                  isCollapsed ? "justify-center px-2" : ""
+                }`}
+                style={{
+                  backgroundColor: isActive ? mainColor : undefined,
+                }}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!isCollapsed && (
+                  <span className="font-medium">{item.label}</span>
+                )}
+              </Link>
+            );
+          })}
       </nav>
 
       {!isCollapsed && (
@@ -207,7 +260,10 @@ export const Sidebar = ({ language = "ar" }: SidebarProps) => {
         <div className="border-t border-border pt-4">
           {!isCollapsed && user && (
             <div className="mb-3 text-center">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto mb-2 flex items-center justify-center">
+              <div
+                className="w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center"
+                style={{ backgroundColor: mainColor }}
+              >
                 <span className="text-white text-sm font-medium">
                   {user.name?.[0] || user.email[0].toUpperCase()}
                 </span>
