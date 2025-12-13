@@ -15,7 +15,7 @@ export const localApi = axios.create({
   timeout: 30000,
 });
 
-// Attach token from localStorage on each request
+// Attach token from localStorage on each request and handle FormData
 const attachAuthToken = (config: any) => {
   try {
     let token: string | null = null;
@@ -26,6 +26,11 @@ const attachAuthToken = (config: any) => {
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // If FormData, remove Content-Type to let browser set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
     }
   } catch {}
   return config;
@@ -41,10 +46,22 @@ const responseErrorHandler = (error: any) => {
     !error.response || // No response from server
     error.code === "ECONNABORTED" || // Timeout
     error.code === "ERR_NETWORK" || // Network error
+    error.code === "ERR_FAILED" || // Generic network failure
     error.message.includes("Network Error") ||
     error.message.includes("ERR_NETWORK") ||
+    error.message.includes("ERR_FAILED") ||
     error.message.includes("fetch") ||
     (error.response && error.response.status >= 500); // Server errors (5xx)
+  
+  // Log network errors for debugging
+  if (isServerError && typeof window !== "undefined") {
+    console.error("Network error:", {
+      code: error.code,
+      message: error.message,
+      url: error.config?.url,
+      method: error.config?.method,
+    });
+  }
 
   // Previously we dispatched a custom event for a ServerErrorProvider.
   // That provider has been removed, so we no longer emit any window events here.

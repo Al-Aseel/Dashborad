@@ -127,8 +127,9 @@ export const LogoUpload = ({
         formData,
         {
           headers: {
-            "Content-Type": "multipart/form-data",
+            // Don't set Content-Type manually - let the browser set it with boundary
           },
+          timeout: 90000, // Increased timeout for large files
         }
       );
 

@@ -22,7 +22,7 @@ export async function uploadPdf(file: File): Promise<UploadFileSuccess> {
     headers: {
       // Let the browser set multipart boundary automatically
     },
-    timeout: 60000,
+    timeout: 90000, // Increased timeout for large files
   });
   return response.data;
 }

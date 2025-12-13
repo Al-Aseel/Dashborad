@@ -35,7 +35,7 @@ export async function uploadPartnerImage(
     headers: {
       // لا نحدد Content-Type يدوياً - نترك المتصفح يحدده مع boundary
     },
-    timeout: 60000, // timeout أطول لرفع الملفات على الشبكات البطيئة
+    timeout: 90000, // timeout أطول لرفع الملفات على الشبكات البطيئة
   });
 
   return response.data;

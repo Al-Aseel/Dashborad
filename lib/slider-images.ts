@@ -48,9 +48,9 @@ export async function uploadImage(
 
   const response = await api.post("/upload/image", formData, {
     headers: {
-      "Content-Type": "multipart/form-data",
+      // Don't set Content-Type manually - let the browser set it with boundary
     },
-    timeout: 60000,
+    timeout: 90000, // Increased timeout for large files
   });
 
   const responseData = response.data.data || response.data;
