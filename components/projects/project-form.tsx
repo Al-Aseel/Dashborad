@@ -23,7 +23,7 @@ import { CoverImageUpload } from "@/components/shared/cover-image-upload";
 import { GalleryUpload } from "@/components/shared/gallery-upload";
 import { RichTextEditor } from "@/components/shared/rich-text-editor";
 import { useArrayManager } from "@/hooks/use-array-manager";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, X, Loader2, FileText, Upload } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
 import { useActivities } from "@/hooks/use-activities";
 import { toBackendUrl } from "@/lib/utils";
@@ -708,65 +708,70 @@ export function ProjectForm({
 
             <div className="space-y-2">
               <Label>ملف مرفق (اختياري)</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                {fileId && uploadedFileName ? (
+              {fileId && uploadedFileName ? (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-700">{uploadedFileName}</span>
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-8 h-8 text-blue-500" />
+                      <div>
+                        <p className="font-medium text-gray-900">{uploadedFileName}</p>
+                        <p className="text-sm text-gray-500">تم الرفع بنجاح</p>
+                      </div>
                     </div>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={handleRemoveFile}
                       disabled={uploadingFile}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
                     >
-                      <X className="w-4 h-4 ml-1" />
-                      إزالة
+                      <X className="w-4 h-4" />
                     </Button>
                   </div>
-                ) : (
-                  <div className="text-center">
-                    <input
-                      type="file"
-                      id="file-upload"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleFileUpload(file).catch((error) => {
-                            console.error("Upload failed:", error);
-                          });
-                        }
-                      }}
-                      accept="*/*"
-                    />
-                    <label htmlFor="file-upload">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={uploadingFile}
-                        className="cursor-pointer"
-                        asChild
-                      >
-                        <span>
-                          {uploadingFile ? (
-                            <>
-                              <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                              جاري الرفع...
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4 ml-2" />
-                              اختر ملف
-                            </>
-                          )}
-                        </span>
-                      </Button>
-                    </label>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors hover:border-gray-400">
+                  <input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFileUpload(file).catch((error) => {
+                          console.error("Upload failed:", error);
+                        });
+                      }
+                    }}
+                    accept="*/*"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    {uploadingFile ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="w-12 h-12 text-gray-400 animate-spin" />
+                        <p className="text-gray-600">جاري الرفع...</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload className="w-12 h-12 text-gray-400" />
+                        <p className="text-gray-600 mb-2">اضغط لاختيار ملف</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="mt-4 bg-transparent"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            document.getElementById("file-upload")?.click();
+                          }}
+                        >
+                          اختيار ملف
+                        </Button>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
