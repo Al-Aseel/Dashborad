@@ -25,6 +25,9 @@ export interface Settings {
   website: string;
   description: string;
   workingHours: string;
+  aboutUs_ar: string;
+  vision_ar: string;
+  mission_ar: string;
   _id: string;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +56,9 @@ export interface UpdateSettingsRequest {
   website: string;
   description: string;
   workingHours: string;
+  aboutUs_ar: string;
+  vision_ar: string;
+  mission_ar: string;
 }
 
 export interface ValidationError {

@@ -117,6 +117,9 @@ export default function SettingsPage() {
     website: "",
     description: "",
     workingHours: "",
+    aboutUs_ar: "",
+    vision_ar: "",
+    mission_ar: "",
   });
   const [logoImageUrl, setLogoImageUrl] = useState<string | null>(null);
 
@@ -196,6 +199,9 @@ export default function SettingsPage() {
         website: settings.website || "",
         description: settings.description || "",
         workingHours: settings.workingHours || "",
+        aboutUs_ar: settings.aboutUs_ar || "",
+        vision_ar: settings.vision_ar || "",
+        mission_ar: settings.mission_ar || "",
       });
 
       // حفظ URL الصورة
@@ -216,6 +222,58 @@ export default function SettingsPage() {
 
   // معالج حفظ الإعدادات
   const handleSaveSettings = async () => {
+    // Validate required fields
+    if (!formData.aboutUs_ar?.trim()) {
+      toast({
+        title: "خطأ في التحقق",
+        description: "حقل 'من نحن' مطلوب ولا يمكن تركه فارغاً",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!formData.vision_ar?.trim()) {
+      toast({
+        title: "خطأ في التحقق",
+        description: "حقل 'رؤيتنا' مطلوب ولا يمكن تركه فارغاً",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!formData.mission_ar?.trim()) {
+      toast({
+        title: "خطأ في التحقق",
+        description: "حقل 'رسالتنا' مطلوب ولا يمكن تركه فارغاً",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate max length
+    if (formData.aboutUs_ar.length > 2000) {
+      toast({
+        title: "خطأ في التحقق",
+        description: "حقل 'من نحن' يجب ألا يتجاوز 2000 حرف",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (formData.vision_ar.length > 2000) {
+      toast({
+        title: "خطأ في التحقق",
+        description: "حقل 'رؤيتنا' يجب ألا يتجاوز 2000 حرف",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (formData.mission_ar.length > 2000) {
+      toast({
+        title: "خطأ في التحقق",
+        description: "حقل 'رسالتنا' يجب ألا يتجاوز 2000 حرف",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (isAdmin) {
         await updateSettings(formData);
@@ -652,6 +710,99 @@ export default function SettingsPage() {
                   <ValidationErrors
                     errors={validationErrors}
                     fieldName="description"
+                  />
+                </div>
+
+                {/* من نحن */}
+                <div className="space-y-2">
+                  <Label htmlFor="aboutUs_ar">
+                    من نحن <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="aboutUs_ar"
+                    placeholder="اكتب نص 'من نحن' بالعربية"
+                    value={formData.aboutUs_ar || ""}
+                    onChange={(e) =>
+                      handleInputChange("aboutUs_ar", e.target.value)
+                    }
+                    disabled={!isAdmin}
+                    maxLength={2000}
+                    rows={6}
+                    className="resize-y"
+                  />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500">
+                      {formData.aboutUs_ar?.length || 0} / 2000 حرف
+                    </span>
+                    {!formData.aboutUs_ar?.trim() && (
+                      <span className="text-red-500">هذا الحقل مطلوب</span>
+                    )}
+                  </div>
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="aboutUs_ar"
+                  />
+                </div>
+
+                {/* رؤيتنا */}
+                <div className="space-y-2">
+                  <Label htmlFor="vision_ar">
+                    رؤيتنا <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="vision_ar"
+                    placeholder="اكتب نص 'رؤيتنا' بالعربية"
+                    value={formData.vision_ar || ""}
+                    onChange={(e) =>
+                      handleInputChange("vision_ar", e.target.value)
+                    }
+                    disabled={!isAdmin}
+                    maxLength={2000}
+                    rows={6}
+                    className="resize-y"
+                  />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500">
+                      {formData.vision_ar?.length || 0} / 2000 حرف
+                    </span>
+                    {!formData.vision_ar?.trim() && (
+                      <span className="text-red-500">هذا الحقل مطلوب</span>
+                    )}
+                  </div>
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="vision_ar"
+                  />
+                </div>
+
+                {/* رسالتنا */}
+                <div className="space-y-2">
+                  <Label htmlFor="mission_ar">
+                    رسالتنا <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="mission_ar"
+                    placeholder="اكتب نص 'رسالتنا' بالعربية"
+                    value={formData.mission_ar || ""}
+                    onChange={(e) =>
+                      handleInputChange("mission_ar", e.target.value)
+                    }
+                    disabled={!isAdmin}
+                    maxLength={2000}
+                    rows={6}
+                    className="resize-y"
+                  />
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-500">
+                      {formData.mission_ar?.length || 0} / 2000 حرف
+                    </span>
+                    {!formData.mission_ar?.trim() && (
+                      <span className="text-red-500">هذا الحقل مطلوب</span>
+                    )}
+                  </div>
+                  <ValidationErrors
+                    errors={validationErrors}
+                    fieldName="mission_ar"
                   />
                 </div>
 
