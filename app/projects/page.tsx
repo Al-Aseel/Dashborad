@@ -61,6 +61,7 @@ import {
   Activity,
   Loader2,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -69,6 +70,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Permissions } from "@/lib/auth";
 import { toBackendUrl } from "@/lib/utils";
 import { useCategories } from "@/hooks/use-categories";
+import { API_BASE_URL } from "@/lib/api";
 
 interface Project {
   id: string;
@@ -89,6 +91,7 @@ interface Project {
   mainImage?: string;
   gallery: Array<{ url: string; title: string; fileId?: string }>;
   coverFileId?: string;
+  fileId?: string; // File ID for optional file attachment
 }
 
 export default function ProjectsPage() {
@@ -198,6 +201,65 @@ export default function ProjectsPage() {
 
   const { toast } = useToast();
 
+  // Download file function
+  const handleDownloadFile = async (fileId: string) => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      // Get base URL (protocol + host) from API_BASE_URL
+      const getBaseUrl = () => {
+        try {
+          const url = new URL(API_BASE_URL);
+          return `${url.protocol}//${url.host}`;
+        } catch {
+          return API_BASE_URL.replace(/\/[^\/].*$/, "").replace(/\/$/, "");
+        }
+      };
+      const baseUrl = getBaseUrl();
+      const url = `${baseUrl}/${fileId}/file/download`;
+      
+      // For authenticated downloads, use fetch with token
+      const response = await fetch(url, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : {},
+      });
+      
+      if (!response.ok) {
+        throw new Error("فشل تحميل الملف");
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = "file";
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, "");
+        }
+      }
+      
+      // Create a temporary anchor element to trigger download
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error: any) {
+      toast({
+        title: "خطأ",
+        description: error.message || "فشل تحميل الملف",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Formatting helpers
   const formatNumber = (value: string | number) => {
     const n =
@@ -281,6 +343,9 @@ export default function ProjectsPage() {
       String(
         p?.coverImage?.id || p?.coverImage?._id || p?.coverImage?.fileName || ""
       ) || undefined,
+    fileId: p?.file
+      ? String(p.file?.id || p.file?._id || p.file?.fileName || p.file || "")
+      : undefined,
   });
 
   // Load programs from API
@@ -371,6 +436,7 @@ export default function ProjectsPage() {
         gallery: undefined as
           | Array<{ fileId: string; title?: string }>
           | undefined,
+        file: projectData.fileId || undefined,
       };
 
       // coverImage is required by API: ensure we pass the uploaded cover fileId
@@ -549,6 +615,10 @@ export default function ProjectsPage() {
               p?.coverImage?.fileName ||
               ""
           ) || undefined,
+        fileId: p?.file
+          ? String(p.file?.id || p.file?._id || p.file?.fileName || p.file || "")
+          : undefined,
+        fileName: p?.file?.originalName || p?.file?.fileName || undefined,
         _id: String(p._id || p.id || project.id),
       };
       setEditingProjectInitial(initial);
@@ -572,6 +642,7 @@ export default function ProjectsPage() {
         objectives: project.objectives || [],
         activities: project.activities || [],
         coverFileId: project.coverFileId,
+        fileId: project.fileId,
         _id: project.id,
       });
     } finally {
@@ -610,6 +681,7 @@ export default function ProjectsPage() {
         gallery: undefined as
           | Array<{ fileId: string; title?: string }>
           | undefined,
+        file: formValues.fileId || undefined,
       };
 
       if (formValues.coverFileId) {
@@ -875,6 +947,16 @@ export default function ProjectsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 justify-start md:justify-end">
+                          {project.fileId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadFile(project.fileId!)}
+                              title="تحميل الملف"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"

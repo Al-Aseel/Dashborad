@@ -27,6 +27,7 @@ import { Plus, X, Loader2 } from "lucide-react";
 import { useCategories } from "@/hooks/use-categories";
 import { useActivities } from "@/hooks/use-activities";
 import { toBackendUrl } from "@/lib/utils";
+import { uploadPdf, deleteFileById, extractUploadedFileId } from "@/lib/files";
 import {
   Dialog as BaseDialog,
   DialogContent as BaseDialogContent,
@@ -91,7 +92,10 @@ export function ProjectForm({
     gallery: [],
   });
   const [coverFileId, setCoverFileId] = useState<string | null>(null);
+  const [fileId, setFileId] = useState<string | null>(null);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
   const {
     items: objectives,
@@ -141,6 +145,8 @@ export function ProjectForm({
         });
         // Ensure existing cover image id is respected in edit mode
         setCoverFileId(initialData.coverFileId || null);
+        setFileId(initialData.fileId || null);
+        setUploadedFileName(initialData.fileName || null);
         setObjectives(initialData.objectives || []);
         setActivities(initialData.activities || []);
       } else {
@@ -162,6 +168,8 @@ export function ProjectForm({
         });
         setObjectives([]);
         setActivities([]);
+        setFileId(null);
+        setUploadedFileName(null);
       }
       setNewObjective("");
       setNewActivity("");
@@ -227,6 +235,45 @@ export function ProjectForm({
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    // If there is an existing file, delete it first after successful new upload
+    const previousFileId = fileId;
+    setUploadingFile(true);
+    try {
+      const res = await uploadPdf(file);
+      const uploadedId = extractUploadedFileId(res);
+      if (uploadedId) {
+        setFileId(uploadedId);
+        setUploadedFileName(file.name);
+        // Try to delete old file on server if present
+        if (previousFileId && previousFileId !== uploadedId) {
+          try {
+            await deleteFileById(previousFileId);
+          } catch {
+            // ignore delete failure
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("File upload error:", error);
+      throw error;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleRemoveFile = async () => {
+    if (fileId) {
+      try {
+        await deleteFileById(fileId);
+      } catch {
+        // ignore delete failure
+      }
+      setFileId(null);
+      setUploadedFileName(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -271,6 +318,7 @@ export function ProjectForm({
           objectives,
           activities,
           coverFileId,
+          fileId,
         })
       );
     } catch (err: any) {
@@ -656,6 +704,69 @@ export function ProjectForm({
                 uploading={uploadingGallery}
                 onRemove={handleRemoveGalleryImage}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>ملف مرفق (اختياري)</Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                {fileId && uploadedFileName ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700">{uploadedFileName}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRemoveFile}
+                      disabled={uploadingFile}
+                    >
+                      <X className="w-4 h-4 ml-1" />
+                      إزالة
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleFileUpload(file).catch((error) => {
+                            console.error("Upload failed:", error);
+                          });
+                        }
+                      }}
+                      accept="*/*"
+                    />
+                    <label htmlFor="file-upload">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingFile}
+                        className="cursor-pointer"
+                        asChild
+                      >
+                        <span>
+                          {uploadingFile ? (
+                            <>
+                              <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                              جاري الرفع...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4 ml-2" />
+                              اختر ملف
+                            </>
+                          )}
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

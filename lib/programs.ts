@@ -16,6 +16,7 @@ export interface CreateProgramBody {
   activities: string[];
   coverImage?: string; // fileId
   gallery?: Array<{ fileId: string; title?: string }>;
+  file?: string; // fileId for optional file attachment
 }
 
 export interface ApiResponse<T> {
