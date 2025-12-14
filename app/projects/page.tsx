@@ -201,10 +201,11 @@ export default function ProjectsPage() {
 
   const { toast } = useToast();
 
-  // Download file function
-  const handleDownloadFile = async (fileId: string) => {
+  // Download file function - uses program ID, not file ID
+  const handleDownloadFile = async (programId: string) => {
     try {
       const token = localStorage.getItem("auth_token");
+      // Use the API endpoint: GET /api/programs/:id/file/download
       // Get base URL (protocol + host) from API_BASE_URL
       const getBaseUrl = () => {
         try {
@@ -215,7 +216,7 @@ export default function ProjectsPage() {
         }
       };
       const baseUrl = getBaseUrl();
-      const url = `${baseUrl}/${fileId}/file/download`;
+      const url = `${baseUrl}/api/programs/${programId}/file/download`;
       
       // For authenticated downloads, use fetch with token
       const response = await fetch(url, {
@@ -951,7 +952,7 @@ export default function ProjectsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownloadFile(project.fileId!)}
+                              onClick={() => handleDownloadFile(project.id)}
                               title="تحميل الملف"
                             >
                               <Download className="w-4 h-4" />
@@ -1292,6 +1293,18 @@ export default function ProjectsPage() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {selectedProject.fileId && (
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => handleDownloadFile(selectedProject.id)}
+                      className="btn-primary"
+                    >
+                      <Download className="w-4 h-4 ml-2" />
+                      تحميل الملف المرفق
+                    </Button>
                   </div>
                 )}
               </div>
