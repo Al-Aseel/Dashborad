@@ -69,6 +69,7 @@ import { ProgramsApi } from "@/lib/programs";
 import { useAuth } from "@/hooks/use-auth";
 import { Permissions } from "@/lib/auth";
 import { toBackendUrl } from "@/lib/utils";
+import { toBackendUrl } from "@/lib/utils";
 import { useCategories } from "@/hooks/use-categories";
 import { API_BASE_URL } from "@/lib/api";
 
@@ -204,54 +205,18 @@ export default function ProjectsPage() {
   // Download file function - uses program ID, not file ID
   const handleDownloadFile = async (programId: string) => {
     try {
-      const token = localStorage.getItem("auth_token");
-      // Use the API endpoint: GET /api/programs/:id/file/download
-      // Get base URL (protocol + host) from API_BASE_URL
-      const getBaseUrl = () => {
-        try {
-          const url = new URL(API_BASE_URL);
-          return `${url.protocol}//${url.host}`;
-        } catch {
-          return API_BASE_URL.replace(/\/[^\/].*$/, "").replace(/\/$/, "");
-        }
-      };
-      const baseUrl = getBaseUrl();
-      const url = `${baseUrl}/api/programs/${programId}/file/download`;
-      
-      // For authenticated downloads, use fetch with token
-      const response = await fetch(url, {
-        headers: token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : {},
-      });
-      
-      if (!response.ok) {
-        throw new Error("فشل تحميل الملف");
+      // إذا كان البرنامج من السيرفر، اجلب تفاصيله للحصول على رابط الملف واسم الملف
+      let fileUrl: string | undefined;
+
+      const full: any = await ProgramsApi.getProgramById(programId);
+      const fileId = (full?.data?.data?.fileId ?? full?.data?.data?.file ?? full?.data?.file) as string;
+      if (fileId) {
+        const fileUrl = `/upload/file/${fileId}`;
+        const viewUrl = toBackendUrl(fileUrl);
+        window.open(viewUrl, "_blank", "noopener,noreferrer");
+      } else {
+        throw new Error("لا يوجد رابط ملف لهذا البرنامج");
       }
-      
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      // Get filename from Content-Disposition header or use default
-      const contentDisposition = response.headers.get("Content-Disposition");
-      let filename = "file";
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1].replace(/['"]/g, "");
-        }
-      }
-      
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
     } catch (error: any) {
       toast({
         title: "خطأ",
