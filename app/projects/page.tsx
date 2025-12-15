@@ -205,12 +205,18 @@ export default function ProjectsPage() {
   const handleDownloadFile = async (programId: string) => {
     try {
       // إذا كان البرنامج من السيرفر، اجلب تفاصيله للحصول على رابط الملف واسم الملف
+      const full: any = await ProgramsApi.getProgramById(programId);
+      const fileObj = (full?.data?.data?.file ??
+        full?.data?.file) as any;
       let fileUrl: string | undefined;
 
-      const full: any = await ProgramsApi.getProgramById(programId);
-      const fileId = (full?.data?.data?.fileId ?? full?.data?.data?.file ?? full?.data?.file) as string;
-      if (fileId) {
-        const fileUrl = `/upload/file/${fileId}`;
+      if (typeof fileObj === "object" && fileObj?.url) {
+        fileUrl = fileObj.url;
+      } else if (typeof fileObj === "string") {
+        fileUrl = `/upload/file/${fileObj}`;
+      }
+
+      if (fileUrl) {
         const viewUrl = toBackendUrl(fileUrl);
         window.open(viewUrl, "_blank", "noopener,noreferrer");
       } else {
