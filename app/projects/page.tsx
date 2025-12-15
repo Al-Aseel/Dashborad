@@ -69,7 +69,6 @@ import { ProgramsApi } from "@/lib/programs";
 import { useAuth } from "@/hooks/use-auth";
 import { Permissions } from "@/lib/auth";
 import { toBackendUrl } from "@/lib/utils";
-import { toBackendUrl } from "@/lib/utils";
 import { useCategories } from "@/hooks/use-categories";
 import { API_BASE_URL } from "@/lib/api";
 
